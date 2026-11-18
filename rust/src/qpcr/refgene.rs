@@ -4,12 +4,12 @@ use std::collections::BTreeMap;
 
 use crate::qpcr::model::Well;
 
-/// Mean Cq per (target, sample) from wells that pass QC.
-fn per_sample_means(wells: &[Well], targets: &[String]) -> BTreeMap<String, Vec<f64>> {
-    let mut out: BTreeMap<String, Vec<f64>> = BTreeMap::new();
-    for t in targets {
-        out.insert(t.clone(), Vec::new());
-    }
+/// Mean Cq per (target, sample) from wells that pass QC, keyed by sample id
+/// so pairing across targets stays correct when sample sets differ.
+fn per_sample_means(
+    wells: &[Well],
+    targets: &[String],
+) -> BTreeMap<String, BTreeMap<String, f64>> {
     let mut grouped: BTreeMap<(String, String), Vec<f64>> = BTreeMap::new();
     for w in wells {
         if !targets.contains(&w.target_id) {
@@ -22,16 +22,21 @@ fn per_sample_means(wells: &[Well], targets: &[String]) -> BTreeMap<String, Vec<
                 .push(cq);
         }
     }
-    for ((target, _), vals) in grouped {
+    let mut out: BTreeMap<String, BTreeMap<String, f64>> = BTreeMap::new();
+    for t in targets {
+        out.insert(t.clone(), BTreeMap::new());
+    }
+    for ((target, sample), vals) in grouped {
         let m = vals.iter().sum::<f64>() / vals.len() as f64;
         if let Some(v) = out.get_mut(&target) {
-            v.push(m);
+            v.insert(sample, m);
         }
     }
     out
 }
 
 /// geNorm M: for each reference j, `M_j = mean_k sd_i( -(Cq_ij - Cq_ik) )`.
+/// Pairs are matched by sample id (only shared samples contribute).
 /// Returns `(target, M)` sorted ascending (smaller = more stable).
 pub fn genorm_m(
     wells: &[Well],
@@ -49,14 +54,16 @@ pub fn genorm_m(
         let mut m_sum = 0.0;
         let mut pairs = 0usize;
         for (k, cq_k) in &means {
-            if j == k || cq_k.len() != cq_j.len() {
+            if j == k {
                 continue;
             }
             let diffs: Vec<f64> = cq_j
                 .iter()
-                .zip(cq_k.iter())
-                .map(|(a, b)| -(a - b))
+                .filter_map(|(s, a)| cq_k.get(s).map(|b| -(a - b)))
                 .collect();
+            if diffs.len() < 2 {
+                continue;
+            }
             if let Some((_, sd)) = super::stats::mean_sd(&diffs) {
                 m_sum += sd;
                 pairs += 1;

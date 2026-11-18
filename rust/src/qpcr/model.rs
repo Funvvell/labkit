@@ -158,6 +158,18 @@ pub struct QpcrResult {
     pub flags: Vec<QcFlag>,
 }
 
+/// Group comparison for one target across sample groups, computed on
+/// per-sample ΔCt (Welch t-test for 2 groups, one-way ANOVA for >=3).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GroupStat {
+    pub target_id: String,
+    pub method: String,
+    pub groups: Vec<String>,
+    pub statistic: f64,
+    pub p: f64,
+    pub detail: String,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct QpcrAnalysis {
     pub results: Vec<QpcrResult>,
@@ -165,6 +177,8 @@ pub struct QpcrAnalysis {
     pub ref_stability: Vec<(String, f64)>,
     pub ref_used: Vec<String>,
     pub warnings: Vec<String>,
+    #[serde(default)]
+    pub stats: Vec<GroupStat>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

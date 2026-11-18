@@ -451,6 +451,16 @@ IHC 测试覆盖：色彩反卷积正确性 · 阈值判定 · 密度图计算 �
 
 ---
 
+## 🧭 Rust / Tauri 版（活跃开发）
+
+仓库根的 Python/PySide6 版本保留作行为参照与回退；当前活跃开发的是 **Rust + Tauri 工具箱**（`rust/` + `frontend/index.html`）：
+
+- SDPC 解码 / ROI 裁剪 / TIFF 导出与 Python 版逐像素一致（parity 验证工具链见 `rust/tests/parity/`）
+- 内置 qPCR 数据分析工作区（ΔΔCt / geNorm / QC / Welch t / ANOVA）
+- 构建运行：`cd rust && cargo build --release`，详见 [`rust/README.md`](rust/README.md)
+
+---
+
 ## 📄 许可
 
 本项目基于 [MIT License](LICENSE) 开源。

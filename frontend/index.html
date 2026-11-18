@@ -713,6 +713,10 @@
               <div class="input"><span class="k">CV≤</span><input class="native-input" id="cvTh" type="number" value="0.05" step="0.01"></div>
               <div class="input"><span class="k">SD≤</span><input class="native-input" id="sdTh" type="number" value="0.25" step="0.05"></div>
             </div>
+            <div>
+              <div class="field-title">样本分组（组间检验，每行 样本名=组名）</div>
+              <textarea class="qpcr-paste" id="groupInput" style="min-height:64px" placeholder="对照-1=对照&#10;对照-2=对照&#10;处理-1=处理&#10;处理-2=处理"></textarea>
+            </div>
             <div class="hint"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 11V16M12 8V8.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>长/宽表均可，中英文列名自适应；仪器原始文件（.eds/.rex/.ixo/RDML）失败时自动回退通用表解析。</span></div>
           </aside>
           <div class="stage-wrap" style="background:#fff">
@@ -727,6 +731,9 @@
             <div class="divider"></div>
             <div class="field-title">QC 警告</div>
             <div class="warn-list" id="qpcrWarns"><span style="font-size:11px;color:var(--muted)">暂无</span></div>
+            <div class="divider"></div>
+            <div class="field-title">组间统计（基于 ΔCt）</div>
+            <div class="warn-list" id="qpcrGroupStats"><span style="font-size:11px;color:var(--muted)">配置样本分组后自动计算 Welch t / ANOVA</span></div>
           </aside>
         </div>
       </section>
@@ -778,7 +785,11 @@ function mockInvoke(cmd, args) {
     case 'init_engine': return ok('ready');
     case 'default_output_dir': return ok('~/liver_crop_output');
     case 'load_rois': return ok([]);
+    case 'save_rois': return ok('');
+    case 'cancel_export': return ok(null);
     case 'qpcr_default_design': return ok({});
+    case 'qpcr_save_session': return ok('');
+    case 'qpcr_load_session': return ok(null);
     case 'qpcr_parse_pasted': return ok(parsePasteLocal(args.text));
     case 'qpcr_new_run': return ok({id:'mock', name:args.source_name||'手动输入', wells:args.wells, design:{}, created_at:''});
     case 'qpcr_analyze': return ok(analyzeLocal(args.run));
@@ -1130,6 +1141,9 @@ let view={zoom:1,panX:0,panY:0};
 let selected=new Set(), primaryIdx=-1, lastMouse=null, mag=20, ratio='16:9';
 let slideInfo=null; let slideTiles=new Map(); let pendingTiles=new Set();
 let undoStack=[], redoStack=[];
+let pendingOpen=null;      /* {path,gen} — SDPC open queued on the decoder worker */
+let exporting=false;       /* an export job is in flight (button becomes cancel) */
+let roiDb=[], roiDbReady=false;  /* persisted ROIs of ALL slides, backend format */
 const stage=document.getElementById('stage'); const frame=document.getElementById('slideFrame');
 const viewport=document.getElementById('viewport');
 const slideImg=document.getElementById('slideImg'); const roiLayer=document.getElementById('roiLayer');
@@ -1139,13 +1153,27 @@ function setSlide(src,name){
   slideSrc=src;
   slideImg.onload=async()=>{
     layoutSlide();
-    rois=[];selected.clear();primaryIdx=-1;undoStack=[];redoStack=[];drawRois();
+    /* Restore persisted ROIs of this slide (regular images have no path). */
+    rois=currentSlidePath?roiDb.filter(r=>r.slide_path===currentSlidePath).map(r=>({x:r.x,y:r.y,w:r.w,h:r.h})):[];
+    selected.clear();primaryIdx=-1;undoStack=[];redoStack=[];drawRois();
     if(!slideInfo){await buildTilesFromImage();}else{scheduleTiles();}
   };
   slideImg.src=src;
   document.getElementById('miniImg').src=src;
   frame.classList.remove('hidden');miniNav.classList.remove('hidden');dropHint.classList.add('hidden');
   document.getElementById('cropFile').textContent=(name||'切片')+' · 已载入预览';
+}
+/* ---- ROI 会话持久化（~/.liver_portal_crop/session_rust.json，跨切片合并） ---- */
+async function ensureRoiDb(){
+  if(roiDbReady)return;
+  try{roiDb=await invoke('load_rois')||[];}catch(e){roiDb=[];}
+  roiDbReady=true;
+}
+function persistRois(){
+  if(!IN_TAURI||!currentSlidePath||!roiDbReady)return;
+  const mine=rois.map((r,i)=>({id:currentSlidePath+'#'+i,slide_path:currentSlidePath,x:r.x,y:r.y,w:r.w,h:r.h,angle:0,created_at:''}));
+  roiDb=roiDb.filter(r=>r.slide_path!==currentSlidePath).concat(mine);
+  invoke('save_rois',{rois:roiDb}).catch(()=>{});
 }
 function layoutSlide(){
   imgW=(slideInfo&&slideInfo.full_w)||slideImg.naturalWidth||100;
@@ -1201,8 +1229,8 @@ function dispToImg(){return (imgW&&baseW)?imgW/baseW:1}
 function snapshot(){undoStack.push(JSON.stringify(rois));if(undoStack.length>50)undoStack.shift();redoStack.length=0;}
 function clearSel(){selected.clear();primaryIdx=-1;}
 function selectOnly(i){selected.clear();selected.add(i);primaryIdx=i;}
-function undo(){if(!undoStack.length){toast('没有可撤销的操作');return}redoStack.push(JSON.stringify(rois));rois=JSON.parse(undoStack.pop());clearSel();drawRois();toast('已撤销');}
-function redo(){if(!redoStack.length){toast('没有可重做的操作');return}undoStack.push(JSON.stringify(rois));rois=JSON.parse(redoStack.pop());clearSel();drawRois();toast('已重做');}
+function undo(){if(!undoStack.length){toast('没有可撤销的操作');return}redoStack.push(JSON.stringify(rois));rois=JSON.parse(undoStack.pop());clearSel();drawRois();persistRois();toast('已撤销');}
+function redo(){if(!redoStack.length){toast('没有可重做的操作');return}undoStack.push(JSON.stringify(rois));rois=JSON.parse(redoStack.pop());clearSel();drawRois();persistRois();toast('已重做');}
 
 function drawRois(){
   const sf=dispToImg();
@@ -1283,7 +1311,7 @@ function placeRoiAt(){
   snapshot();
   rois.push({x:X,y:Y,w:fw,h:fh});
   selectOnly(rois.length-1);
-  drawRois();toast('已创建 ROI '+rois.length+'（'+fw+'×'+fh+' px @'+mag+'×）· 拖动移动 / 手柄调整');
+  drawRois();persistRois();toast('已创建 ROI '+rois.length+'（'+fw+'×'+fh+' px @'+mag+'×）· 拖动移动 / 手柄调整');
 }
 
 /* ---- 统一交互：命中 ROI → 拖动；命中角点 → 缩放；空白 → 平移 ---- */
@@ -1343,6 +1371,7 @@ window.addEventListener('mousemove',e=>{
 window.addEventListener('mouseup',()=>{
   if(!drag)return;
   if(drag.type==='pan')frame.classList.remove('panning');
+  if(drag.type==='move'||drag.type==='resize')persistRois();
   drag=null;
 });
 /* 滚轮缩放：以鼠标位置为中心（原版 WHEEL_FACTOR 1.15） */
@@ -1363,13 +1392,13 @@ window.addEventListener('keydown',e=>{
   if(tag==='input'||tag==='textarea'||tag==='select')return;
   if(e.code==='Space'){e.preventDefault();placeRoiAt();}
   else if(e.key==='Delete'||e.key==='Backspace'){
-    if(selected.size){snapshot();const ids=[...selected].sort((a,b)=>b-a);ids.forEach(i=>rois.splice(i,1));clearSel();drawRois();toast('已删除 '+ids.length+' 个 ROI');}
+    if(selected.size){snapshot();const ids=[...selected].sort((a,b)=>b-a);ids.forEach(i=>rois.splice(i,1));clearSel();drawRois();persistRois();toast('已删除 '+ids.length+' 个 ROI');}
   }
   else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'){e.preventDefault();rois.forEach((_,i)=>selected.add(i));primaryIdx=rois.length-1;drawRois();toast('已全选 '+rois.length+' 个 ROI');}
   else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d'){e.preventDefault();
     if(!selected.size)return;snapshot();
     const adds=[...selected].map(i=>({x:rois[i].x+30,y:rois[i].y+30,w:rois[i].w,h:rois[i].h}));
-    adds.forEach(a=>rois.push(a));selectOnly(rois.length-1);drawRois();toast('已复制 '+adds.length+' 个 ROI');}
+    adds.forEach(a=>rois.push(a));selectOnly(rois.length-1);drawRois();persistRois();toast('已复制 '+adds.length+' 个 ROI');}
   else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!e.shiftKey){e.preventDefault();undo();}
   else if((e.ctrlKey||e.metaKey)&&(e.key.toLowerCase()==='y'||(e.shiftKey&&e.key.toLowerCase()==='z'))){e.preventDefault();redo();}
   else if(e.key.toLowerCase()==='n'||e.key.toLowerCase()==='p'){e.preventDefault();jumpRoi(e.key.toLowerCase()==='n'?1:-1);}
@@ -1389,7 +1418,7 @@ window.addEventListener('resize',()=>{if(slideSrc&&!drag)layoutSlide()});
 
 document.getElementById('btnUndo').onclick=undo;
 document.getElementById('btnRedo').onclick=redo;
-document.getElementById('btnDelRoi').onclick=()=>{if(selected.size){snapshot();const ids=[...selected].sort((a,b)=>b-a);ids.forEach(i=>rois.splice(i,1));clearSel();drawRois();toast('已删除 '+ids.length+' 个 ROI')}else toast('先点击选中一个 ROI')};
+document.getElementById('btnDelRoi').onclick=()=>{if(selected.size){snapshot();const ids=[...selected].sort((a,b)=>b-a);ids.forEach(i=>rois.splice(i,1));clearSel();drawRois();persistRois();toast('已删除 '+ids.length+' 个 ROI')}else toast('先点击选中一个 ROI')};
 document.getElementById('btnFit').onclick=()=>fitToRoi(true);
 /* 倍率/比例：Python 原版换算（fov = FN 22mm / mag，比例按对角线分解，px = mm×1000/mpp） */
 function autoCalcFrame(){
@@ -1430,6 +1459,9 @@ let tileGen=0;
 function scheduleTiles(){
   clearTimeout(tileTimer);
   tileGen+=1;
+  /* The worker silently drops tiles of older generations; clear pending so
+     still-needed tiles are re-requested instead of being blocked forever. */
+  pendingTiles.clear();
   const g=tileGen;
   if(IN_TAURI&&slideInfo)invoke('begin_tiles',{gen:g}).catch(()=>{});
   tileTimer=setTimeout(()=>renderTiles(g),200);
@@ -1475,30 +1507,46 @@ async function buildTilesFromImage(){
   const TS=1024;
   const W=slideImg.naturalWidth,H=slideImg.naturalHeight;
   if(W*H>80e6)return;
-  const c=document.createElement('canvas');c.width=TS;c.height=TS;
+  const c=document.createElement('canvas');
   const ctx=c.getContext('2d');
   for(let ty=0;ty<H;ty+=TS)for(let tx=0;tx<W;tx+=TS){
     const tw=Math.min(TS,W-tx),th=Math.min(TS,H-ty);
-    ctx.clearRect(0,0,TS,TS);
+    /* Size the canvas to the actual tile: a fixed 1024² canvas would export
+       transparent padding that gets squashed into the tw×th display slot. */
+    c.width=tw;c.height=th;
     ctx.drawImage(slideImg,tx,ty,tw,th,0,0,tw,th);
     slideTiles.set('0_'+tx+'_'+ty+'_'+tw+'_'+th,c.toDataURL('image/jpeg',0.92));
     if(((ty/TS)|0)%4===3)await new Promise(r=>requestAnimationFrame(r));
   }
   renderTiles();
 }
-/* 统一轮询：瓦片就绪 + 导出事件（原版 poll 语义） */
+/* 统一轮询：切片打开 + 瓦片就绪/失败 + 导出事件（原版 poll 语义） */
 setInterval(async()=>{
-  if(!IN_TAURI||!slideSrc)return;
+  if(!IN_TAURI||(!slideSrc&&!pendingOpen))return;
   try{
     const evs=await invoke('poll_decoder',{max:64});
     let need=false;
     (evs||[]).forEach(ev=>{
-      if(ev.kind==='tile'&&ev.url){
+      if(ev.kind==='opened'&&pendingOpen&&ev.gen===pendingOpen.gen&&ev.thumb_url){
+        const p=pendingOpen.path;pendingOpen=null;
+        currentSlidePath=p;
+        slideInfo=ev.info;slideTiles.clear();pendingTiles.clear();
+        setSlide(ev.thumb_url,p.split(/[\\/]/).pop());
+        toast('切片已打开：'+ev.info.full_w+'×'+ev.info.full_h+(ev.info.mpp?(' · '+ev.info.mpp+' µm/px'):''));
+      }else if(ev.kind==='tile'&&ev.url){
         const k=[ev.key.level,ev.key.x,ev.key.y,ev.key.w,ev.key.h].join('_');
         slideTiles.set(k,ev.url);pendingTiles.delete(k);need=true;
+      }else if(ev.kind==='tile_failed'){
+        /* Release the pending slot so the tile can be retried on next render. */
+        const k=[ev.key.level,ev.key.x,ev.key.y,ev.key.w,ev.key.h].join('_');
+        pendingTiles.delete(k);
       }else if(ev.kind==='export'&&ev.event&&ev.event.Finished){
         const f=ev.event.Finished;
+        exporting=false;updateExportButtons();
         toast(f.cancelled?'导出已取消':('导出完成：成功 '+f.ok+' · 失败 '+f.failed));
+      }else if(ev.kind==='error'){
+        if(pendingOpen){pendingOpen=null;toast('打开失败：'+ev.err);}
+        else toast('解码提示：'+ev.err);
       }
     });
     if(need)renderTiles();
@@ -1526,22 +1574,23 @@ function openRoiEditor(i){
     r.y=Math.max(0,parseInt(document.getElementById('em_y').value)||0);
     r.w=Math.max(20,parseInt(document.getElementById('em_w').value)||r.w);
     r.h=Math.max(20,parseInt(document.getElementById('em_h').value)||r.h);
-    mask.remove();drawRois();toast('ROI '+(i+1)+' 坐标已更新');
+    mask.remove();drawRois();persistRois();toast('ROI '+(i+1)+' 坐标已更新');
   };
 }
 
 document.getElementById('btnOpenSlide').onclick=async()=>{
   if(IN_TAURI){
     try{
+      await ensureRoiDb();
       const p=await window.__TAURI__.dialog.open({filters:[{name:'SDPC 切片',extensions:['sdpc']},{name:'图片',extensions:['png','jpg','jpeg','tif','tiff']}]});
       if(!p)return;
+      persistRois();  /* flush the previous slide's ROIs before switching */
       if(String(p).toLowerCase().endsWith('.sdpc')){
         toast('正在解码 SDPC 切片…');
-        const opened=await invoke('open_slide',{path:String(p)});
-        currentSlidePath=String(p);
-        slideInfo=opened.info; slideTiles.clear(); pendingTiles.clear();
-        setSlide(opened.thumb_url,String(p).split(/[\\/]/).pop());
-        toast('切片已打开：'+opened.info.full_w+'×'+opened.info.full_h+(opened.info.mpp?(' · '+opened.info.mpp+' µm/px'):''));
+        /* Async open on the decoder worker: the DLL handle is opened once and
+           cached there; metadata + thumbnail arrive via poll_decoder. */
+        const gen=await invoke('enqueue_open',{path:String(p)});
+        pendingOpen={path:String(p),gen};
         return;
       }
       currentSlidePath=''; slideInfo=null; slideTiles.clear(); pendingTiles.clear();
@@ -1559,7 +1608,18 @@ stage.addEventListener('dragover',e=>{e.preventDefault();stage.style.outline='2p
 stage.addEventListener('dragleave',()=>stage.style.outline='');
 stage.addEventListener('drop',e=>{e.preventDefault();stage.style.outline='';const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')){slideInfo=null;slideTiles.clear();pendingTiles.clear();currentSlidePath='';setSlide(URL.createObjectURL(f),f.name)}});
 
+function updateExportButtons(){
+  ['btnExport','btnPreviewExport'].forEach(id=>{
+    const b=document.getElementById(id);
+    const tn=[...b.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());
+    if(tn)tn.textContent=exporting?'取消导出':(id==='btnExport'?'导出 TIFF':'预览并导出');
+  });
+}
 async function doExport(){
+  if(exporting){
+    try{await invoke('cancel_export');toast('已请求取消导出…');}catch(e){toast('取消失败：'+e)}
+    return;
+  }
   if(!rois.length){toast('请先创建至少一个 ROI');return}
   if(IN_TAURI){
     try{
@@ -1568,7 +1628,8 @@ async function doExport(){
       if(!dir)return;
       const mapped=rois.map(r=>({id:String(Date.now())+Math.random().toString(16).slice(2),slide_path:currentSlidePath,x:r.x,y:r.y,w:r.w,h:r.h,angle:0,created_at:''}));
       await invoke('export_rois',{rois:mapped,output_dir:String(dir),mag_label:mag+'x'});
-      toast('已提交导出 '+rois.length+' 个区域到 '+String(dir).split(/[\\/]/).pop());
+      exporting=true;updateExportButtons();
+      toast('已提交导出 '+rois.length+' 个区域到 '+String(dir).split(/[\\/]/).pop()+'（再点一次可取消）');
     }catch(e){toast('导出失败：'+e)}
   }else{toast('浏览器预览模式：导出 '+rois.length+' 个 ROI（真实导出需 Tauri + SDPC DLL）')}
 }
@@ -1632,7 +1693,7 @@ function analyzeLocal(run){
     if(ddct!=null)fc=Math.pow(2,-ddct);
     results.push({sample_id:s,target_id:t,group:null,mean_cq:tc,n_tech:wells.filter(w=>w.sample_id===s&&w.target_id===t).length,cv:null,delta_ct:dct,delta_delta_ct:ddct,fold_change:fc,efficiency:null,flags:[]});
   }));
-  return{results,ref_stability:[],ref_used:refs,warnings:[]};
+  return{results,ref_stability:[],ref_used:refs,warnings:[],stats:[]};
 }
 async function runQpcr(){
   let wells=qState.wells;
@@ -1646,11 +1707,17 @@ async function runQpcr(){
   if(!wells.length){toast('未解析出数据孔');return}
   try{
     const run=await invoke('qpcr_new_run',{wells,source_name:qState.wells===wells?'工作台数据':'粘贴数据'});
-    run.design={calibrator_sample:qState.calibrator||null,reference_targets:[...qState.refSet],target_ids:qState.targets,sample_groups:{},cv_threshold:parseFloat(document.getElementById('cvTh').value)||0.05,sd_threshold:parseFloat(document.getElementById('sdTh').value)||null,efficiency:{},ref_strategy:qState.refStrategy};
+    const groups={};
+    document.getElementById('groupInput').value.split(/\r?\n/).forEach(l=>{
+      const i=l.indexOf('=');
+      if(i>0){const k=l.slice(0,i).trim(),v=l.slice(i+1).trim();if(k&&v)groups[k]=v;}
+    });
+    run.design={calibrator_sample:qState.calibrator||null,reference_targets:[...qState.refSet],target_ids:qState.targets,sample_groups:groups,cv_threshold:parseFloat(document.getElementById('cvTh').value)||0.05,sd_threshold:parseFloat(document.getElementById('sdTh').value)||null,efficiency:{},ref_strategy:qState.refStrategy};
     let analysis=await invoke('qpcr_analyze',{run});
     if(!analysis||!analysis.results||!analysis.results.length)analysis=analyzeLocal(run);
     lastAnalysis=analysis;
     renderQpcr(analysis,wells.length);
+    if(IN_TAURI)invoke('qpcr_save_session',{run}).catch(()=>{});
     toast('分析完成：'+analysis.results.length+' 个结果 · 内参 '+(analysis.ref_used||[]).join('/'));
   }catch(e){toast('分析失败：'+e)}
 }
@@ -1710,6 +1777,9 @@ function renderQpcr(analysis,nwells){
   const warns=document.getElementById('qpcrWarns');
   const w=analysis.warnings||[];
   warns.innerHTML=w.length?w.map(x=>`<div class="warn">${esc(x)}</div>`).join(''):'<span style="font-size:11px;color:var(--muted)">全部通过质控</span>';
+  const gs=document.getElementById('qpcrGroupStats');
+  const st=analysis.stats||[];
+  gs.innerHTML=st.length?st.map(s=>`<div class="warn" style="background:rgba(0,122,255,.06);color:var(--ink-2)"><b>${esc(s.target_id)}</b> · ${esc(s.method)} · p=${Number(s.p).toFixed(4)}<br>${esc(s.detail)}（${esc((s.groups||[]).join(' vs '))}）</div>`).join(''):'<span style="font-size:11px;color:var(--muted)">配置样本分组后自动计算 Welch t / ANOVA</span>';
 }
 document.getElementById('btnQpcrExport').onclick=async()=>{
   if(!IN_TAURI){toast('浏览器预览模式：导出需 Tauri 运行时');return}
@@ -1734,6 +1804,21 @@ document.getElementById('btnQpcrExport').onclick=async()=>{
 })();
 invoke('init_engine').catch(()=>{});
 invoke('app_info').then(info=>{if(info&&info.version)document.querySelector('.side-foot').textContent='v'+info.version+' · Rust + Tauri'}).catch(()=>{});
+ensureRoiDb();
+/* Restore the last qPCR run (wells + design) from the independent session file. */
+if(IN_TAURI){
+  invoke('qpcr_load_session').then(run=>{
+    if(!run||!run.wells||!run.wells.length)return;
+    afterWells(run.wells);
+    const d=run.design||{};
+    if(d.reference_targets&&d.reference_targets.length)qState.refSet=new Set(d.reference_targets);
+    if(d.calibrator_sample)qState.calibrator=d.calibrator_sample;
+    if(d.ref_strategy)qState.refStrategy=d.ref_strategy;
+    document.getElementById('groupInput').value=Object.entries(d.sample_groups||{}).map(([k,v])=>k+'='+v).join('\n');
+    document.querySelectorAll('#refSeg button').forEach(b=>b.classList.toggle('active',b.dataset.ref===qState.refStrategy));
+    renderQConfig();
+  }).catch(()=>{});
+}
 </script>
 </body>
 </html>

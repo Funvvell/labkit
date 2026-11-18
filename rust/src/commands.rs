@@ -17,7 +17,6 @@ use crate::model::session as roi_session;
 use crate::model::{Roi, RoiStore};
 use crate::qpcr::model::{Design, QpcrAnalysis, QpcrRun, Well};
 use crate::render::texture::to_data_url;
-use crate::sdpc::{SlideInfo, SlideReader};
 
 /// Process-wide decoder handle. The DLL is not thread-safe; a single worker
 /// thread owns every FFI call (see `decode::worker`). Tauri commands lock this
@@ -25,6 +24,8 @@ use crate::sdpc::{SlideInfo, SlideReader};
 pub struct AppState {
     pub decode: Mutex<Option<DecodeHandle>>,
     pub generation: Mutex<u64>,
+    /// Cancel flag of the most recently submitted export job.
+    pub export_cancel: Mutex<Option<std::sync::Arc<std::sync::atomic::AtomicBool>>>,
 }
 
 impl AppState {
@@ -32,6 +33,7 @@ impl AppState {
         Self {
             decode: Mutex::new(None),
             generation: Mutex::new(0),
+            export_cancel: Mutex::new(None),
         }
     }
 
@@ -54,13 +56,6 @@ impl AppState {
 // If cloning is unavailable we fall back to locking on each command below.
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SlideOpened {
-    pub path: String,
-    pub info: SlideInfo,
-    pub thumb_url: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct TileResult {
     pub key: TileKey,
     pub url: String,
@@ -78,26 +73,6 @@ pub fn init_engine(state: tauri::State<'_, AppState>) -> Result<String, String> 
 }
 
 // ---------------------------- SDPC slides --------------------------------
-
-/// Open a slide synchronously (used for metadata + thumbnail). Export / tile
-/// streaming commands use the background worker via `enqueue_*` + `poll_*`.
-#[tauri::command]
-pub fn open_slide(path: String) -> Result<SlideOpened, String> {
-    // Guard: only .sdpc files may reach the closed-source decoder DLL.
-    if !path.to_lowercase().ends_with(".sdpc") {
-        return Err("仅支持 .sdpc 切片文件；普通图片请直接选择图片格式打开".into());
-    }
-    let p = PathBuf::from(&path);
-    let reader = SlideReader::open(&p).map_err(|e| e.to_string())?;
-    let info = reader.info().clone();
-    let thumb = reader.thumbnail().map_err(|e| e.to_string())?;
-    let thumb_url = to_data_url(&thumb).map_err(|e| e.to_string())?;
-    Ok(SlideOpened {
-        path,
-        info,
-        thumb_url,
-    })
-}
 
 /// Read a regular image file and return it as a PNG/JPEG data URL.
 /// Implemented in Rust on purpose: it bypasses the fs-plugin permission
@@ -127,12 +102,18 @@ pub fn read_file_as_data_url(path: String) -> Result<String, String> {
     Ok(format!("data:{mime};base64,{b64}"))
 }
 
+/// Queue a slide open on the decoder worker. The worker's `Opened` response
+/// (info + thumbnail) arrives via `poll_decoder`; the worker caches the
+/// reader, so the DLL handle is opened exactly once per slide.
 #[tauri::command]
 pub fn enqueue_open(state: tauri::State<'_, AppState>, path: String) -> Result<u64, String> {
+    // Guard: only .sdpc files may reach the closed-source decoder DLL.
+    if !path.to_lowercase().ends_with(".sdpc") {
+        return Err("仅支持 .sdpc 切片文件；普通图片请直接选择图片格式打开".into());
+    }
     let h = state.handle()?;
     let gen = state.next_gen();
     h.open(PathBuf::from(&path), gen);
-    h.request_thumbnail(PathBuf::from(&path), gen);
     Ok(gen)
 }
 
@@ -214,24 +195,6 @@ pub fn poll_decoder(
     Ok(out)
 }
 
-/// Decode a single region synchronously — convenient for the crop preview and
-/// for tools that need a one-shot tile without the streaming pipeline.
-#[tauri::command]
-pub fn read_region(
-    path: String,
-    level: u32,
-    x: i64,
-    y: i64,
-    w: i64,
-    h: i64,
-) -> Result<String, String> {
-    let reader = SlideReader::open(&PathBuf::from(&path)).map_err(|e| e.to_string())?;
-    let img = reader
-        .read_level_region(level, x as u32, y as u32, w as u32, h as u32)
-        .map_err(|e| e.to_string())?;
-    to_data_url(&img).map_err(|e| e.to_string())
-}
-
 // ---------------------------- ROI session --------------------------------
 
 #[tauri::command]
@@ -280,8 +243,23 @@ pub fn export_rois(
     let h = state.handle()?;
     let gen = state.next_gen();
     let opts = crate::export::ExportOptions::new(PathBuf::from(&output_dir), mag_label);
+    *state.export_cancel.lock().map_err(|e| e.to_string())? = Some(opts.cancel.clone());
     h.start_export(rois, opts, gen);
     Ok(gen)
+}
+
+/// Cancel the in-flight export job (checked between ROIs by `export_with`).
+#[tauri::command]
+pub fn cancel_export(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    if let Some(flag) = state
+        .export_cancel
+        .lock()
+        .map_err(|e| e.to_string())?
+        .as_ref()
+    {
+        flag.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+    Ok(())
 }
 
 #[tauri::command]

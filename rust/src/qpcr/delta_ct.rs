@@ -105,7 +105,14 @@ pub fn analyze_wells(
         v.dedup();
         v
     } else {
-        run.design.target_ids.clone()
+        // Explicit target lists must also exclude reference genes: reporting
+        // a reference as its own target yields meaningless fold changes.
+        run.design
+            .target_ids
+            .iter()
+            .filter(|t| !ref_used.contains(t))
+            .cloned()
+            .collect()
     };
 
     // Reference mean Cq for a sample (geometric mean of quantities == arithmetic
@@ -174,7 +181,9 @@ pub fn analyze_wells(
                                 .get(ref_used.first().map(String::as_str).unwrap_or(""))
                                 .copied()
                                 .unwrap_or(1.0);
-                            pfaffl_ratio(1.0 + e, cal_dct - dct, 1.0 + e_ref, cal_r - r_mean)
+                            // Pfaffl exponents are per-gene ΔCt(calibrator − sample):
+                            // target uses cal_t − t_mean, reference uses cal_r − r_mean.
+                            pfaffl_ratio(1.0 + e, cal_t - t_mean, 1.0 + e_ref, cal_r - r_mean)
                         }
                         _ => fold_change(d),
                     });

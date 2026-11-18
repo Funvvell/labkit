@@ -46,17 +46,16 @@ fn run_tauri() {
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
             pathology_crop_rs::commands::init_engine,
-            pathology_crop_rs::commands::open_slide,
             pathology_crop_rs::commands::read_file_as_data_url,
             pathology_crop_rs::commands::enqueue_open,
             pathology_crop_rs::commands::begin_tiles,
             pathology_crop_rs::commands::enqueue_tile,
             pathology_crop_rs::commands::poll_decoder,
-            pathology_crop_rs::commands::read_region,
             pathology_crop_rs::commands::load_rois,
             pathology_crop_rs::commands::save_rois,
             pathology_crop_rs::commands::create_roi,
             pathology_crop_rs::commands::export_rois,
+            pathology_crop_rs::commands::cancel_export,
             pathology_crop_rs::commands::default_output_dir,
             pathology_crop_rs::commands::qpcr_parse_csv_text,
             pathology_crop_rs::commands::qpcr_parse_csv_file,

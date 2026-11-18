@@ -24,7 +24,7 @@ src/commands.rs Tauri 命令层：把核心能力桥接给前端（新增）
 src/main.rs     Tauri 入口 + 无头 CLI（--info / --export 保留）
 frontend/       macOS 风格工具箱前端（单文件 index.html，新增）
 tools/          字体子集、图标、结构体偏移 dump 脚本
-tests/          单元测试（62 个核心测试全部保留并通过）
+tests/          单元测试（77 个全部通过，含 review 修复回归测试）
 ```
 
 ## 设计系统（前端 token）
@@ -89,7 +89,7 @@ python tests/parity/compare.py out/ref/manifest.json out/rust/manifest.json
 - 仪器原始文件：ABI/Thermo `.eds`、Qiagen `.rex`、Roche `.ixo/.lc96p`、RDML（由 `openreadout-qpcr` 解析，失败时自动回退通用表解析）
 - 界面内手动粘贴表格（从 Excel 直接复制即可）
 
-算法：技术重复取均值 → ΔCt / ΔΔCt / `2^-ΔΔCt`（可选 Pfaffl 效率）→ 多参考基因 geNorm 稳定性与几何平均 → CV/SD/IQR 异常孔**标记而非删除** → Welch t-test 与单因素 ANOVA。结果导出 CSV，会话独立存于 `~/.liver_portal_crop/qpcr_session_rust.json`。
+算法：技术重复取均值 → ΔCt / ΔΔCt / `2^-ΔΔCt`（可选 Pfaffl 效率）→ 多参考基因 geNorm 稳定性与几何平均 → CV/SD/IQR 异常孔**标记而非删除** → 按「样本分组」输入（每行 `样本名=组名`）做 Welch t-test（2 组）与单因素 ANOVA（≥3 组），基于 ΔCt。结果导出 CSV，会话独立存于 `~/.liver_portal_crop/qpcr_session_rust.json`（分析后自动保存，启动时恢复）。ROI 标注同样自动持久化到 `session_rust.json`，导出进行中可再次点击导出按钮取消。
 
 许可证说明：`openreadout-qpcr`（MIT OR Apache-2.0）只用于仪器文件解析；统计公式借鉴 qPCRtools（MIT）与 tidyqpcr（Apache-2.0），均为独立实现，不引入 GPL/LGPL 代码。
 
