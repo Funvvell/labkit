@@ -3,6 +3,8 @@
 use std::path::{Path, PathBuf};
 use std::ptr::NonNull;
 
+use serde::{Deserialize, Serialize};
+
 use crate::errors::{AppError, Result};
 use crate::geometry::Rect;
 use crate::sdpc::ffi::{self, SqSdpcInfo};
@@ -26,7 +28,7 @@ impl RgbImage {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LevelInfo {
     pub level: u32,
     pub width: u32,
@@ -34,7 +36,7 @@ pub struct LevelInfo {
     pub downsample: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SlideInfo {
     pub levels: Vec<LevelInfo>,
     pub full_w: i64,

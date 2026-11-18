@@ -1,9 +1,11 @@
 //! Tile selection for the current viewport, ported from
 //! `canvas.py::_get_best_level` / `_render_visible_tiles`.
+//!
+//! In the Tauri build the texture cache stores PNG data URLs instead of
+//! egui::TextureHandle; the WebView owns the actual GPU texture.
 
 use std::num::NonZeroUsize;
 
-use egui::TextureHandle;
 use lru::LruCache;
 
 pub use crate::decode::messages::TileKey;
@@ -57,9 +59,10 @@ pub fn visible_tiles(
     (level_info.level, tiles)
 }
 
-/// GPU texture LRU. Dropping a `TextureHandle` releases the texture.
+/// LRU of rendered PNG data URLs, keyed by tile. The WebView caches decoded
+/// bitmaps; this cache avoids re-encoding a tile the front-end already has.
 pub struct TileCache {
-    map: LruCache<TileKey, TextureHandle>,
+    map: LruCache<TileKey, String>,
 }
 
 impl TileCache {
@@ -69,12 +72,12 @@ impl TileCache {
         }
     }
 
-    pub fn get(&mut self, key: &TileKey) -> Option<TextureHandle> {
+    pub fn get(&mut self, key: &TileKey) -> Option<String> {
         self.map.get(key).cloned()
     }
 
-    pub fn insert(&mut self, key: TileKey, tex: TextureHandle) {
-        self.map.put(key, tex);
+    pub fn insert(&mut self, key: TileKey, url: String) {
+        self.map.put(key, url);
     }
 
     pub fn retain_level(&mut self, level: u32) {
@@ -95,6 +98,10 @@ impl TileCache {
 
     pub fn len(&self) -> usize {
         self.map.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.map.is_empty()
     }
 }
 

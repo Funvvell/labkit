@@ -1,27 +1,38 @@
-# 病理裁剪工具 · Rust 版
+# 工具箱 Toolbox · Rust/Tauri 版
 
-与 Python/PySide6 版并存的 Rust 重构，仅保留 **SDPC 切片浏览 + 矩形 ROI 裁切导出**。
+macOS 风格多功能工具箱（v0.2.0），由 egui 版重写而来：**UI 全部推翻重做，核心算法层原样复用**。
 Python 源码原样保留在仓库根目录，可作为行为参照与回退；本目录不修改任何 Python 文件。
 
 ## 技术栈
 
-- **GUI**：`egui 0.31` + `eframe`（Glow/OpenGL 后端，单二进制，无 Node/WebView）
+- **GUI**：`Tauri 2` + WebView2，前端为单文件 `frontend/index.html`（内联 CSS/JS，macOS Big Sur 玻璃质感，无边框窗口 + 自绘交通灯）
+- **核心（复用自 egui 版，算法零改动）**：SDPC FFI 解码、ROI 模型/撤销栈、TIFF 导出、qPCR 全套分析
 - **解码**：FFI 调用 `DecodeSdpcDll.dll`（来自 `sdpc-for-python`，Windows x64 专有闭源库）
 - **导出**：`tiff` + `flate2`（RGB8 / Deflate TIFF，与 Python 版 `tifffile` 像素一致）
-- **线程**：单个后台解码线程独占所有 DLL 调用（DLL 非线程安全），主线程只做 UI
+- **线程**：单个后台解码线程独占所有 DLL 调用（DLL 非线程安全），Tauri 命令只投递/拉取消息
 
 ## 目录
 
 ```
-src/sdpc/     唯一 unsafe 区：DLL 加载、GBK 路径、结构体偏移、区域解码
-src/decode/   后台解码线程 + 消息通道 + 取消
-src/render/   视口变换、金字塔瓦片选择、纹理 LRU
-src/model/    ROI、会话 JSON、撤销栈
-src/export/   居中裁剪、命名、TIFF 写入
-src/ui/       egui 界面（浅色默认 + 深色切换）
-tools/        字体子集、图标、结构体偏移 dump 脚本
-tests/        单元测试 + parity 对比脚本
+src/sdpc/       唯一 unsafe 区：DLL 加载、GBK 路径、结构体偏移、区域解码（复用）
+src/decode/     后台解码线程 + 消息通道 + 取消（复用）
+src/render/     视口变换、金字塔瓦片选择、PNG data-URL 编码（texture/tiles 去 egui 化）
+src/model/      ROI、会话 JSON、撤销栈（复用）
+src/export/     居中裁剪、命名、TIFF 写入（复用）
+src/qpcr/       qPCR 算法：ΔCt/ΔΔCt/geNorm/QC/统计（复用）
+src/commands.rs Tauri 命令层：把核心能力桥接给前端（新增）
+src/main.rs     Tauri 入口 + 无头 CLI（--info / --export 保留）
+frontend/       macOS 风格工具箱前端（单文件 index.html，新增）
+tools/          字体子集、图标、结构体偏移 dump 脚本
+tests/          单元测试（62 个核心测试全部保留并通过）
 ```
+
+## 设计系统（前端 token）
+
+主色 `#007AFF`（悬停 `#0062CC` / 浅色 `#E8F1FF`）；中性阶 `#1D1D1F → #3A3A3C → #8E8E93 → #AEAEB2 → #E5E5EA → #F5F5F7`；
+语义色 成功 `#30D158` / 警告 `#FF9F0A` / 危险 `#FF453A`；圆角 按钮 8 / 控件 12 / 卡片 16；
+间距基数 4/8/12/16/24；字体 系统栈（PingFang SC / Microsoft YaHei）+ 数字等宽 mono。
+完整规范见应用内「设计系统」页（侧栏 → 系统工具）。
 
 ## 构建与运行
 
@@ -72,22 +83,22 @@ python tests/parity/compare.py out/ref/manifest.json out/rust/manifest.json
 
 ## qPCR 数据处理
 
-在顶栏切换到「qPCR 分析」模式即可使用（该模式不加载 SDPC DLL）。三种输入：
+主界面点「qPCR 分析」进入工作区（该模式不加载 SDPC DLL）。三种输入：
 
 - 通用 CSV/TSV、Excel Cq 表：支持中英文列名（`样本/样品/sample_id`、`基因/target`、`Ct值/cq` 等），长表与宽表均可
 - 仪器原始文件：ABI/Thermo `.eds`、Qiagen `.rex`、Roche `.ixo/.lc96p`、RDML（由 `openreadout-qpcr` 解析，失败时自动回退通用表解析）
 - 界面内手动粘贴表格（从 Excel 直接复制即可）
 
-算法：技术重复取均值 → ΔCt / ΔΔCt / `2^-ΔΔCt`（可选 Pfaffl 效率）→ 多参考基因 geNorm 稳定性与几何平均 → CV/SD/IQR 异常孔**标记而非删除** → Welch t-test 与单因素 ANOVA。结果表支持按fold change条件着色，右栏显示 QC 警告；结果导出 CSV 到输出目录，会话独立存于 `~/.liver_portal_crop/qpcr_session_rust.json`（不覆盖切片裁剪会话）。
+算法：技术重复取均值 → ΔCt / ΔΔCt / `2^-ΔΔCt`（可选 Pfaffl 效率）→ 多参考基因 geNorm 稳定性与几何平均 → CV/SD/IQR 异常孔**标记而非删除** → Welch t-test 与单因素 ANOVA。结果导出 CSV，会话独立存于 `~/.liver_portal_crop/qpcr_session_rust.json`。
 
-许可证说明：`openreadout-qpcr`（MIT OR Apache-2.0）只用于仪器文件解析；统计公式借鉴 qPCRtools（MIT）与 tidyqpcr（Apache-2.0），均为独立实现，不引入 GPL/LGPL 代码。R 对照脚本见 `tests/qpcr_parity/compare.R`。
+许可证说明：`openreadout-qpcr`（MIT OR Apache-2.0）只用于仪器文件解析；统计公式借鉴 qPCRtools（MIT）与 tidyqpcr（Apache-2.0），均为独立实现，不引入 GPL/LGPL 代码。
 
-## 界面风格
+## 界面结构
 
-UI 按 `yetone/magpie` 的视觉语言重构：石墨色 212px 侧栏、46px 顶栏、40px 列表行、靛蓝强调色（浅 `#4F46E5` / 深 `#A5B4FC`）、0.5px 发丝分隔线、药丸按钮与分段切换、线性 Phosphor 图标、13px 紧凑排版。主题支持浅色 / 深色 / 跟随系统三态（顶栏按钮循环切换，默认跟随系统）；切片画布保持固定深底以确保 ROI 在 H&E 图像上清晰。面板与 Toast 有 0.24s 淡入，画布交互不加动画。
+三屏，与设计稿一致：
 
-## 快捷键
+1. **工具箱主窗口** — 交通灯标题栏 + 毛玻璃侧边栏（工作台 / 分类导航 / 添加工具）+ 最近使用四卡 + Bento 工具宫格
+2. **工具工作区** — 「左参数 / 中画布 / 右列表」三栏范式；图像裁剪与 qPCR 各一套，均接通真实 Tauri 命令
+3. **设计系统页** — 色彩 / 字体 / 组件 / 间距规范 + 新增工具清单
 
-`Space` 放置 ROI · `Del` 删除 · `Ctrl+Z/Y` 撤销重做 · `Ctrl+A` 全选 · `Ctrl+D` 复制 ·
-`N/P` 切换 ROI · `F/Home` 适配 · 滚轮以鼠标为中心缩放 · 左键拖拽平移 / 拖动 ROI ·
-`Ctrl+点击` 多选 · 双击列表精确编辑。
+其余工具卡（格式转换 / 批量重命名 / 正则测试 等）为扩展占位：按设计系统页的「新增工具清单」接入即可。前端在无 Tauri 运行时（直接用浏览器打开 index.html）会自动降级为本地演示模式。

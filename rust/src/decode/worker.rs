@@ -14,6 +14,9 @@ use crate::geometry::center_crop_rect;
 use crate::sdpc::SlideReader;
 
 /// Handle used by the UI. Every method is non-blocking.
+/// Clone is cheap: it only duplicates channel endpoints (Senders/Receiver),
+/// allowing Tauri commands to enqueue work without holding the state lock.
+#[derive(Clone)]
 pub struct DecodeHandle {
     high_tx: Sender<Request>,
     tile_tx: Sender<Request>,

@@ -8,6 +8,8 @@ use std::sync::Arc;
 
 use crate::errors::Result;
 use crate::export::tiff::write_rgb_tiff;
+use serde::Serialize;
+
 use crate::model::Roi;
 use crate::sdpc::RgbImage;
 
@@ -28,7 +30,7 @@ impl ExportOptions {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum ExportEvent {
     Progress { current: u32, total: u32 },
     FileDone { name: String, result: std::result::Result<(), String> },

@@ -6,11 +6,13 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+
 use crate::export::{ExportEvent, ExportOptions};
 use crate::model::Roi;
 use crate::sdpc::{RgbImage, SlideInfo};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TileKey {
     pub level: u32,
     pub x: u32,

@@ -1,11 +1,10 @@
-//! Build script.
-//!
-//! Kept intentionally free of external build tools (no `rc.exe`, no C compiler).
-//! The application icon is loaded at runtime from an embedded PNG.
+//! Build script: Tauri codegen + SDPC DLL discovery for the reused decoder.
 
 use std::path::PathBuf;
 
 fn main() {
+    tauri_build::build();
+
     println!("cargo:rerun-if-changed=sdpc/WINDOWS/dll");
     println!("cargo:rerun-if-env-changed=SDPC_DLL_DIR");
 
