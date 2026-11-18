@@ -1,0 +1,5 @@
+/target
+/out
+/sdpc/WINDOWS/dll/*.dll
+*.log
+.DS_Store
