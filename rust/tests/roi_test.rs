@@ -1,5 +1,5 @@
-use pathology_crop_rs::model::session::parse_rois;
-use pathology_crop_rs::model::{Roi, RoiStore};
+use labkit::model::session::parse_rois;
+use labkit::model::{Roi, RoiStore};
 use std::path::Path;
 
 fn roi(id: &str, path: &str, x: i64, y: i64) -> Roi {

@@ -17,8 +17,10 @@ pub const SMOOTH_RESTORE_MS: u64 = 300;
 pub const SESSION_DIR_NAME: &str = ".liver_portal_crop";
 pub const SESSION_FILE_NAME: &str = "session_rust.json";
 pub const QPPCR_SESSION_FILE_NAME: &str = "qpcr_session_rust.json";
+/// 科研台账库（Dashboard 卡片 + 九个子页共用同一份数据）。
+pub const DB_FILE_NAME: &str = "labkit_db.json";
 pub const LEGACY_SESSION_FILE_NAME: &str = "session.json";
-pub const DEFAULT_OUTPUT_DIR_NAME: &str = "liver_crop_output";
+pub const DEFAULT_OUTPUT_DIR_NAME: &str = "LabKit_Export";
 
 pub const DEFAULT_FRAME_W: i64 = 1024;
 pub const DEFAULT_FRAME_H: i64 = 1024;

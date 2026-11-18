@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use pathology_crop_rs::qpcr::model::Well;
-use pathology_crop_rs::qpcr::refgene::{genorm_m, geometric_mean_ref};
+use labkit::qpcr::model::Well;
+use labkit::qpcr::refgene::{genorm_m, geometric_mean_ref};
 
 #[test]
 fn stable_reference_has_smaller_m() {

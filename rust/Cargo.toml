@@ -1,17 +1,17 @@
 [package]
-name = "pathology-crop-rs"
+name = "labkit"
 version = "0.2.0"
 edition = "2021"
 rust-version = "1.91"
 build = "build.rs"
-description = "病理工具箱 — Tauri + Rust core (macOS-style multi-tool workbench)"
+description = "科研工具箱 LabKit — Tauri + Rust 科研工作台（病理切片裁剪 / qPCR / 科研管理）"
 
 [lib]
-name = "pathology_crop_rs"
+name = "labkit"
 path = "src/lib.rs"
 
 [[bin]]
-name = "pathology-crop-rs"
+name = "labkit"
 path = "src/main.rs"
 
 [dependencies]

@@ -1,8 +1,8 @@
 //! Application entry point.
 //!
 //! CLI modes (headless parity verification, unchanged from the egui build):
-//!   pathology-crop-rs --info <slide.sdpc>
-//!   pathology-crop-rs --export --slide <s.sdpc> --session <rois.json> --out <dir>
+//!   labkit --info <slide.sdpc>
+//!   labkit --export --slide <s.sdpc> --session <rois.json> --out <dir>
 //! With no arguments the Tauri macOS-style toolbox window starts.
 
 // Release 构建为 GUI 子系统：双击启动不再弹出命令行黑框。
@@ -11,8 +11,8 @@
 
 use std::path::PathBuf;
 
-use pathology_crop_rs::commands::AppState;
-use pathology_crop_rs::sdpc::SlideReader;
+use labkit::commands::AppState;
+use labkit::sdpc::SlideReader;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -22,6 +22,7 @@ fn main() {
         let result = match args[0].as_str() {
             "--info" => cmd_info(&args),
             "--export" => cmd_export(&args),
+            "--tileprobe" => cmd_tileprobe(&args),
             "--help" | "-h" => {
                 print_usage();
                 Ok(())
@@ -49,30 +50,38 @@ fn run_tauri() {
         .plugin(tauri_plugin_opener::init())
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
-            pathology_crop_rs::commands::init_engine,
-            pathology_crop_rs::commands::read_file_as_data_url,
-            pathology_crop_rs::commands::enqueue_open,
-            pathology_crop_rs::commands::begin_tiles,
-            pathology_crop_rs::commands::enqueue_tile,
-            pathology_crop_rs::commands::poll_decoder,
-            pathology_crop_rs::commands::load_rois,
-            pathology_crop_rs::commands::save_rois,
-            pathology_crop_rs::commands::create_roi,
-            pathology_crop_rs::commands::export_rois,
-            pathology_crop_rs::commands::cancel_export,
-            pathology_crop_rs::commands::default_output_dir,
-            pathology_crop_rs::commands::qpcr_parse_csv_text,
-            pathology_crop_rs::commands::qpcr_parse_csv_file,
-            pathology_crop_rs::commands::qpcr_parse_excel,
-            pathology_crop_rs::commands::qpcr_parse_instrument,
-            pathology_crop_rs::commands::qpcr_parse_pasted,
-            pathology_crop_rs::commands::qpcr_analyze,
-            pathology_crop_rs::commands::qpcr_new_run,
-            pathology_crop_rs::commands::qpcr_default_design,
-            pathology_crop_rs::commands::qpcr_load_session,
-            pathology_crop_rs::commands::qpcr_save_session,
-            pathology_crop_rs::commands::qpcr_export_csv,
-            pathology_crop_rs::commands::app_info,
+            labkit::commands::init_engine,
+            labkit::commands::read_file_as_data_url,
+            labkit::commands::enqueue_open,
+            labkit::commands::begin_tiles,
+            labkit::commands::enqueue_tile,
+            labkit::commands::fetch_tile,
+            labkit::commands::poll_decoder,
+            labkit::commands::load_rois,
+            labkit::commands::save_rois,
+            labkit::commands::create_roi,
+            labkit::commands::export_rois,
+            labkit::commands::cancel_export,
+            labkit::commands::default_output_dir,
+            labkit::commands::qpcr_parse_csv_text,
+            labkit::commands::qpcr_parse_csv_file,
+            labkit::commands::qpcr_parse_excel,
+            labkit::commands::qpcr_parse_instrument,
+            labkit::commands::qpcr_parse_pasted,
+            labkit::commands::qpcr_analyze,
+            labkit::commands::qpcr_new_run,
+            labkit::commands::qpcr_default_design,
+            labkit::commands::qpcr_load_session,
+            labkit::commands::qpcr_save_session,
+            labkit::commands::qpcr_export_csv,
+            labkit::commands::app_info,
+            labkit::commands::db_load,
+            labkit::commands::db_save,
+            labkit::commands::db_info,
+            labkit::commands::db_backup,
+            labkit::commands::db_export,
+            labkit::commands::db_import,
+            labkit::commands::db_reset,
         ])
         .run(tauri::generate_context!())
         .expect("启动工具箱失败");
@@ -80,13 +89,105 @@ fn run_tauri() {
 
 fn print_usage() {
     println!(
-        "病理工具箱 (Rust/Tauri)\n\
+        "科研工具箱 LabKit (Rust/Tauri)\n\
          \n\
          用法:\n  \
-         pathology-crop-rs                          启动图形界面\n  \
-         pathology-crop-rs --info <切片.sdpc>       打印切片元数据\n  \
-         pathology-crop-rs --export --slide <s.sdpc> --session <rois.json> --out <目录> [--mag 20]"
+         labkit                          启动图形界面\n  \
+         labkit --info <切片.sdpc>       打印切片元数据\n  \
+         labkit --tileprobe <切片.sdpc> [层级]  瓦片接缝/色差诊断\n  \
+         labkit --export --slide <s.sdpc> --session <rois.json> --out <目录> [--mag 20]"
     );
+}
+
+/// Diagnostics for the "seams / colour patches" question.
+///
+/// Decodes the same area twice — once as two 1024px tiles, once as a single
+/// 2048px region — and compares them pixel by pixel. If the DLL normalised
+/// each request independently the two would differ; if they are identical the
+/// decoder is geometry-independent and any patchwork must come from rendering.
+fn cmd_tileprobe(args: &[String]) -> labkit::errors::Result<()> {
+    let path = args
+        .get(1)
+        .map(PathBuf::from)
+        .ok_or_else(|| labkit::errors::AppError::Other("缺少切片路径".into()))?;
+    let reader = SlideReader::open(&path)?;
+    let info = reader.info();
+    let level: u32 = args
+        .get(2)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or((info.levels.len() / 2) as u32);
+    let lv = info
+        .levels
+        .get(level as usize)
+        .ok_or_else(|| labkit::errors::AppError::Other("层级不存在".into()))?;
+    if lv.width < 2048 || lv.height < 1024 {
+        return Err(labkit::errors::AppError::Other(
+            "该层级太小，请指定更精细的层级".into(),
+        ));
+    }
+    let x = ((lv.width / 2) / 1024) * 1024;
+    let y = ((lv.height / 2) / 1024) * 1024;
+
+    let t0 = std::time::Instant::now();
+    let a = reader.read_level_region_rgba(level, x, y, 1024, 1024)?;
+    let t_a = t0.elapsed();
+    let t1 = std::time::Instant::now();
+    let b = reader.read_level_region_rgba(level, x + 1024, y, 1024, 1024)?;
+    let t_b = t1.elapsed();
+    let t2 = std::time::Instant::now();
+    let wide = reader.read_level_region_rgba(level, x, y, 2048, 1024)?;
+    let t_wide = t2.elapsed();
+    let t3 = std::time::Instant::now();
+    for i in 0..4u32 {
+        reader.read_level_region_rgba(level, x + 1024 * (i % 2), y, 1024, 1024)?;
+    }
+    let t_warm = t3.elapsed() / 4;
+
+    let mean = |d: &[u8]| -> [f64; 3] {
+        let mut s = [0f64; 3];
+        let n = (d.len() / 4) as f64;
+        for p in d.chunks_exact(4) {
+            s[0] += p[0] as f64;
+            s[1] += p[1] as f64;
+            s[2] += p[2] as f64;
+        }
+        [s[0] / n, s[1] / n, s[2] / n]
+    };
+    println!("level {level}  origin ({x},{y})");
+    println!("解码耗时: 首块 {t_a:?} / 次块 {t_b:?} / 2048宽 {t_wide:?} / 稳态均值 {t_warm:?}");
+    println!("tile A mean RGB = {:?}", mean(&a.data));
+    println!("tile B mean RGB = {:?}", mean(&b.data));
+    println!("wide  mean RGB = {:?}", mean(&wide.data));
+
+    // Same pixels? Compare each tile against the corresponding half of `wide`.
+    let mut max_diff = 0u8;
+    let mut sum_diff = 0u64;
+    for row in 0..1024usize {
+        for col in 0..2048usize {
+            let wi = (row * 2048 + col) * 4;
+            let (src, sx) = if col < 1024 { (&a, col) } else { (&b, col - 1024) };
+            let ti = (row * 1024 + sx) * 4;
+            for c in 0..3 {
+                let d = (wide.data[wi + c] as i32 - src.data[ti + c] as i32).unsigned_abs() as u8;
+                max_diff = max_diff.max(d);
+                sum_diff += d as u64;
+            }
+        }
+    }
+    let n = (2048 * 1024 * 3) as f64;
+    println!("拼接 vs 整块: mean|Δ| = {:.4}, max|Δ| = {max_diff}", sum_diff as f64 / n);
+
+    // Border continuity: last column of A against first column of B.
+    let mut border = 0u64;
+    for row in 0..1024usize {
+        let pa = &a.data[(row * 1024 + 1023) * 4..][..3];
+        let pb = &b.data[(row * 1024) * 4..][..3];
+        for c in 0..3 {
+            border += (pa[c] as i32 - pb[c] as i32).unsigned_abs() as u64;
+        }
+    }
+    println!("共享边 mean|Δ| = {:.3}（组织内部相邻列的自然差通常 3~15）", border as f64 / (1024.0 * 3.0));
+    Ok(())
 }
 
 fn arg_value(args: &[String], key: &str) -> Option<String> {
@@ -96,11 +197,11 @@ fn arg_value(args: &[String], key: &str) -> Option<String> {
         .cloned()
 }
 
-fn cmd_info(args: &[String]) -> pathology_crop_rs::errors::Result<()> {
+fn cmd_info(args: &[String]) -> labkit::errors::Result<()> {
     let path = args
         .get(1)
         .map(PathBuf::from)
-        .ok_or_else(|| pathology_crop_rs::errors::AppError::Other("缺少切片路径".into()))?;
+        .ok_or_else(|| labkit::errors::AppError::Other("缺少切片路径".into()))?;
     let reader = SlideReader::open(&path)?;
     let info = reader.info();
     println!("path = {}", path.display());
@@ -115,14 +216,14 @@ fn cmd_info(args: &[String]) -> pathology_crop_rs::errors::Result<()> {
     Ok(())
 }
 
-fn cmd_export(args: &[String]) -> pathology_crop_rs::errors::Result<()> {
+fn cmd_export(args: &[String]) -> labkit::errors::Result<()> {
     let slide = arg_value(args, "--slide")
         .map(PathBuf::from)
-        .ok_or_else(|| pathology_crop_rs::errors::AppError::Other("缺少 --slide".into()))?;
+        .ok_or_else(|| labkit::errors::AppError::Other("缺少 --slide".into()))?;
     let out = arg_value(args, "--out")
         .map(PathBuf::from)
-        .ok_or_else(|| pathology_crop_rs::errors::AppError::Other("缺少 --out".into()))?;
+        .ok_or_else(|| labkit::errors::AppError::Other("缺少 --out".into()))?;
     let session = arg_value(args, "--session").map(PathBuf::from);
     let mag = arg_value(args, "--mag");
-    pathology_crop_rs::cli::export(&slide, session.as_deref(), &out, mag)
+    labkit::cli::export(&slide, session.as_deref(), &out, mag)
 }

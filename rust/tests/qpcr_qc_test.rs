@@ -1,5 +1,5 @@
-use pathology_crop_rs::qpcr::model::{Design, Well};
-use pathology_crop_rs::qpcr::qc::{apply_all, effective_cq, group_stats};
+use labkit::qpcr::model::{Design, Well};
+use labkit::qpcr::qc::{apply_all, effective_cq, group_stats};
 
 #[test]
 fn group_stats_cv_and_sd() {

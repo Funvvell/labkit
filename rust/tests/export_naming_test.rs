@@ -1,5 +1,5 @@
-use pathology_crop_rs::export::{output_name, sorted_for_export};
-use pathology_crop_rs::model::Roi;
+use labkit::export::{output_name, sorted_for_export};
+use labkit::model::Roi;
 use std::path::Path;
 
 fn roi(id: &str, x: i64, y: i64) -> Roi {

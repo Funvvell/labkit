@@ -1,15 +1,15 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "工具箱 Toolbox",
+  "productName": "科研工具箱 LabKit",
   "version": "0.2.0",
-  "identifier": "com.pathology.toolbox",
+  "identifier": "com.labkit.research",
   "build": {
     "frontendDist": "../frontend"
   },
   "app": {
     "windows": [
       {
-        "title": "工具箱 Toolbox",
+        "title": "科研工具箱 LabKit",
         "width": 1280,
         "height": 820,
         "minWidth": 1024,

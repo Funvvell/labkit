@@ -2,11 +2,14 @@
 
 <img src="icon.svg" width="96" height="96" alt="Logo" />
 
-# 病理裁剪工具
+# 科研工具箱 LabKit
 
-**Pathology Crop Tool**
+**LabKit · Research Toolbox**
 
-SDPC 全切片病理图像浏览 · ROI 标注 · IHC 热点检测 · AI 分析 · 批量裁剪导出
+科研工作台 · SDPC 全切片浏览与 ROI 裁剪 · qPCR ΔΔCt 分析 · 任务/实验/文献管理
+
+> 桌面版为 `rust/` 下的 Tauri + Rust 应用（产品名「科研工具箱 LabKit」，可执行文件 `labkit.exe`）。
+> 根目录的 `liver_portal_crop/` 是功能等价的 Python/PySide6 实现，作为算法参照与备用版本保留。
 
 [![Release](https://img.shields.io/github/v/release/Funvvell/pathology-crop-tool?style=flat-square&label=Latest)](https://github.com/Funvvell/pathology-crop-tool/releases)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
@@ -108,6 +111,19 @@ SDPC 全切片病理图像浏览 · ROI 标注 · IHC 热点检测 · AI 分析 
 - 基于开源 [RapidOCR](https://github.com/RapidAI/RapidOCR)（Apache-2.0，ONNX 离线）
 - 可选依赖：`pip install -e ".[ocr]"`（或 `pip install -r requirements-ocr.txt`）
 
+### 🧪 NASH / NAS 定量评分
+
+- 内置 Boehringer Ingelheim 公开权重的推理管线：气球样变 / 炎症 / 脂肪变 / 纤维化四项连续分 → Kleiner 离散分 → NAS
+- **按物理分辨率取 tile**（NAS 三项 299×299 @ 0.44 µm/px，纤维化 @ 1.32 µm/px），自动选最省时的金字塔层级，误差 < 1%
+- 阈值滑杆实时改离散分级（只重算映射，不重跑推理，~40ms）
+- Grad-CAM 激活热图叠加到 WSI 画布；tile 级空间分布表
+- 模型槽位可插拔：换染色 / 换物种只需放一套权重 + `model.json`，不改代码
+- **一键安装**：从 OSF 下载权重（断点续传 + MD5 校验）→ 解压 → 转 ONNX → 校验登记；也可只用命令行 `cli install`
+- 导出上游兼容 CSV（可直接与论文表格对照）+ 扩展 CSV + 逐 tile 明细 + manifest
+- 可选依赖：`pip install -e ".[nash]"`（权重需另配，见 [docs/nash-model-setup.md](docs/nash-model-setup.md)）
+
+> ⚠️ 内置权重训练于**小鼠/大鼠肝 + Masson 三色**，在人肝或 H&E / IHC 切片上分数不具可解释性。结果仅供研究用定量参考，不构成诊断依据。
+
 ### 🎨 专业 UI
 
 - 「临床仪器面板」v3 主题：深色 / 浅色一键切换
@@ -145,6 +161,9 @@ pip install -e ".[ai]"
 
 # [可选] 安装标签图 OCR 重命名依赖（RapidOCR + ONNX Runtime）
 pip install -e ".[ocr]"
+
+# [可选] 安装 NASH/NAS 评分依赖（ONNX Runtime，~50MB；权重需另配）
+pip install -e ".[nash]"
 
 # 启动
 python main.py
@@ -374,6 +393,9 @@ IHC 测试覆盖：色彩反卷积正确性 · 阈值判定 · 密度图计算 �
 | `tissue_detect.py` | HistoKit Otsu 组织检测 | ✅ |
 | `ihc_hotspot.py` | IHC 热点检测算法 | ✅ mock DLL |
 | `deepliif_runner.py` | DeepLIIF 推理 | ⚠️ 需模型 |
+| `nash/tiling.py` / `sampler.py` / `scoring.py` | tile 采样与评分（纯逻辑） | ✅ |
+| `nash/engine.py` | ONNX 推理 | ⚠️ 需模型 |
+| `nash/gradcam.py` | 激活热图 | ✅ |
 | `imagej_bridge.py` | ImageJ/Fiji 桥接 | ⚠️ 需 JVM |
 | `utils.py` | 坐标映射 | ✅ |
 
@@ -390,6 +412,47 @@ IHC 测试覆盖：色彩反卷积正确性 · 阈值判定 · 密度图计算 �
 ---
 
 ## 📋 更新日志
+
+### v0.9.1 — NASH 权重一键安装
+
+**新增**
+
+- `分析 → NASH 一键安装…`：官方权重从 OSF 自动下载（支持 Range 断点续传、MD5 逐字节校验）、解压、转 ONNX、校验登记
+- 按评分项自由勾选（全选约 6.5 GB，例如只做纤维化仅 1.2 GB）；实时显示磁盘可用与预计占用，空间不足时禁用开始
+- 转换依赖（TensorFlow）缺失时会先询问；选「只下载」可稍后在有 TF 的机器上补转换
+- 复用当前解释器执行 `pip install onnxruntime`（多 Python 环境不会装错位置）
+- 命令行：`python -m liver_portal_crop.nash.cli install [--yes] [--scores ...] [--skip-convert] [--purge]`
+- `nash/convert.py`：`.h5 → ONNX` 转换逻辑抽出复用，`tools/export_onnx.py` 改为调用它（不再有第二份实现）
+
+**修复**
+
+- `NASHEnvDialog` 的键值表格原先只分到 30px 高，模型目录与缺失文件被藏进滚动区；改用表单布局
+- 依赖缺失时按钮不再禁用变灰，改为可点击并弹出环境自检（含绑定当前解释器的安装命令）
+
+### v0.9.0 — NASH/NAS 定量评分 + 分析叠加层修复
+
+**新增：NASH / NAS 评分**
+
+- `liver_portal_crop/nash/` 子包：模型槽位注册表、tile 几何采样、ONNX 推理、评分后处理、Grad-CAM、Worker 线程、配置对话框、结果查看器、导出
+- 按物理分辨率采样（0.44 / 1.32 µm/px），自动选金字塔层级，精度自检误差 < 1%，mpp 缺失时降级为假设值并全程标注
+- 四项评分 → 切片级聚合（合并 tile 后 `nanmean`，与上游一致）→ 阈值映射离散分 → NAS
+- 阈值滑杆实时重算（不重跑推理）+ 用户阈值持久化到 `*_thresholds.user.json`
+- 导出：上游兼容 CSV / 扩展 CSV / 逐 tile 明细 / manifest，编码 `utf-8-sig`
+- 无 GUI 入口 `python -m liver_portal_crop.nash.cli {verify,info,tiles,score}`
+- 新增可选 extra `[nash]`（onnxruntime）
+
+**修复**
+
+- `canvas.py` 补齐 `add_overlay` / `set_overlay_opacity` / `clear_overlays` 三个方法 —— 此前 `app.py` 调用它们却不存在，点「叠加到画布」必崩 `AttributeError`
+- 换片时叠加层清理移到 `_scene.clear()` 之前，消除悬垂包装器导致的崩溃
+- 小块测试结果窗口漏接 `overlay_requested` 信号，导致「叠加到画布」无反应
+- 「清除分析叠加」按钮可见性改由 `canvas.overlays_changed` 驱动，不再手动同步
+
+**依赖与工程**
+
+- `opencv-python` 由隐式依赖改为显式核心依赖（组织检测与 IHC 热点在模块级 import cv2）
+- `tests/test_ihc_hotspot.py` 的模块 mock 改为用完即恢复，不再污染同进程后续测试
+- 新增 145 个测试（总计 226）
 
 ### Unreleased — 导出队列 + 标注体验 + 标签 OCR 重命名
 

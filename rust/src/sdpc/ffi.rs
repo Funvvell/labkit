@@ -119,18 +119,22 @@ impl Drop for DllBuffer {
     }
 }
 
-/// Decode a rectangle from a pyramid level and return contiguous **RGB888**.
+/// Decode a rectangle and hand the borrowed **BGR888** buffer to `conv`.
 ///
-/// Coordinates `(x, y)` and dimensions `(w, h)` are in the target level's
-/// local pixel space, matching `reader.py::_read_level_region`.
-pub fn decode_region(
+/// The DLL buffer is only valid until `Dispose` runs, so the conversion must
+/// copy. Doing it inside the guard keeps a single allocation per tile.
+fn with_region<T, F>(
     handle: NonNull<SqSdpcInfo>,
     x: u32,
     y: u32,
     w: u32,
     h: u32,
     level: u32,
-) -> Result<Vec<u8>> {
+    conv: F,
+) -> Result<T>
+where
+    F: FnOnce(&[u8]) -> T,
+{
     let d = dll()?;
     let len = (w as usize)
         .checked_mul(h as usize)
@@ -167,13 +171,56 @@ pub fn decode_region(
     }
 
     let bgr = unsafe { std::slice::from_raw_parts(out, len) };
-    let mut rgb = vec![0u8; len];
-    for i in (0..len).step_by(3) {
-        rgb[i] = bgr[i + 2];
-        rgb[i + 1] = bgr[i + 1];
-        rgb[i + 2] = bgr[i];
-    }
-    Ok(rgb)
+    Ok(conv(bgr))
+}
+
+/// Decode a rectangle from a pyramid level and return contiguous **RGB888**.
+///
+/// Coordinates `(x, y)` and dimensions `(w, h)` are in the target level's
+/// local pixel space, matching `reader.py::_read_level_region`.
+pub fn decode_region(
+    handle: NonNull<SqSdpcInfo>,
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+    level: u32,
+) -> Result<Vec<u8>> {
+    with_region(handle, x, y, w, h, level, |bgr| {
+        let mut rgb = vec![0u8; bgr.len()];
+        for i in (0..bgr.len()).step_by(3) {
+            rgb[i] = bgr[i + 2];
+            rgb[i + 1] = bgr[i + 1];
+            rgb[i + 2] = bgr[i];
+        }
+        rgb
+    })
+}
+
+/// Same decode, but straight to **RGBA8888** (alpha = 255).
+///
+/// This is the preview path: the WebView can wrap these bytes in an
+/// `ImageData` with zero conversion, so no PNG/JPEG encode and no base64
+/// round-trip is needed anywhere between the DLL and the canvas.
+pub fn decode_region_rgba(
+    handle: NonNull<SqSdpcInfo>,
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+    level: u32,
+) -> Result<Vec<u8>> {
+    with_region(handle, x, y, w, h, level, |bgr| {
+        let mut rgba = vec![255u8; bgr.len() / 3 * 4];
+        let mut j = 0usize;
+        for i in (0..bgr.len()).step_by(3) {
+            rgba[j] = bgr[i + 2];
+            rgba[j + 1] = bgr[i + 1];
+            rgba[j + 2] = bgr[i];
+            j += 4;
+        }
+        rgba
+    })
 }
 
 /// Apply the same second clamp as `reader.py::extract_region` before decoding.

@@ -1,4 +1,4 @@
-use pathology_crop_rs::geometry::{center_crop_rect, clamp_region, Rect};
+use labkit::geometry::{center_crop_rect, clamp_region, Rect};
 
 fn r(x: i64, y: i64, w: i64, h: i64) -> Rect {
     Rect::new(x, y, w, h)

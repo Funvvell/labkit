@@ -5,4 +5,4 @@ pub mod loader;
 pub mod reader;
 pub mod structs;
 
-pub use reader::{LevelInfo, RgbImage, SlideInfo, SlideReader};
+pub use reader::{LevelInfo, RgbImage, RgbaImage, SlideInfo, SlideReader};

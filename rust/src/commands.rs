@@ -150,6 +150,39 @@ pub fn begin_tiles(state: tauri::State<'_, AppState>, gen: u64) -> Result<(), St
     Ok(())
 }
 
+/// Decode one preview tile and return **raw RGBA8888 bytes**.
+///
+/// This is the fast path that replaced `enqueue_tile` + `poll_decoder` +
+/// PNG data URLs. Nothing is encoded and nothing is base64'd: Tauri ships the
+/// buffer as an `ArrayBuffer` (large payloads bypass JSON entirely) and the
+/// WebView wraps it in an `ImageData` without a single pixel conversion.
+///
+/// `async` keeps the blocking wait off the main thread; the DLL itself stays
+/// serialised on the one decoder thread.
+#[tauri::command(async)]
+pub fn fetch_tile(
+    state: tauri::State<'_, AppState>,
+    path: String,
+    level: u32,
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+    gen: u64,
+) -> Result<tauri::ipc::Response, String> {
+    let handle = state.handle()?;
+    let key = TileKey { level, x, y, w, h };
+    let img = handle
+        .fetch_tile(
+            PathBuf::from(&path),
+            key,
+            gen,
+            std::time::Duration::from_secs(30),
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(tauri::ipc::Response::new(img.data))
+}
+
 /// Drain decoder responses produced since the last call. The front-end polls
 /// this on a short interval; images arrive as PNG data URLs.
 #[tauri::command]
@@ -354,7 +387,7 @@ pub struct AppInfo {
 pub fn app_info() -> AppInfo {
     AppInfo {
         version: env!("CARGO_PKG_VERSION").to_string(),
-        name: "工具箱 Toolbox".to_string(),
+        name: "科研工具箱 LabKit".to_string(),
         tool_count: 12,
     }
 }
@@ -362,4 +395,52 @@ pub fn app_info() -> AppInfo {
 #[tauri::command]
 pub fn error_probe() -> Result<String, String> {
     Err(AppError::Other("probe".into()).to_string())
+}
+
+/* ===================== 科研台账落盘 =====================
+   参数一律单个单词：Tauri 命令宏默认 camelCase，多单词参数名前端极易写错
+   （ROI 导出失败就是这么来的）。data / dest / src 两种命名法长得一样，天然安全。 */
+
+#[tauri::command]
+pub fn db_load() -> Result<Option<serde_json::Value>, String> {
+    crate::store::load().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn db_save(data: serde_json::Value) -> Result<String, String> {
+    crate::store::save(&data).map_err(|e| e.to_string())?;
+    crate::store::db_path()
+        .map(|p| p.to_string_lossy().into_owned())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn db_info() -> Result<serde_json::Value, String> {
+    crate::store::info().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn db_backup() -> Result<String, String> {
+    crate::store::backup()
+        .map(|p| p.to_string_lossy().into_owned())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn db_export(dest: String) -> Result<String, String> {
+    crate::store::export_to(std::path::Path::new(&dest))
+        .map(|p| p.to_string_lossy().into_owned())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn db_import(src: String) -> Result<serde_json::Value, String> {
+    crate::store::import_from(std::path::Path::new(&src)).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn db_reset() -> Result<Option<String>, String> {
+    crate::store::reset()
+        .map(|p| p.map(|p| p.to_string_lossy().into_owned()))
+        .map_err(|e| e.to_string())
 }

@@ -28,6 +28,15 @@ impl RgbImage {
     }
 }
 
+/// Contiguous RGBA8888 pixels (alpha always 255) — the preview/tile format.
+/// Shipped to the WebView as raw bytes, so it needs no image encoder at all.
+#[derive(Debug, Clone)]
+pub struct RgbaImage {
+    pub w: u32,
+    pub h: u32,
+    pub data: Vec<u8>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LevelInfo {
     pub level: u32,
@@ -150,6 +159,34 @@ impl SlideReader {
         lw: u32,
         lh: u32,
     ) -> Result<RgbImage> {
+        let (lw, lh) = self.clamp_level_rect(level, lx, ly, lw, lh)?;
+        self.read_raw(lx, ly, lw, lh, level)
+    }
+
+    /// Preview path: identical geometry, RGBA8888 payload.
+    pub fn read_level_region_rgba(
+        &self,
+        level: u32,
+        lx: u32,
+        ly: u32,
+        lw: u32,
+        lh: u32,
+    ) -> Result<RgbaImage> {
+        let (lw, lh) = self.clamp_level_rect(level, lx, ly, lw, lh)?;
+        tracing::trace!("decode-rgba lv{level} ({lx},{ly},{lw},{lh}) {:?}", self.path);
+        let data = ffi::decode_region_rgba(self.handle, lx, ly, lw, lh, level)?;
+        Ok(RgbaImage { w: lw, h: lh, data })
+    }
+
+    /// Clamp a level-local rect to the level's real extent.
+    fn clamp_level_rect(
+        &self,
+        level: u32,
+        lx: u32,
+        ly: u32,
+        lw: u32,
+        lh: u32,
+    ) -> Result<(u32, u32)> {
         let lv = self
             .info
             .levels
@@ -162,7 +199,7 @@ impl SlideReader {
                 "lv{level} ({lx},{ly},{lw},{lh})"
             )));
         }
-        self.read_raw(lx, ly, lw, lh, level)
+        Ok((lw, lh))
     }
 
     fn read_raw(&self, x: u32, y: u32, w: u32, h: u32, level: u32) -> Result<RgbImage> {

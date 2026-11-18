@@ -1,4 +1,4 @@
-use pathology_crop_rs::sdpc::ffi::gbk_path_bytes;
+use labkit::sdpc::ffi::gbk_path_bytes;
 use std::path::Path;
 
 #[test]

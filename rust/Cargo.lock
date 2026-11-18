@@ -2168,6 +2168,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "labkit"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "calamine",
+ "chrono",
+ "crossbeam-channel",
+ "csv",
+ "dirs 5.0.1",
+ "encoding_rs",
+ "flate2",
+ "getrandom 0.2.17",
+ "image",
+ "libloading 0.8.9",
+ "lru",
+ "openreadout-qpcr",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-opener",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tiff",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2800,40 +2834,6 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "windows-link",
-]
-
-[[package]]
-name = "pathology-crop-rs"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "calamine",
- "chrono",
- "crossbeam-channel",
- "csv",
- "dirs 5.0.1",
- "encoding_rs",
- "flate2",
- "getrandom 0.2.17",
- "image",
- "libloading 0.8.9",
- "lru",
- "openreadout-qpcr",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-opener",
- "tempfile",
- "thiserror 2.0.21",
- "tiff",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
 ]
 
 [[package]]

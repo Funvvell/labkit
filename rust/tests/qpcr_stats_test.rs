@@ -1,4 +1,4 @@
-use pathology_crop_rs::qpcr::stats::{
+use labkit::qpcr::stats::{
     one_way_anova, regularized_incomplete_beta, significance, welch_t_test,
 };
 

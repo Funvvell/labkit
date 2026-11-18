@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::export::{ExportEvent, ExportOptions};
 use crate::model::Roi;
-use crate::sdpc::{RgbImage, SlideInfo};
+use crate::sdpc::{RgbImage, RgbaImage, SlideInfo};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TileKey {
@@ -21,11 +21,22 @@ pub struct TileKey {
     pub h: u32,
 }
 
+/// One-shot reply channel for a directly awaited tile.
+pub type TileReply = crossbeam_channel::Sender<std::result::Result<RgbaImage, String>>;
+
 #[derive(Clone, Debug)]
 pub enum Request {
     Open { path: PathBuf, gen: u64 },
     Thumbnail { path: PathBuf, gen: u64 },
     Tile { path: PathBuf, key: TileKey, gen: u64 },
+    /// Request/reply tile: the caller awaits raw RGBA bytes, so the response
+    /// never goes through the poll queue, an image encoder or base64.
+    TileFetch {
+        path: PathBuf,
+        key: TileKey,
+        gen: u64,
+        reply: TileReply,
+    },
     Export { rois: Vec<Roi>, opts: ExportOptions, gen: u64 },
     /// Invalidate all tile requests belonging to older view generations.
     CancelTiles { gen: u64 },

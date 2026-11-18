@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>工具箱 Toolbox</title>
+<title>科研工具箱 LabKit</title>
 <style>
   :root{
     --accent:#007AFF; --accent-hover:#0062CC; --accent-soft:#E8F1FF;
@@ -13,6 +13,7 @@
     --sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
     --mono:ui-monospace,"SF Mono","JetBrains Mono",Consolas,monospace;
     --r-btn:8px; --r-card:16px; --r-ctl:12px;
+    --row:152px; --gap:13px;
     --shadow-card:0 3px 10px rgba(0,0,0,.06);
     --shadow-win:0 24px 60px rgba(0,0,0,.22);
   }
@@ -189,13 +190,16 @@
   .canvas-bar .sep{width:1px;height:18px;background:var(--line)}
   .canvas-bar .zoom{font-family:var(--mono);font-size:12px;color:var(--ink-2)}
   .native-input{border:none;background:transparent;outline:none;font-family:var(--mono);font-size:12px;color:var(--ink);width:66px;min-width:0;flex:1}
-  .tile-img{position:absolute;display:block;animation:tileIn .22s ease-out}
-  @keyframes tileIn{from{opacity:.25}to{opacity:1}}
+  /* 瓦片统一画进一张 canvas（设备像素），不再用一堆被 CSS scale 的 <img>：
+     相邻瓦片共享边由同一个 level-0 边界坐标取整得到，像素级严格相等 → 无缝。 */
+  .tile-canvas{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:2}
   .chip{height:28px;padding:0 10px;border-radius:7px;background:var(--bg);font-size:11px;color:var(--ink-2)}
   .stage{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;user-select:none}
-  .slide-frame{position:relative;flex:0 0 auto;cursor:grab}
+  .slide-frame{position:relative;flex:0 0 auto;cursor:grab;z-index:3}
   .viewport{position:relative;width:100%;height:100%;transform-origin:0 0}
-  .viewport img{display:block;width:100%;height:100%;user-select:none;-webkit-user-drag:none;box-shadow:0 8px 24px rgba(0,0,0,.22)}
+  /* 缩略图本体改由 canvas 绘制（与瓦片同一表面，避免跨表面色差）；
+     <img> 保留布局与命中测试，故用 opacity:0 而非 display:none。 */
+  .viewport img{display:block;width:100%;height:100%;opacity:0;user-select:none;-webkit-user-drag:none}
   .slide-frame.drawing{cursor:crosshair}
   .slide-frame.panning{cursor:grabbing}
   /* ROI 层在缩放容器之外、按屏幕坐标绘制：Chrome 会把缩放容器内的亚像素
@@ -209,11 +213,11 @@
   .roi-rect.sel{border-color:#FF9F0A;border-width:calc(2.5*var(--rok,1px))}
   .drop-hint{
     position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
-    color:var(--muted);font-size:13px;pointer-events:none;
+    color:var(--muted);font-size:13px;pointer-events:none;z-index:1;
   }
   .drop-hint svg{width:44px;height:44px;opacity:.5}
   .mini-nav{
-    position:absolute;right:18px;bottom:18px;border-radius:8px;overflow:hidden;cursor:pointer;
+    position:absolute;right:18px;bottom:18px;border-radius:8px;overflow:hidden;cursor:pointer;z-index:6;
     border:2px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.2);
   }
   .mini-nav img{display:block;width:100%;height:100%;object-fit:fill;user-select:none;-webkit-user-drag:none}
@@ -311,6 +315,96 @@
   .dash-card{background:var(--card);border:1px solid rgba(0,0,0,.055);border-radius:16px;box-shadow:var(--shadow-card);padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
   .dash-card.full{flex:1 1 100%}
   .dash-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
+
+  /* ===== 可自定义 Dashboard：规范化的 4 列 × 150px 行单位网格 =====
+     每张卡片的尺寸都是「宽×高」的整数格：宽 1 / 2 / 4 列，高 1 / 2 / 3 / 4 行（行单位 152px）。
+     例如 4×2 = 通栏两行高，2×1 = 半栏一行高。卡片外框尺寸固定，
+     内容超出时在卡片内部滚动，所以整页永远是整齐的网格，不会参差。 */
+  .dash-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:-8px}
+  .dash-toolbar .dash-hint{font-size:12px;color:var(--muted);background:none;padding:0;border:0}
+  .dash-toolbar .tools{display:flex;gap:8px}
+  .dash-toolbar .btn{height:32px;padding:0 13px;font-size:12px;border:1px solid rgba(0,0,0,.08)}
+  .dash-toolbar .btn.pri{border-color:transparent}
+  .dash-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:var(--row,152px);gap:var(--gap,13px);align-items:stretch}
+  .dash-card.wcard{padding:0;gap:0;display:block;position:relative;overflow:hidden}
+  .dash-card.wcard.w1{grid-column:span 1}
+  .dash-card.wcard.w2{grid-column:span 2}
+  .dash-card.wcard.w4{grid-column:span 4}
+  .dash-card.wcard.h1{grid-row:span 1}
+  .dash-card.wcard.h2{grid-row:span 2}
+  .dash-card.wcard.h3{grid-row:span 3}
+  .dash-card.wcard.h4{grid-row:span 4}
+  .card-inner{padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0;height:100%;box-sizing:border-box}
+  /* 卡片正文是唯一可滚动的区域，标题与按钮始终固定在顶部 */
+  .card-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.18) transparent}
+  /* 正文里的块不许被压扁：宁可滚动，也不要把列表/图表挤变形 */
+  .card-body>*{flex-shrink:0}
+  .card-body::-webkit-scrollbar{width:6px}
+  .card-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.16);border-radius:3px}
+  .card-body::-webkit-scrollbar-track{background:transparent}
+  .card-body.has-more{mask-image:linear-gradient(180deg,#000 calc(100% - 14px),transparent);-webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 14px),transparent)}
+  .card-body.has-more:hover,.card-body.has-more:focus-within{mask-image:none;-webkit-mask-image:none}
+  .size-tag{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:3px 6px;display:none}
+  .dash-edit .size-tag{display:inline-block}
+  .wcard .card-head{height:auto;min-height:26px;gap:8px;flex-wrap:wrap}
+  .wcard .card-head h2{font-size:15px;white-space:nowrap}
+  .card-grip{display:none;width:16px;height:20px;align-items:center;justify-content:center;color:var(--muted);cursor:grab;flex:0 0 auto;margin-left:-4px}
+  .card-grip:active{cursor:grabbing}
+  .card-grip svg{width:14px;height:14px}
+  .dash-edit .card-grip{display:flex}
+  .card-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:1}
+  .card-act{font-size:11px;font-weight:600;padding:4px 9px;border-radius:7px;background:rgba(0,0,0,.05);color:var(--ink);white-space:nowrap;transition:background .12s,color .12s}
+  .card-act:hover{background:rgba(0,0,0,.09)}
+  .card-act.pri{background:var(--accent-soft);color:var(--accent)}
+  .card-act.pri:hover{background:#d8e8ff}
+  .card-act.icon{padding:4px 7px;font-size:12px;line-height:1}
+  .card-act.del{color:var(--red)}
+  .card-act.size,.card-act.del{display:none}
+  .dash-edit .card-act.size,.dash-edit .card-act.del{display:inline-block}
+  .dash-edit .wcard{outline:1px dashed rgba(0,122,255,.35);outline-offset:2px}
+  .dash-edit .wcard:focus{outline:2px solid var(--accent);outline-offset:2px}
+  .dash-edit .wcard:focus-visible{outline:2px solid var(--accent)}
+  .edit-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .edit-state{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:rgba(0,122,255,.12);color:var(--accent);white-space:nowrap}
+  .edit-state.dirty{background:rgba(255,159,10,.18);color:#a86400}
+  .dash-toolbar.editing{background:rgba(0,122,255,.06);border-radius:12px;padding:8px 10px;box-shadow:inset 0 0 0 1px rgba(0,122,255,.18)}
+  .wcard.dragging{opacity:.35}
+  .wcard.dragging:hover{transform:none}
+  .wcard.drop-before{box-shadow:-4px 0 0 0 var(--accent),var(--shadow-card)}
+  .wcard.drop-after{box-shadow:4px 0 0 0 var(--accent),var(--shadow-card)}
+  .dash-empty{grid-column:span 4;padding:40px;text-align:center;color:var(--muted);font-size:13px;background:var(--card);border:1px dashed rgba(0,0,0,.14);border-radius:16px}
+  /* 卡片选择器 */
+  .picker-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:52vh;overflow-y:auto;margin-top:4px}
+  .pick-item{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid rgba(0,0,0,.09);border-radius:11px;cursor:pointer;transition:border-color .12s,background .12s}
+  .pick-item:hover{border-color:rgba(0,122,255,.45)}
+  .pick-item.on{border-color:var(--accent);background:var(--accent-soft)}
+  .pick-item .nm{font-size:13px;font-weight:600;flex:1;min-width:0}
+  .pick-item .ds{font-size:11px;color:var(--muted)}
+  .pick-item .sz{font-size:10px;font-weight:700;color:var(--muted);border:1px solid rgba(0,0,0,.12);border-radius:5px;padding:1px 5px}
+  /* 卡片内通用小列表 */
+  .mini-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.05);font-size:12px;min-width:0}
+  .mini-row:last-child{border-bottom:0}
+  .mini-row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mini-row .mt{color:var(--muted);font-size:11px;white-space:nowrap}
+  .mini-row .x{color:var(--muted);font-size:13px;padding:0 3px;opacity:0;transition:opacity .12s}
+  .mini-row:hover .x{opacity:1}
+  .mini-row .x:hover{color:var(--red)}
+  .warn-pill{font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;white-space:nowrap}
+  .warn-pill.red{background:rgba(255,69,58,.13);color:var(--red)}
+  .warn-pill.orange{background:rgba(255,159,10,.15);color:#9a6200}
+  .warn-pill.green{background:rgba(48,209,88,.15);color:#1a7f37}
+  .note-card{background:rgba(0,0,0,.03);border-radius:10px;padding:9px 10px;font-size:12px;line-height:1.55;white-space:pre-wrap;word-break:break-word;position:relative}
+  .note-card .tm{font-size:10px;color:var(--muted);margin-bottom:3px}
+  .big-num{font-size:26px;font-weight:700;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+  .heat-row{display:flex;gap:4px}
+  .heat-cell{flex:1;height:26px;border-radius:6px;background:rgba(0,122,255,.10);position:relative}
+  .heat-lbl{display:flex;gap:4px;margin-top:4px}
+  .heat-lbl span{flex:1;text-align:center;font-size:10px;color:var(--muted)}
+  @media (max-width:1180px){
+    .dash-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .dash-grid .wcard.w2,.dash-grid .wcard.w4{grid-column:span 2}
+    .kpi-row{grid-template-columns:repeat(3,1fr)}
+  }
   .dash-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
   .card-head{display:flex;align-items:center;justify-content:space-between;height:26px;flex:0 0 auto}
   .card-head h2{font-size:16px;font-weight:700}
@@ -327,6 +421,9 @@
   @keyframes viewIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
   .view.active{animation:viewIn .3s cubic-bezier(.22,.9,.3,1)}
   #view-home .scroll>.dash-card,#view-home .scroll>.dash-grid-2{animation:riseIn .55s cubic-bezier(.22,.9,.3,1) backwards}
+  /* 卡片入场只在首次构建时播放（.intro 由 buildDash 加、下一帧移除），
+     否则每次勾选任务均会重建网格、整屏卡片重新抖一下。 */
+  #dashGrid>.wcard.intro{animation:riseIn .5s cubic-bezier(.22,.9,.3,1) backwards}
   #view-home .scroll>*:nth-child(1){animation-delay:.03s}
   #view-home .scroll>*:nth-child(2){animation-delay:.1s}
   #view-home .scroll>*:nth-child(3){animation-delay:.17s}
@@ -434,14 +531,60 @@
   .roi-modal .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .roi-modal input{height:32px;border-radius:8px;border:1px solid var(--line);background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:12px;color:var(--ink);width:100%}
   .roi-modal .lbl2{font-size:10px;color:var(--muted);margin-bottom:3px}
+  .roi-modal.wide{width:440px;max-height:80vh;overflow-y:auto}
+  .roi-modal textarea{border-radius:8px;border:1px solid var(--line);background:var(--bg);padding:8px 10px;font-size:12px;color:var(--ink);width:100%;min-height:76px;resize:vertical;font-family:inherit;line-height:1.5}
+  .roi-modal select{height:32px;border-radius:8px;border:1px solid var(--line);background:var(--bg);padding:0 8px;font-size:12px;color:var(--ink);width:100%}
+  .roi-modal .fld{display:flex;flex-direction:column;gap:4px}
+  .roi-modal .fld.full{grid-column:span 2}
   .modal-mask{position:absolute;inset:0;background:rgba(0,0,0,.25);z-index:55}
   .tbl tr:hover td{background:rgba(0,122,255,.04)}
-  .pie-center{display:flex;align-items:center;justify-content:center;padding:8px}
+  .pie-center{display:flex;align-items:center;justify-content:center;padding:8px;flex-wrap:wrap;gap:10px}
+  /* 饼图是固定 120px 的 conic-gradient 方块，窄栏里不能被 flex 压成椭圆 */
+  .pie-center>div:first-child{flex:0 0 auto}
   .bar-row{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:11px}
   .bar-row .bl{flex:0 0 110px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .bar-row .bar{flex:1;height:8px;border-radius:4px;background:rgba(0,0,0,.07);overflow:hidden}
   .bar-row .bar i{display:block;height:8px;border-radius:4px;background:var(--accent)}
   .bar-row .bv{flex:0 0 64px;font-family:var(--mono);color:var(--muted);text-align:right}
+
+  /* ---- 子页表格的行内动作 / 看板 / 日周视图 / 设置页 ---- */
+  .seg.wide button{width:auto;padding:0 13px;font-size:11px}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:1180px){.two-col{grid-template-columns:1fr}}
+  .row-acts{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+  .mini-act{height:23px;padding:0 9px;border-radius:6px;background:var(--bg);color:var(--ink-2);font-size:10.5px;border:1px solid var(--line);white-space:nowrap}
+  .mini-act:hover{background:rgba(0,122,255,.12);color:var(--accent);border-color:rgba(0,122,255,.3)}
+  .mini-act.danger:hover{background:rgba(255,59,48,.12);color:var(--red);border-color:rgba(255,59,48,.32)}
+  .btn.danger{background:var(--red);color:#fff}
+  .btn.danger:hover{filter:brightness(1.08)}
+  .list-row{display:flex;align-items:flex-start;gap:10px;border-bottom:1px solid var(--line);padding:2px 0}
+  .list-row .task-item{flex:1;border-bottom:none}
+  .list-row .row-acts{margin-top:9px;flex:0 0 auto}
+  .tbl td .row-acts{margin-top:0}
+  .board-card{cursor:grab}
+  .board-card.dragging{opacity:.4}
+  .board-col.col-over{background:rgba(0,122,255,.07);outline:2px dashed rgba(0,122,255,.4);outline-offset:-3px}
+  .cal-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:12px}
+  .cal-col{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;min-height:170px}
+  .cal-col h3{font-size:12px;margin-bottom:9px;display:flex;align-items:center;gap:6px}
+  .cal-col h3 .cnt{margin-left:auto;font-family:var(--mono);color:var(--muted);font-weight:600}
+  .cal-item{padding:7px 0;border-top:1px solid var(--line);font-size:11.5px}
+  .cal-item label{display:flex;gap:6px;align-items:flex-start;cursor:pointer}
+  .cal-item input{margin-top:2px;flex:0 0 auto}
+  .cal-item.done span{text-decoration:line-through;color:var(--muted)}
+  .cal-item .task-meta{margin:4px 0 0 18px}
+  .db-pill{font-size:10.5px;padding:3px 9px;border-radius:20px;background:rgba(48,209,88,.15);color:#1c8f45;font-weight:700;white-space:nowrap}
+  .db-pill.saving{background:rgba(255,159,10,.18);color:#a86400}
+  .db-pill.error{background:rgba(255,59,48,.15);color:#c0271f}
+  .db-pill.browser{background:rgba(0,0,0,.07);color:var(--muted)}
+  .kv-list{display:grid;grid-template-columns:88px 1fr;gap:7px 12px;font-size:11.5px;margin-top:10px}
+  .kv-list .k{color:var(--muted)}
+  .kv-list .v{font-family:var(--mono);word-break:break-all;color:var(--ink-2)}
+  .md-body{margin-top:10px;max-height:300px;overflow-y:auto;font-size:12px;line-height:1.8;color:var(--ink-2)}
+  .md-body h3,.md-body h4,.md-body h5{font-size:12.5px;color:var(--ink);margin:10px 0 4px}
+  .md-body p{margin:4px 0}
+  .md-body ul{margin:4px 0 4px 18px}
+  .md-body code{font-family:var(--mono);background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11px}
 
   .toast{
     position:absolute;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
@@ -456,8 +599,8 @@
   <!-- ============ Title bar ============ -->
   <div class="titlebar" data-tauri-drag-region>
     <div class="win-title" data-drag>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2.5" fill="#007AFF"/><path d="M9 7V5.5C9 4.67 9.67 4 10.5 4H13.5C14.33 4 15 4.67 15 5.5V7" stroke="#007AFF" stroke-width="1.8"/><path d="M3 12H21" stroke="white" stroke-width="1.6"/><rect x="10.5" y="11" width="3" height="4" rx="1" fill="white"/></svg>
-      工具箱 Toolbox
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="1" y="1" width="22" height="22" rx="5.5" fill="#0A84FF"/><path d="M9.6 5.4h4.8v1.4h-.7v3.1l3.5 6.2c.5.9-.1 2-1.1 2H7.9c-1 0-1.6-1.1-1.1-2l3.5-6.2V6.8h-.7V5.4Z" fill="#fff"/><path d="M8.3 13.4h7.4l1.5 2.7c.5.9-.1 2-1.1 2H7.9c-1 0-1.6-1.1-1.1-2l1.5-2.7Z" fill="#30D158"/></svg>
+      科研工具箱 LabKit
     </div>
     <div class="win-tools" data-drag>
       <button class="icon-btn" title="搜索"><svg viewBox="0 0 24 24" fill="none"><circle cx="10.8" cy="10.8" r="6.2" stroke="currentColor" stroke-width="1.9"/><path d="M15.4 15.4L20 20" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button>
@@ -475,7 +618,7 @@
     <!-- ============ Sidebar ============ -->
     <aside class="sidebar" id="sidebar">
       <div class="side-search"><svg viewBox="0 0 24 24" fill="none"><circle cx="10.8" cy="10.8" r="6.2" stroke="currentColor" stroke-width="2"/><path d="M15.4 15.4L20 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>搜索</div>
-      <div class="side-group">工具箱</div>
+      <div class="side-group">科研工具</div>
       <button class="nav-item" data-tool-open="crop"><svg viewBox="0 0 24 24" fill="none"><path d="M6 3V17C6 18.1 6.9 19 8 19H21M3 6H17C18.1 6 19 6.9 19 8V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="label">图像裁剪</span></button>
       <button class="nav-item" data-tool-open="qpcr"><svg viewBox="0 0 24 24" fill="none"><path d="M4 19V9M10 19V5M16 19V11M22 19V7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="label">qPCR 分析</span></button>
       <button class="nav-item" data-nav="ds"><svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8" stroke="currentColor" stroke-width="1.9"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8" stroke="currentColor" stroke-width="1.9"/><path d="M13.5 7H17C18.1 7 19 7.9 19 9V13M7 13.5V17C7 18.1 7.9 19 9 19H10.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span class="label">设计规范</span></button>
@@ -492,65 +635,20 @@
           <button class="btn-primary" id="btnQuickFocus"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="13" r="8" stroke="white" stroke-width="1.8"/><path d="M12 9V13L15 15M9.5 2.5H14.5" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>开始专注</button>
         </div>
         <div class="scroll">
-          <!-- 1. 数据总览（通栏） -->
-          <div class="dash-card full">
-            <div class="kpi-row" id="kpiRow"></div>
-            <div class="chart-row">
-              <div class="chart-box"><div class="chart-title">近 7 天专注时长（分钟）</div><div id="chartFocus"></div></div>
-              <div class="chart-box"><div class="chart-title">近 7 天任务完成趋势</div><div id="chartTasks"></div></div>
+          <div class="dash-toolbar">
+            <div class="dash-hint" id="dashHint">卡片右上角可直接新建任务 / 记录 · 点「编辑布局」调整卡片</div>
+            <div class="tools" id="dashTools">
+              <button class="btn sec" id="btnDashEdit">编辑布局</button>
+            </div>
+            <div class="tools edit-tools" id="dashEditTools" style="display:none">
+              <span class="edit-state" id="editState">编辑中</span>
+              <button class="btn sec" id="btnDashAdd">+ 添加卡片</button>
+              <button class="btn sec" id="btnDashReset">恢复默认</button>
+              <button class="btn sec" id="btnDashCancel">取消</button>
+              <button class="btn pri" id="btnDashSave">保存布局</button>
             </div>
           </div>
-          <!-- 2. 每日任务 + 3. 专注计时 -->
-          <div class="dash-grid-2">
-            <div class="dash-card">
-              <div class="card-head"><h2>每日任务</h2><span class="link" data-goto="tasks">任务中心 ›</span></div>
-              <div id="todayKey"></div>
-              <div class="divider" style="margin:10px 0"></div>
-              <div id="todayTasks"></div>
-            </div>
-            <div class="dash-card">
-              <div class="card-head"><h2>专注计时</h2><span class="tag" style="background:var(--accent-soft);color:var(--accent)" id="focusPresetTag">25 + 5</span></div>
-              <div class="timer-wrap">
-                <div class="timer-phase" id="timerPhase">专注</div>
-                <div class="timer-num" id="timerNum">25:00</div>
-                <div class="seg-ctl" style="width:100%">
-                  <button class="active" data-preset="25,5">25 + 5</button>
-                  <button data-preset="50,10">50 + 10</button>
-                </div>
-                <div class="field-row" style="width:100%">
-                  <select class="native-select" id="timerProject"></select>
-                  <select class="native-select" id="timerType">
-                    <option>实验操作</option><option>读文献</option><option>绘图</option><option>写论文</option><option>数据分析</option>
-                  </select>
-                </div>
-                <div class="btn-row">
-                  <button class="btn pri" id="btnTimerStart">开始</button>
-                  <button class="btn sec" id="btnTimerPause">暂停</button>
-                  <button class="btn sec" id="btnTimerStop">结束并记录</button>
-                </div>
-                <div class="sub" id="timerToday">今日专注 0 分钟 · 0 次</div>
-              </div>
-            </div>
-          </div>
-          <!-- 4. 项目管理 + 6. 文献提醒 -->
-          <div class="dash-grid-2">
-            <div class="dash-card">
-              <div class="card-head"><h2>项目管理</h2><span class="link" data-goto="projects">全部项目 ›</span></div>
-              <div id="projCards"></div>
-            </div>
-            <div class="dash-card">
-              <div class="card-head"><h2>文献 & 提醒</h2><span class="link" data-goto="literature">文献库 ›</span></div>
-              <div id="litList"></div>
-              <div class="divider" style="margin:12px 0"></div>
-              <div class="field-title">到期提醒</div>
-              <div id="reminderList"></div>
-            </div>
-          </div>
-          <!-- 5. 实验管理（通栏） -->
-          <div class="dash-card full">
-            <div class="card-head"><h2>实验管理</h2><span class="link" data-goto="experiments">进入实验台账 ›</span></div>
-            <div id="expRecent"></div>
-          </div>
+          <div class="dash-grid" id="dashGrid"></div>
         </div>
       </section>
 
@@ -567,12 +665,13 @@
           </div>
           <div class="board-row" id="taskBoard"></div>
           <div id="taskListWrap" style="display:none"><div id="taskList"></div></div>
+          <div id="taskCal" data-mode="day" style="display:none"></div>
         </div>
       </section>
 
       <!-- VIEW: 专注记录 -->
       <section class="view" id="view-focus">
-        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>专注记录</h1><div class="sub">计时自动写入，无需手动填周报 · 可导出 CSV</div></div><button class="btn-primary" id="btnFocusExport">导出 CSV</button></div>
+        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>专注记录</h1><div class="sub">计时自动写入，无需手动填周报 · 可导出 CSV</div></div><button class="btn sec" id="btnNewFocus">手动补记</button><button class="btn-primary" id="btnFocusExport">导出 CSV</button></div>
         <div class="scroll">
           <div class="dash-grid-3">
             <div class="dash-card"><div class="card-head"><h2>按任务类型占比</h2></div><div id="focusPie" class="pie-center"></div></div>
@@ -610,9 +709,9 @@
 
       <!-- VIEW: 仪器/试剂 -->
       <section class="view" id="view-labres">
-        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>仪器 / 试剂</h1><div class="sub">有效期 · 余量 · 校准提醒</div></div></div>
+        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>仪器 / 试剂</h1><div class="sub">有效期 · 余量 · 校准提醒 · 机时预约</div></div><button class="btn-primary" id="btnLabNew">新增试剂</button></div>
         <div class="scroll">
-          <div class="seg-ctl" style="max-width:300px"><button class="active" data-labtab="reagent">试剂</button><button data-labtab="instrument">仪器</button></div>
+          <div class="seg-ctl" style="max-width:420px"><button class="active" data-labtab="reagent">试剂</button><button data-labtab="instrument">仪器</button><button data-labtab="booking">机时预约</button></div>
           <div class="dash-card full"><div id="labTable"></div></div>
         </div>
       </section>
@@ -622,23 +721,45 @@
         <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>统计报表</h1><div class="sub">工作量一目了然 · 支持导出</div></div><button class="btn-primary" id="btnReportExport">导出报表</button></div>
         <div class="scroll">
           <div class="kpi-row" id="reportKpi"></div>
-          <div class="dash-card full"><div class="card-head"><h2>近 14 天专注与任务</h2></div><div id="reportChart"></div></div>
+          <div class="dash-card full"><div class="card-head"><h2>专注趋势</h2><div class="seg wide" id="reportRange"><button class="active" data-range="14">14 天</button><button data-range="30">30 天</button><button data-range="90">90 天</button></div></div><div id="reportChart"></div><div class="sub" id="reportChartNote"></div></div>
+          <div class="two-col">
+            <div class="dash-card"><div class="card-head"><h2>项目投入</h2></div><div id="reportProj"></div></div>
+            <div class="dash-card"><div class="card-head"><h2>实验状态</h2></div><div id="reportExp"></div></div>
+          </div>
+          <div class="two-col">
+            <div class="dash-card"><div class="card-head"><h2>任务完成</h2></div><div id="reportTask"></div></div>
+            <div class="dash-card"><div class="card-head"><h2>经费支出</h2></div><div id="reportBudget"></div></div>
+          </div>
         </div>
       </section>
 
       <!-- VIEW: 设置 -->
       <section class="view" id="view-settings">
-        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>设置</h1><div class="sub">主题 · 数据 · 关于</div></div></div>
+        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>设置</h1><div class="sub">密度 · 数据与备份 · 关于</div></div></div>
         <div class="scroll">
           <div class="dash-card full">
-            <div class="card-head"><h2>外观</h2></div>
-            <div class="sub">浅色主题（当前）· 深色主题开发中</div>
-            <div class="divider" style="margin:12px 0"></div>
-            <div class="card-head"><h2>数据</h2></div>
-            <div class="sub">本地会话：~/.liver_portal_crop/ · 云同步（uniCloud / Supabase）预留接口</div>
-            <div class="divider" style="margin:12px 0"></div>
+            <div class="card-head"><h2>界面密度</h2></div>
+            <div class="sub">调整首页卡片的行高与间距，布局格子数不变。</div><div class="seg wide" id="densitySeg" style="margin-top:9px;display:inline-flex"><button data-density="compact">紧凑</button><button data-density="normal">标准</button><button data-density="cozy">宽松</button></div>
+            <div class="divider" style="margin:14px 0"></div>
+            <div class="card-head"><h2>数据与备份</h2><span class="db-pill" id="dbPill">—</span></div>
+            <div id="dbInfo" class="kv-list"></div>
+            <div class="btn-row" style="margin-top:12px;flex-wrap:wrap">
+              <button class="btn sec" id="btnDbSave">立即保存</button>
+              <button class="btn sec" id="btnDbBackup">创建备份</button>
+              <button class="btn sec" id="btnDbExport">导出 JSON</button>
+              <button class="btn sec" id="btnDbImport">导入 JSON</button>
+              <button class="btn sec" id="btnDbFolder">打开数据目录</button>
+            </div>
+            <div class="divider" style="margin:14px 0"></div>
+            <div class="card-head"><h2>危险操作</h2></div>
+            <div class="sub">清空前会自动备份到 backups/，可从「导入 JSON」找回。</div>
+            <div class="btn-row" style="margin-top:10px;flex-wrap:wrap">
+              <button class="btn sec" id="btnDbClearDemo">清空示例数据</button>
+              <button class="btn danger" id="btnDbReset">重置全部台账</button>
+            </div>
+            <div class="divider" style="margin:14px 0"></div>
             <div class="card-head"><h2>关于</h2></div>
-            <div class="sub">工具箱 Toolbox v0.2.0 · Rust + Tauri · SDPC 解码 & qPCR 核心复用自 Rust 重构版</div>
+            <div class="sub" id="aboutLine">科研工具箱 LabKit v0.2.0 · Rust + Tauri · SDPC 解码 &amp; qPCR 核心复用自 Rust 重构版</div>
           </div>
         </div>
       </section>
@@ -706,10 +827,10 @@
               <div class="slide-frame hidden" id="slideFrame">
                 <div class="viewport" id="viewport">
                   <img id="slideImg" alt="slide" draggable="false" />
-                  <div id="tileLayer"></div>
                 </div>
                 <div id="roiLayer"></div>
               </div>
+              <canvas id="tileCanvas" class="tile-canvas hidden"></canvas>
               <div class="mini-nav hidden" id="miniNav"><img id="miniImg" alt="nav" draggable="false" /><div class="viewbox" style="left:0;top:0;width:0;height:0"></div></div>
             </div>
           </div>
@@ -811,7 +932,7 @@
           <div class="ws-file">全局设计 token · 新增工具时对照使用</div>
         </div>
         <div class="ds-scroll">
-          <div class="ds-head"><div class="kicker">DESIGN SYSTEM · v0.1</div><h1>工具箱设计规范</h1><p>所有工具共享这套 token —— 新增功能时直接复用，保证全局一致</p></div>
+          <div class="ds-head"><div class="kicker">DESIGN SYSTEM · v0.1</div><h1>LabKit 设计规范</h1><p>所有工具共享这套 token —— 新增功能时直接复用，保证全局一致</p></div>
           <div class="ds-row">
             <div class="ds-card"><h3>品牌主色</h3><div class="swatches"><div class="sw" style="background:#007AFF;color:#fff">#007AFF</div><div class="sw" style="background:#0062CC;color:#fff">#0062CC</div><div class="sw" style="background:#E8F1FF;color:#007AFF">#E8F1FF</div></div><div class="sw-note">仅用于激活态、主按钮与关键强调</div></div>
             <div class="ds-card"><h3>中性色阶</h3><div class="swatches" style="gap:6px"><div class="sw" style="background:#1D1D1F"></div><div class="sw" style="background:#3A3A3C"></div><div class="sw" style="background:#8E8E93"></div><div class="sw" style="background:#AEAEB2"></div><div class="sw" style="background:#E5E5EA"></div><div class="sw" style="background:#F5F5F7;border:1px solid #E5E5EA"></div></div><div class="sw-note">#1D1D1F → #3A3A3C → #8E8E93 → #AEAEB2 → #E5E5EA → #F5F5F7</div></div>
@@ -846,9 +967,17 @@ async function invoke(cmd, args = {}) {
 function mockInvoke(cmd, args) {
   const ok = (v) => Promise.resolve(v);
   switch (cmd) {
-    case 'app_info': return ok({version:'0.2.0', name:'工具箱 Toolbox', tool_count:12});
+    case 'app_info': return ok({version:'0.2.0', name:'科研工具箱 LabKit', tool_count:12});
+    /* 浏览器里没有磁盘，用 localStorage 顶一下，保证纯前端也能演示增删改 */
+    case 'db_load': return ok(readCache());
+    case 'db_save': writeCache();return ok('（浏览器缓存，非磁盘文件）');
+    case 'db_info': return ok({path:'（浏览器 localStorage）',exists:!!readCache(),bytes:JSON.stringify(DB).length,modified:'',backups:0});
+    case 'db_backup': return ok('（浏览器模式不支持备份）');
+    case 'db_export': return ok('（浏览器模式请用导出 CSV）');
+    case 'db_import': return ok(null);
+    case 'db_reset': try{localStorage.removeItem(DB_KEY)}catch(e){};return ok(null);
     case 'init_engine': return ok('ready');
-    case 'default_output_dir': return ok('~/liver_crop_output');
+    case 'default_output_dir': return ok('~/LabKit_Export');
     case 'load_rois': return ok([]);
     case 'save_rois': return ok('');
     case 'cancel_export': return ok(null);
@@ -856,7 +985,7 @@ function mockInvoke(cmd, args) {
     case 'qpcr_save_session': return ok('');
     case 'qpcr_load_session': return ok(null);
     case 'qpcr_parse_pasted': return ok(parsePasteLocal(args.text));
-    case 'qpcr_new_run': return ok({id:'mock', name:args.source_name||'手动输入', wells:args.wells, design:{}, created_at:''});
+    case 'qpcr_new_run': return ok({id:'mock', name:args.sourceName||'手动输入', wells:args.wells, design:{}, created_at:''});
     case 'qpcr_analyze': return ok(analyzeLocal(args.run));
     default: return ok(null);
   }
@@ -878,32 +1007,52 @@ const IC = {
   system:'<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="#8E8E93" stroke-width="1.8"/><path d="M12 3V5.5M12 18.5V21M3 12H5.5M18.5 12H21M5.6 5.6L7.4 7.4M16.6 16.6L18.4 18.4M18.4 5.6L16.6 7.4M7.4 16.6L5.6 18.4" stroke="#8E8E93" stroke-width="1.8" stroke-linecap="round"/></svg>'
 };
 
-/* ===================== 工作台数据库（mock，后续可直接映射 Supabase/uniCloud 集合） ===================== */
-/* collections: projects / tasks / focus_records / experiments / literatures / reagents / instruments / reminders */
+/* ===================== 日期工具 =====================
+   统计要按真实日期算，所以这些必须在 DB 种子之前定义。 */
+function pad2(n){return String(n).padStart(2,'0')}
+function dayISO(d){return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())}
+function todayStr(){return dayISO(new Date())}
+function daysAgoISO(n){const d=new Date();d.setDate(d.getDate()-n);return dayISO(d)}
+function nowStamp(){const d=new Date();return dayISO(d)+'T'+pad2(d.getHours())+':'+pad2(d.getMinutes())}
+function uid(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function daysLeft(s){
+  const m=String(s||'').match(/(\d{4})-(\d{2})-(\d{2})/);if(!m)return null;
+  const t=new Date(+m[1],+m[2]-1,+m[3]);const n=new Date();n.setHours(0,0,0,0);
+  return Math.round((t-n)/86400000);
+}
+
+/* ===================== 工作台数据库 =====================
+   全部页面（首页卡片 + 九个子页）共用这一份数据，落盘到
+   ~/.liver_portal_crop/labkit_db.json（见 Rust src/store.rs）。
+   下面只是**首次启动的示例数据**，设置页可一键清空后从零开始记。 */
 const DB = {
+  isDemo:true,
+  ui:{density:'normal'},
   projects:[
     {id:'p1',name:'PFKFB3 过表达与 MASH',code:'MASH-2026-03',owner:'VVEll',start:'2026-03',end:'2027-03',stage:'实验',progress:42,milestones:[['开题',1],['动物造模',1],['样本采集',1],['检测',0],['初稿',0],['投稿',0]],risk:'LC-MS 排期待定'},
     {id:'p2',name:'胆汁酸代谢组学',code:'BA-LCMS-26',owner:'VVEll',start:'2026-06',end:'2026-12',stage:'数据分析',progress:65,milestones:[['开题',1],['样本采集',1],['检测',1],['数据分析',1],['初稿',0],['投稿',0]],risk:'样本余量不足'},
     {id:'p3',name:'肝纤维化 qPCR 验证',code:'FIB-Q-26',owner:'VVEll',start:'2026-09',end:'2027-02',stage:'实验',progress:25,milestones:[['开题',1],['引物设计',1],['样本采集',0],['检测',0],['初稿',0],['投稿',0]],risk:'动物伦理 12 月到期'},
   ],
   tasks:[
-    {id:'t1',name:'MASH 小鼠灌胃第 4 周',pri:'urgent',proj:'p1',exp:'E-2026-114',due:'今天 18:00',tags:['动物'],done:false,key:true},
-    {id:'t2',name:'整理 LC-MS 原始数据并出 QC 报告',pri:'important',proj:'p2',exp:'E-2026-108',due:'明天',tags:['数据分析'],done:false},
-    {id:'t3',name:'WB 抗体配制与转膜预实验',pri:'normal',proj:'p1',exp:'',due:'周三',tags:['WB'],done:false},
-    {id:'t4',name:'组会 PPT：LC-MS 阶段汇报',pri:'urgent',proj:'p2',exp:'',due:'周五',tags:['写文章'],done:false,key:true},
-    {id:'t5',name:'引物设计：纤维化标志物 panel',pri:'important',proj:'p3',exp:'',due:'周四',tags:['qPCR'],done:false},
-    {id:'t6',name:'每周组会（重复任务）',pri:'normal',proj:'',exp:'',due:'每周五',tags:['组会'],done:true},
-    {id:'t7',name:'细胞换液（重复任务）',pri:'normal',proj:'p1',exp:'',due:'每天',tags:['细胞'],done:true},
-    {id:'t8',name:'读文献：PFKFB3 相关 3 篇精读',pri:'normal',proj:'',exp:'',due:'本周',tags:['文献'],done:false},
+    {id:'t1',name:'MASH 小鼠灌胃第 4 周',pri:'urgent',proj:'p1',exp:'E-2026-114',due:'今天 18:00',tags:['动物'],done:false,state:'doing',key:true},
+    {id:'t2',name:'整理 LC-MS 原始数据并出 QC 报告',pri:'important',proj:'p2',exp:'E-2026-108',due:'明天',tags:['数据分析'],done:false,state:'todo'},
+    {id:'t3',name:'WB 抗体配制与转膜预实验',pri:'normal',proj:'p1',exp:'',due:'周三',tags:['WB'],done:false,state:'todo'},
+    {id:'t4',name:'组会 PPT：LC-MS 阶段汇报',pri:'urgent',proj:'p2',exp:'',due:'周五',tags:['写文章'],done:false,state:'todo',key:true},
+    {id:'t5',name:'引物设计：纤维化标志物 panel',pri:'important',proj:'p3',exp:'',due:'周四',tags:['qPCR'],done:false,state:'todo'},
+    {id:'t6',name:'每周组会（重复任务）',pri:'normal',proj:'',exp:'',due:'每周五',tags:['组会'],done:true,state:'done',doneAt:daysAgoISO(1)},
+    {id:'t7',name:'细胞换液（重复任务）',pri:'normal',proj:'p1',exp:'',due:'每天',tags:['细胞'],done:true,state:'done',doneAt:daysAgoISO(2)},
+    {id:'t8',name:'读文献：PFKFB3 相关 3 篇精读',pri:'normal',proj:'',exp:'',due:'本周',tags:['文献'],done:false,state:'todo'},
   ],
+  /* at 是真实的本地时间戳（YYYY-MM-DDTHH:MM），周趋势 / 报表全部由它推导，
+     不再有任何写死的统计数组。 */
   focusRecords:[
-    {project:'胆汁酸代谢组学',type:'数据分析',minutes:75,at:'今天 09:00-10:15'},
-    {project:'PFKFB3 过表达与 MASH',type:'实验操作',minutes:50,at:'今天 10:30-11:20'},
-    {project:'胆汁酸代谢组学',type:'写论文',minutes:50,at:'昨天 14:00-14:50'},
-    {project:'肝纤维化 qPCR 验证',type:'读文献',minutes:25,at:'昨天 16:00-16:25'},
-    {project:'PFKFB3 过表达与 MASH',type:'实验操作',minutes:50,at:'周一 09:00-09:50'},
-    {project:'胆汁酸代谢组学',type:'数据分析',minutes:50,at:'周一 13:00-13:50'},
-    {project:'胆汁酸代谢组学',type:'数据分析',minutes:75,at:'周日 10:00-11:15'},
+    {id:'f1',project:'胆汁酸代谢组学',type:'数据分析',minutes:75,at:daysAgoISO(0)+'T09:00'},
+    {id:'f2',project:'PFKFB3 过表达与 MASH',type:'实验操作',minutes:50,at:daysAgoISO(0)+'T10:30'},
+    {id:'f3',project:'胆汁酸代谢组学',type:'写论文',minutes:50,at:daysAgoISO(1)+'T14:00'},
+    {id:'f4',project:'肝纤维化 qPCR 验证',type:'读文献',minutes:25,at:daysAgoISO(1)+'T16:00'},
+    {id:'f5',project:'PFKFB3 过表达与 MASH',type:'实验操作',minutes:50,at:daysAgoISO(2)+'T09:00'},
+    {id:'f6',project:'胆汁酸代谢组学',type:'数据分析',minutes:50,at:daysAgoISO(3)+'T13:00'},
+    {id:'f7',project:'胆汁酸代谢组学',type:'数据分析',minutes:75,at:daysAgoISO(5)+'T10:00'},
   ],
   experiments:[
     {id:'E-2026-114',proj:'PFKFB3 过表达与 MASH',type:'动物',date:'11-17',who:'VVEll',status:'进行中',note:'第 4 周灌胃，体重记录正常'},
@@ -937,13 +1086,136 @@ const DB = {
     {text:'动物伦理年审到期',date:'12-15',color:'var(--orange)'},
     {text:'LC-MS 机时确认',date:'12-20',color:'var(--accent)'},
   ],
-  weeklyFocus:[45,50,25,75,50,100,50],
-  weeklyTasks:[3,5,2,6,4,7,5],
+  /* 台账：经费、仪器预约、实验速记、最近切片。
+     调研里这几项是课题组最高频的痛点（试剂过期/机时冲突/预算超支/记录散落）。 */
+  budget:[
+    {id:'b1',item:'抗体与试剂盒采购',cat:'耗材',amount:4860,date:'2026-11-05',note:'含 Anti-PFKFB3'},
+    {id:'b2',item:'LC-MS 机时费',cat:'测试费',amount:3200,date:'2026-11-12',note:'8 个样本'},
+    {id:'b3',item:'小鼠与饲料',cat:'动物',amount:2150,date:'2026-10-28',note:'40 只 C57'},
+  ],
+  budgetTotal:30000,
+  bookings:[
+    {id:'k1',inst:'荧光定量 PCR 仪',date:'2026-11-19',slot:'09:00-11:00',who:'VVEll',proj:'肝纤维化 qPCR 验证'},
+    {id:'k2',inst:'超高效液相色谱串联质谱',date:'2026-11-20',slot:'14:00-18:00',who:'师兄',proj:'胆汁酸代谢组学'},
+  ],
+  notes:[
+    {id:'n1',text:'逆转录 Ct 漂移排查：先换新的 RT 酶 aliquot，再做 RNA 完整性电泳；若仍漂移则查引物二聚体。',at:'2026-11-16 21:10'},
+  ],
+  recentSlides:[],
 };
+/* ---- 持久化：磁盘为准，localStorage 只当缓存与迁移来源 ----
+   以前只写 localStorage，WebView2 清一次浏览数据就全没了，也拿不到文件。
+   现在启动先读 ~/.liver_portal_crop/labkit_db.json，改动防抖写盘（原子写 + .bak）。 */
+const DB_KEY='labkit.db.v1';
+let dbStatus='init',dbError='',dbSavedAt='',dbPath='';
+function readCache(){try{const r=localStorage.getItem(DB_KEY);return r?JSON.parse(r):null}catch(e){return null}}
+function writeCache(){try{localStorage.setItem(DB_KEY,JSON.stringify(DB))}catch(e){}}
+
+/* 老数据兼容：把「今天 09:00-10:15」这类相对时间换成真实时间戳，
+   给缺 id 的记录补 id，给任务补 state/doneAt。只在读盘后跑一次。 */
+function migrateDB(){
+  const relDay={'今天':0,'昨天':1,'前天':2};
+  (DB.focusRecords||[]).forEach(r=>{
+    if(!r.id)r.id=uid('f');
+    if(/^\d{4}-\d{2}-\d{2}T/.test(r.at||''))return;
+    const s=String(r.at||'');
+    const tm=s.match(/(\d{1,2}):(\d{2})/);
+    let off=0;
+    for(const k in relDay)if(s.includes(k))off=relDay[k];
+    if(off===0&&/周[一二三四五六日]/.test(s)){
+      const want='日一二三四五六'.indexOf(s.match(/周([一二三四五六日])/)[1]);
+      off=(new Date().getDay()-want+7)%7;
+    }
+    r.at=daysAgoISO(off)+'T'+(tm?pad2(+tm[1])+':'+tm[2]:'09:00');
+  });
+  (DB.tasks||[]).forEach(t=>{
+    if(!t.state)t.state=t.done?'done':'todo';
+    if(t.done&&!t.doneAt)t.doneAt=todayStr();
+    if(!t.done)t.doneAt='';
+  });
+  ['literatures','reagents','instruments'].forEach(k=>(DB[k]||[]).forEach(r=>{if(!r.id)r.id=uid(k[0])}));
+  (DB.notes||[]).forEach(n=>{if(n.at&&!n.at.includes('T'))n.at=n.at.replace(' ','T')});
+  if(!Array.isArray(DB.recentSlides))DB.recentSlides=[];
+  if(typeof DB.budgetTotal!=='number')DB.budgetTotal=30000;
+  if(typeof DB.isDemo!=='boolean')DB.isDemo=false;
+}
+
+async function loadDBFromDisk(){
+  let disk=null;
+  if(IN_TAURI){
+    try{disk=await invoke('db_load')}
+    catch(e){dbError=String(e);dbStatus='error'}
+  }
+  const cache=readCache();
+  const src=disk||cache;
+  if(src&&typeof src==='object')Object.keys(src).forEach(k=>{if(k in DB)DB[k]=src[k]});
+  migrateDB();
+  if(IN_TAURI&&!disk&&cache){
+    // 老版本只存在浏览器里的数据，首次启动搬进磁盘，之后就再也不依赖浏览器
+    await flushDB();
+    dbStatus==='saved'&&toast('已把浏览器里的旧记录迁移到磁盘文件',4200);
+  }else if(IN_TAURI&&!disk){
+    await flushDB();
+  }else if(!IN_TAURI){
+    dbStatus='browser';
+  }
+  if(IN_TAURI)invoke('db_info').then(i=>{if(i&&i.path){dbPath=i.path;renderSettings()}}).catch(()=>{});
+}
+
+let _dbT=0;
+function saveDB(){
+  writeCache();
+  dbStatus='saving';renderDbStatus();
+  clearTimeout(_dbT);
+  _dbT=setTimeout(flushDB,400);
+}
+async function flushDB(){
+  clearTimeout(_dbT);_dbT=0;
+  writeCache();
+  if(!IN_TAURI){dbStatus='browser';renderDbStatus();return}
+  try{
+    const p=await invoke('db_save',{data:DB});
+    dbPath=p||dbPath;dbError='';dbStatus='saved';dbSavedAt=nowStamp().replace('T',' ');
+  }catch(e){
+    dbError=String(e);dbStatus='error';
+    toast('保存到磁盘失败：'+dbError+'（记录已暂存浏览器，请勿清理浏览数据）',7000);
+  }
+  renderDbStatus();
+}
+/* 关窗/切走前把最后 400ms 内的改动补写掉，避免丢最后一次编辑 */
+window.addEventListener('beforeunload',()=>{if(_dbT){clearTimeout(_dbT);_dbT=0;writeCache();if(IN_TAURI)invoke('db_save',{data:DB}).catch(()=>{})}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&_dbT)flushDB()});
+
 const STATUS_CLS = {'待开展':'status-wait','进行中':'status-run','完成':'status-ok','失败':'status-fail','待重复':'status-re'};
 
+/* ===================== 统计 =====================
+   全部由真实记录 + 真实日期推导。以前这里是两个写死的 7 元素数组，
+   图表好看但和实际记录毫无关系；现在删掉了那两个数组。 */
+function recDay(r){const m=String(r.at||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[0]:''}
+function focusOn(day){return DB.focusRecords.filter(r=>recDay(r)===day).reduce((s,r)=>s+(+r.minutes||0),0)}
+function focusCountOn(day){return DB.focusRecords.filter(r=>recDay(r)===day).length}
+function tasksDoneOn(day){return DB.tasks.filter(t=>t.done&&t.doneAt===day).length}
+function seriesFocus(n){const a=[];for(let i=n-1;i>=0;i--)a.push(focusOn(daysAgoISO(i)));return a}
+function seriesTasks(n){const a=[];for(let i=n-1;i>=0;i--)a.push(tasksDoneOn(daysAgoISO(i)));return a}
+function sum(a){return a.reduce((x,y)=>x+y,0)}
+function lastDays(n){const a=[];for(let i=n-1;i>=0;i--)a.push(daysAgoISO(i));return a}
+function fmtRecAt(r){
+  const s=String(r.at||'');
+  const m=s.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}:\d{2}))?/);
+  if(!m)return s;
+  const day=m[1]+'-'+m[2]+'-'+m[3],t=m[4]||'';
+  const d=daysLeft(day);
+  const rel=d===0?'今天':d===-1?'昨天':d===-2?'前天':day;
+  const end=t?(()=>{const[h,mi]=t.split(':').map(Number);const e=new Date(2000,0,1,h,mi+(+r.minutes||0));return pad2(e.getHours())+':'+pad2(e.getMinutes())})():'';
+  return rel+(t?' '+t+(end?'-'+end:''):'');
+}
+
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
-function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200)}
+/* Dashboard 卡片可被用户移除，对应的 DOM 就不存在了。
+   所有写入首页卡片的渲染都走这里，卡片不在时安静跳过，不再抛 null 异常。 */
+function setHTML(id,html){const el=document.getElementById(id);if(el)el.innerHTML=html;return el}
+function setText(id,txt){const el=document.getElementById(id);if(el)el.textContent=txt;return el}
+function toast(msg,ms){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),ms||2200)}
 
 /* ===================== 页面路由 ===================== */
 const VIEW_MAP={home:'view-home',tasks:'view-tasks',focus:'view-focus',projects:'view-projects',experiments:'view-experiments',literature:'view-literature',labres:'view-labres',reports:'view-reports',settings:'view-settings',ds:'view-ds',crop:'view-crop',qpcr:'view-qpcr'};
@@ -1009,44 +1281,148 @@ function taskHTML(t,showKey){
   </div>`;
 }
 function bindTaskEvents(){
-  document.querySelectorAll('[data-check]').forEach(el=>el.onclick=()=>{
-    const t=DB.tasks.find(x=>x.id===el.dataset.check);t.done=!t.done;renderTasks();renderKpi();
+  document.querySelectorAll('[data-check]').forEach(el=>{
+    const fire=ev=>{
+      ev.stopPropagation();
+      const t=DB.tasks.find(x=>x.id===el.dataset.check);if(!t)return;
+      setTaskState(t,t.done?'todo':'done');
+    };
+    el.onclick=fire;
+    if(el.tagName==='INPUT')el.onchange=fire;
   });
   document.querySelectorAll('[data-tomorrow]').forEach(el=>el.onclick=()=>{
-    const t=DB.tasks.find(x=>x.id===el.dataset.tomorrow);
-    t.due='明天';t.key=false;renderTasks();toast('已转入明天：'+t.name);
+    const t=DB.tasks.find(x=>x.id===el.dataset.tomorrow);if(!t)return;
+    t.due='明天';t.dueDate=daysAgoISO(-1);t.key=false;saveDB();renderTasks();queueResize();toast('已转入明天：'+t.name);
+  });
+  document.querySelectorAll('[data-tstate]').forEach(el=>el.onclick=()=>{
+    const [id,st]=el.dataset.tstate.split('|');
+    const t=DB.tasks.find(x=>x.id===id);if(!t)return;setTaskState(t,st);
   });
 }
+/* 所有表格/列表共用的行内动作：编辑、删除。
+   data-edit="kind|index"、data-del="kind|index"，见下面的 ENT 注册表。 */
+function bindRowActs(){
+  /* 只认带 "kind|index" 的值：Dashboard 卡片上还有别的 data-* 按钮，不能误绑 */
+  document.querySelectorAll('[data-edit]').forEach(el=>{
+    if(!String(el.dataset.edit).includes('|'))return;
+    el.onclick=ev=>{ev.stopPropagation();const [k,i]=el.dataset.edit.split('|');entityModal(k,+i)};
+  });
+  document.querySelectorAll('[data-del]').forEach(el=>{
+    if(!String(el.dataset.del).includes('|'))return;
+    el.onclick=ev=>{ev.stopPropagation();const [k,i]=el.dataset.del.split('|');entityDelete(k,+i)};
+  });
+}
+function rowActs(kind,i,extra){
+  return `<div class="row-acts">${extra||''}<button class="mini-act" data-edit="${kind}|${i}">编辑</button><button class="mini-act danger" data-del="${kind}|${i}">删除</button></div>`;
+}
+/* 把自由填写的「今天 / 明天 / 周五 / 下周一 / 2026-12-01」解析成真实日期，
+   日视图和周视图靠它分组；解析不出来（每天 / 每周 这类重复任务）返回 null。 */
+function taskDay(t){
+  if(t.dueDate&&/^\d{4}-\d{2}-\d{2}$/.test(t.dueDate))return t.dueDate;
+  const s=String(t.due||'');
+  if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+  if(s.includes('今天'))return todayStr();
+  if(s.includes('明天'))return daysAgoISO(-1);
+  if(s.includes('后天'))return daysAgoISO(-2);
+  const m=s.match(/周([一二三四五六日])/);
+  if(m&&!s.includes('每周')){
+    const want='日一二三四五六'.indexOf(m[1]);
+    let off=(want-new Date().getDay()+7)%7;
+    if(s.includes('下周'))off+=7;
+    return daysAgoISO(-off);
+  }
+  return null;
+}
+function isRecurring(t){return /每天|每日|每周|每月/.test(String(t.due||''))}
+/* 重复任务按规则落到具体某天：每天=天天出现，每周五=只在周五，
+   不能一律铺满整周（那样周视图就失去意义了）。 */
+function taskOnDay(t,d){
+  const s=String(t.due||'');
+  if(/每天|每日/.test(s))return true;
+  const wm=s.match(/每周([一二三四五六日])/);
+  if(wm)return '日一二三四五六'.indexOf(wm[1])===new Date(d+'T00:00').getDay();
+  if(/每周|每月/.test(s))return false;
+  return taskDay(t)===d;
+}
+const TSTATE=[['todo','待办'],['doing','进行中'],['done','完成']];
+function setTaskState(t,st){
+  t.state=st;t.done=st==='done';
+  t.doneAt=st==='done'?todayStr():'';
+  saveDB();renderTasks();renderKpi();renderReports();queueResize();
+}
+function boardCard(t){
+  const i=DB.tasks.indexOf(t);
+  return `<div class="board-card" draggable="true" data-tcard="${t.id}">
+    <div class="n">${esc(t.name)}</div>
+    <div class="task-meta"><span class="badge ${PRI_CLS[t.pri][1]}">${PRI_CLS[t.pri][0]}</span><span>${esc(t.due)}</span>${t.key?'<span class="badge important">重点</span>':''}</div>
+    <div class="row-acts">
+      ${TSTATE.filter(([s])=>s!==t.state).map(([s,l])=>`<button class="mini-act" data-tstate="${t.id}|${s}">${l}</button>`).join('')}
+      <button class="mini-act" data-edit="task|${i}">编辑</button>
+      <button class="mini-act danger" data-del="task|${i}">删除</button>
+    </div></div>`;
+}
 function renderTasks(){
-  const keyWrap=document.getElementById('todayKey');
   const keys=DB.tasks.filter(t=>t.key&&!t.done);
-  keyWrap.innerHTML=(keys.length?'<div class="field-title">今日重点</div>':'')+keys.map(t=>taskHTML(t,true)).join('');
+  setHTML('todayKey',(keys.length?'<div class="field-title">今日重点</div>':'')+keys.map(t=>taskHTML(t,true)).join(''));
   const list=DB.tasks.filter(t=>!t.key);
-  document.getElementById('todayTasks').innerHTML=list.map(t=>taskHTML(t)).join('')||'<div class="sub">今天没有其他任务</div>';
-  bindTaskEvents();
-  // 看板
-  const cols=[['To Do',t=>!t.done&&t.pri==='normal'||(!t.done&&!['urgent'].includes(t.pri)&&false)],['Doing',t=>false],['Done',t=>t.done]];
-  const todo=DB.tasks.filter(t=>!t.done),done=DB.tasks.filter(t=>t.done);
-  document.getElementById('taskBoard').innerHTML=`
-    <div class="board-col"><h3>待办 · ${todo.length}</h3>${todo.map(t=>`<div class="board-card"><div class="n">${esc(t.name)}</div><div class="task-meta"><span class="badge ${PRI_CLS[t.pri][1]}">${PRI_CLS[t.pri][0]}</span><span>${esc(t.due)}</span></div></div>`).join('')}</div>
-    <div class="board-col"><h3>进行中 · 1</h3><div class="board-card" style="border-color:rgba(0,122,255,.4)"><div class="n">${esc(DB.tasks.find(t=>!t.done)?.name||'—')}</div><div class="task-meta"><span class="badge urgent">进行中</span></div></div></div>
-    <div class="board-col"><h3>完成 · ${done.length}</h3>${done.map(t=>`<div class="board-card" style="opacity:.65"><div class="n" style="text-decoration:line-through">${esc(t.name)}</div></div>`).join('')}</div>`;
-  document.getElementById('taskList').innerHTML=DB.tasks.map(t=>taskHTML(t)).join('');
-  bindTaskEvents();
+  setHTML('todayTasks',list.map(t=>taskHTML(t)).join('')||'<div class="sub">今天没有其他任务</div>');
+  /* 看板：三列由真实 state 决定。以前「进行中」永远写死 1 条、且取第一条未完成任务冒充。 */
+  const board=document.getElementById('taskBoard');
+  if(board)board.innerHTML=TSTATE.map(([st,label])=>{
+    const items=DB.tasks.filter(t=>(t.state||(t.done?'done':'todo'))===st);
+    return `<div class="board-col" data-tcol="${st}"><h3>${label} · ${items.length}</h3>${items.map(boardCard).join('')||'<div class="sub">拖动卡片到这里</div>'}</div>`;
+  }).join('');
+  const tl=document.getElementById('taskList');
+  if(tl)tl.innerHTML=DB.tasks.map((t,i)=>`<div class="list-row">${taskHTML(t)}<div class="row-acts"><button class="mini-act" data-edit="task|${i}">编辑</button><button class="mini-act danger" data-del="task|${i}">删除</button></div></div>`).join('')||'<div class="sub">还没有任务</div>';
+  renderTaskCal();
+  bindTaskEvents();bindRowActs();bindBoardDnD();
+}
+/* 日 / 周视图：以前是「开发中」提示，现在按真实日期分栏 */
+function renderTaskCal(){
+  const wrap=document.getElementById('taskCal');if(!wrap)return;
+  const mode=wrap.dataset.mode||'day';
+  const cols=mode==='day'?[todayStr()]:Array.from({length:7},(_,i)=>daysAgoISO(-i));
+  wrap.innerHTML=`<div class="cal-row">${cols.map(d=>{
+    const dt=new Date(d+'T00:00');
+    const items=DB.tasks.filter(t=>taskOnDay(t,d));
+    return `<div class="cal-col"><h3>${d===todayStr()?'今天':d.slice(5)} · 周${'日一二三四五六'[dt.getDay()]}<span class="cnt">${items.length}</span></h3>
+      ${items.map(t=>`<div class="cal-item${t.done?' done':''}"><label><input type="checkbox" data-check="${t.id}"${t.done?' checked':''}><span>${esc(t.name)}</span></label><div class="task-meta"><span class="badge ${PRI_CLS[t.pri][1]}">${PRI_CLS[t.pri][0]}</span>${isRecurring(t)?'<span class="badge normal">重复</span>':''}</div></div>`).join('')||'<div class="sub">无安排</div>'}</div>`;
+  }).join('')}</div>`;
+}
+function bindBoardDnD(){
+  let dragId=null;
+  document.querySelectorAll('[data-tcard]').forEach(c=>{
+    c.addEventListener('dragstart',e=>{dragId=c.dataset.tcard;c.classList.add('dragging');try{e.dataTransfer.setData('text/plain',dragId)}catch(_){}});
+    c.addEventListener('dragend',()=>{c.classList.remove('dragging');dragId=null;document.querySelectorAll('[data-tcol]').forEach(x=>x.classList.remove('col-over'))});
+  });
+  document.querySelectorAll('[data-tcol]').forEach(col=>{
+    col.addEventListener('dragover',e=>{if(!dragId)return;e.preventDefault();col.classList.add('col-over')});
+    col.addEventListener('dragleave',()=>col.classList.remove('col-over'));
+    col.addEventListener('drop',e=>{
+      e.preventDefault();col.classList.remove('col-over');
+      const t=DB.tasks.find(x=>x.id===dragId);if(!t)return;
+      setTaskState(t,col.dataset.tcol);toast('「'+t.name+'」→ '+TSTATE.find(s=>s[0]===col.dataset.tcol)[1]);
+    });
+  });
+}
+function kpiData(){
+  const todayFocus=focusOn(todayStr());
+  const weekFocus=sum(seriesFocus(7));
+  const doneWeek=DB.tasks.filter(t=>t.done).length;
+  return [
+    [String(DB.projects.length),'进行中项目','','projects'],
+    [String(DB.tasks.filter(t=>!t.done).length),'待办任务','','tasks'],
+    [Math.round(doneWeek/Math.max(DB.tasks.length,1)*100)+'%','任务完成率','','reports'],
+    [weekFocus+'′','近 7 天专注','+'+todayFocus+'′ 今日','focus'],
+    [String(DB.literatures.filter(l=>l.status!=='已读完').length),'文献待读','','literature'],
+    [String(DB.reagents.filter(r=>{const d=daysLeft(r.exp);return d!==null&&d<=30}).length),'试剂近效期','','labres'],
+  ];
+}
+function kpiHTML(){
+  return kpiData().map(([n,l,d,g])=>`<div class="kpi" data-goto="${g}" title="点击查看详情"><div class="num">${n}</div><div class="label">${l}</div>${d?`<div class="delta">${d}</div>`:''}</div>`).join('');
 }
 function renderKpi(){
-  const todayFocus=DB.focusRecords.filter(r=>r.at.startsWith('今天')).reduce((s,r)=>s+r.minutes,0);
-  const weekFocus=DB.focusRecords.reduce((s,r)=>s+r.minutes,0);
-  const doneWeek=DB.tasks.filter(t=>t.done).length;
-  const kpis=[
-    ['2','进行中项目','+1 本月','projects'],
-    ['1','已结题项目','','projects'],
-    [String(DB.tasks.filter(t=>!t.done).length),'今日待办','','tasks'],
-    [Math.round(doneWeek/Math.max(DB.tasks.length,1)*100)+'%','本周完成率','','reports'],
-    [weekFocus+'′','本周专注(分)','+'+todayFocus+'′ 今日','focus'],
-    ['2','文献待读','1 篇待精读','literature'],
-  ];
-  document.getElementById('kpiRow').innerHTML=kpis.map(([n,l,d,g])=>`<div class="kpi" data-goto="${g}" title="点击查看详情"><div class="num">${n}</div><div class="label">${l}</div>${d?`<div class="delta">${d}</div>`:''}</div>`).join('');
+  setHTML('kpiRow',kpiHTML());
   /* KPI 数字滚动入场 */
   document.querySelectorAll('#kpiRow .num').forEach((el,idx)=>{
     const m=el.textContent.match(/^(\d+)(.*)$/);if(!m)return;
@@ -1054,83 +1430,170 @@ function renderKpi(){
     const step=t=>{const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);el.textContent=Math.round(target*e)+suf;if(p<1)requestAnimationFrame(step);};
     requestAnimationFrame(step);
   });
-  document.getElementById('chartFocus').innerHTML=lineChart(DB.weeklyFocus,300,90,'#007AFF');
-  document.getElementById('chartTasks').innerHTML=lineChart(DB.weeklyTasks,300,90,'#30D158');
-  document.getElementById('timerToday').textContent=`今日专注 ${todayFocus} 分钟 · ${DB.focusRecords.filter(r=>r.at.startsWith('今天')).length} 次`;
+  setHTML('chartFocus',lineChart(seriesFocus(7),300,90,'#007AFF'));
+  setHTML('chartTasks',lineChart(seriesTasks(7),300,90,'#30D158'));
+  setText('timerToday',`今日专注 ${focusOn(todayStr())} 分钟 · ${focusCountOn(todayStr())} 次`);
 }
 function renderProjects(){
-  const card=p=>{
-    const ms=p.milestones.map(([m,d])=>`<span class="ms ${d?'done':''}">${m}</span>`).join('');
-    return `<div class="proj-mini"><div class="row1"><b>${esc(p.name)}</b><span class="badge normal">${p.stage}</span></div>
-      <div class="sub" style="margin-top:2px">${p.code} · ${p.owner} · ${p.start} ~ ${p.end}</div>
+  const card=(p,i)=>{
+    const ms=(p.milestones||[]).map(([m,d])=>`<span class="ms ${d?'done':''}">${esc(m)}</span>`).join('');
+    return `<div class="proj-mini"><div class="row1"><b>${esc(p.name)}</b><span class="badge normal">${esc(p.stage)}</span></div>
+      <div class="sub" style="margin-top:2px">${esc(p.code)} · ${esc(p.owner)} · ${esc(p.start)} ~ ${esc(p.end||'—')}</div>
       <div class="progress"><div class="progress-fill" data-w="${p.progress}" style="width:0"></div></div>
       <div class="milestones">${ms}</div>
-      ${p.risk?`<div class="sub" style="color:#8a5a00">风险：${esc(p.risk)}</div>`:''}</div>`;
+      ${p.risk?`<div class="sub" style="color:#8a5a00">风险：${esc(p.risk)}</div>`:''}
+      ${i==null?'':rowActs('project',i)}</div>`;
   };
-  document.getElementById('projCards').innerHTML=DB.projects.slice(0,2).map(card).join('');
-  document.getElementById('projGrid').innerHTML=DB.projects.map(p=>`<div class="proj-card">${card(p)}
-    <div class="btn-row"><button class="btn sec" data-open-exp="${p.id}">实验列表</button><button class="btn sec" data-proj-note="${p.id}">项目笔记</button></div></div>`).join('');
+  setHTML('projCards',DB.projects.slice(0,2).map(p=>card(p)).join('')||'<div class="sub">还没有项目，点右上角新建</div>');
+  document.getElementById('projGrid').innerHTML=DB.projects.map((p,i)=>`<div class="proj-card">${card(p,i)}
+    <div class="btn-row"><button class="btn sec" data-open-exp="${p.id}">实验列表</button><button class="btn sec" data-proj-note="${i}">项目笔记${p.note?' ●':''}</button></div></div>`).join('')||'<div class="sub">还没有项目</div>';
   document.querySelectorAll('[data-open-exp]').forEach(el=>el.onclick=()=>{document.getElementById('expFilterProj').value=el.dataset.openExp;renderExpTable();openView('experiments')});
-  document.querySelectorAll('[data-proj-note]').forEach(el=>el.onclick=()=>toast('项目笔记（Markdown）开发中'));
+  document.querySelectorAll('[data-proj-note]').forEach(el=>el.onclick=()=>projNoteModal(+el.dataset.projNote));
+  bindRowActs();
   /* 进度条从 0 伸展到目标宽度（双 rAF 确保过渡生效） */
   requestAnimationFrame(()=>requestAnimationFrame(()=>{document.querySelectorAll('.progress-fill[data-w]').forEach(el=>{el.style.width=el.dataset.w+'%';});}));
 }
+/* 极简 Markdown：先转义再套标签，绝不把用户内容当 HTML 执行 */
+function mdLite(s){
+  const lines=esc(String(s||'')).split('\n');let out='',inList=false;
+  for(const ln of lines){
+    const li=ln.match(/^\s*[-*]\s+(.*)$/);
+    if(li){if(!inList){out+='<ul>';inList=true}out+='<li>'+inline(li[1])+'</li>';continue}
+    if(inList){out+='</ul>';inList=false}
+    const h=ln.match(/^(#{1,3})\s+(.*)$/);
+    if(h){out+='<h'+(h[1].length+2)+'>'+inline(h[2])+'</h'+(h[1].length+2)+'>';continue}
+    out+=ln.trim()?'<p>'+inline(ln)+'</p>':'';
+  }
+  if(inList)out+='</ul>';
+  return out||'<div class="sub">还没有笔记</div>';
+  function inline(t){return t.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`(.+?)`/g,'<code>$1</code>')}
+}
+function projNoteModal(i){
+  const p=DB.projects[i];if(!p)return;
+  const mask=document.createElement('div');mask.className='modal-mask';
+  const box=document.createElement('div');box.className='roi-modal wide';
+  const draw=edit=>{
+    box.innerHTML=`<h4>${esc(p.name)} · 项目笔记</h4>
+      <div class="sub">支持 # 标题、- 列表、**加粗**</div>
+      ${edit?`<textarea id="pn_ta" style="width:100%;min-height:230px;margin-top:10px;font-family:var(--mono);font-size:12px;padding:10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink)" placeholder="## 本周进展&#10;- 灌胃第 4 周完成&#10;**下一步**：取样"></textarea>
+        <div class="btn-row" style="margin-top:12px"><button class="btn" id="pn_save">保存</button><button class="btn sec" id="pn_cancel">取消</button></div>`
+      :`<div class="md-body">${mdLite(p.note)}</div>
+        <div class="btn-row" style="margin-top:12px"><button class="btn" id="pn_edit">编辑笔记</button><button class="btn sec" id="pn_cancel">关闭</button></div>`}`;
+    box.querySelector('#pn_cancel').onclick=close;
+    if(edit){
+      const ta=box.querySelector('#pn_ta');ta.value=p.note||'';ta.focus();
+      box.querySelector('#pn_save').onclick=()=>{p.note=ta.value;saveDB();renderProjects();close();toast('已保存项目笔记')};
+    }else box.querySelector('#pn_edit').onclick=()=>draw(true);
+  };
+  const close=()=>mask.remove();
+  mask.appendChild(box);document.getElementById('win').appendChild(mask);
+  mask.onclick=ev=>{if(ev.target===mask)close()};
+  draw(false);
+}
 function renderLitRemind(){
-  document.getElementById('litList').innerHTML=DB.literatures.slice(0,3).map(l=>`<div class="lit-item"><div class="t">${esc(l.title)}</div><span class="badge ${l.status==='待精读'?'important':l.status==='笔记待整理'?'urgent':'normal'}">${l.status}</span></div>`).join('');
-  document.getElementById('reminderList').innerHTML=DB.reminders.map(r=>`<div class="remind-item"><span class="dot-r" style="background:${r.color}"></span><div class="t">${esc(r.text)}</div><div class="m">${r.date}</div></div>`).join('');
+  setHTML('litList',DB.literatures.slice(0,3).map(l=>`<div class="lit-item"><div class="t">${esc(l.title)}</div><span class="badge ${l.status==='待精读'?'important':l.status==='笔记待整理'?'urgent':'normal'}">${esc(l.status)}</span></div>`).join('')||'<div class="sub">文献库为空</div>');
+  setHTML('reminderList',DB.reminders.map(r=>`<div class="remind-item"><span class="dot-r" style="background:${r.color}"></span><div class="t">${esc(r.text)}</div><div class="m">${esc(r.date)}</div></div>`).join('')||'<div class="sub">暂无提醒</div>');
 }
 function renderExperiments(){
-  document.getElementById('expRecent').innerHTML=DB.experiments.slice(0,4).map(e=>`
-    <div class="exp-row"><span class="exp-id">${e.id}</span><span class="exp-name">${e.note}</span><span class="exp-meta">${e.proj} · ${e.type} · ${e.date}</span><span class="status-badge ${STATUS_CLS[e.status]}">${e.status}</span></div>`).join('');
-  const projSel=document.getElementById('expFilterProj');
-  projSel.innerHTML='<option>全部项目</option>'+DB.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  setHTML('expRecent',DB.experiments.slice(0,4).map(e=>`
+    <div class="exp-row"><span class="exp-id">${esc(e.id)}</span><span class="exp-name">${esc(e.note)}</span><span class="exp-meta">${esc(e.proj)} · ${esc(e.type)} · ${esc(e.date)}</span><span class="status-badge ${STATUS_CLS[e.status]}">${esc(e.status)}</span></div>`).join('')||'<div class="sub">还没有实验记录</div>');
+  const projSel=document.getElementById('expFilterProj'),keep=projSel.value;
+  projSel.innerHTML='<option>全部项目</option>'+DB.projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  if(keep&&[...projSel.options].some(o=>o.value===keep))projSel.value=keep;
   renderExpTable();
 }
 function renderExpTable(){
   const fp=document.getElementById('expFilterProj').value,ft=document.getElementById('expFilterType').value,fs=document.getElementById('expFilterStatus').value;
-  const rows=DB.experiments.filter(e=>(fp==='全部项目'||DB.projects.find(p=>p.id===fp)?.name===e.proj)&&(ft==='全部类型'||e.type===ft)&&(fs==='全部状态'||e.status===fs));
-  document.getElementById('expTable').innerHTML=`<table class="tbl"><thead><tr><th>实验 ID</th><th>归属项目</th><th>类型</th><th>日期</th><th>状态</th><th>摘要 / 备注</th></tr></thead><tbody>${rows.map(e=>`<tr><td class="name">${e.id}</td><td>${e.proj}</td><td>${e.type}</td><td>${e.date}</td><td><span class="status-badge ${STATUS_CLS[e.status]}">${e.status}</span></td><td>${esc(e.note)}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--muted)">无匹配记录</td></tr>'}</tbody></table>`;
+  /* 过滤后仍要能定位回原数组，所以先带上原始下标再筛 */
+  const rows=DB.experiments.map((e,i)=>({e,i})).filter(({e})=>(fp==='全部项目'||DB.projects.find(p=>p.id===fp)?.name===e.proj)&&(ft==='全部类型'||e.type===ft)&&(fs==='全部状态'||e.status===fs));
+  document.getElementById('expTable').innerHTML=`<table class="tbl"><thead><tr><th>实验 ID</th><th>归属项目</th><th>类型</th><th>日期</th><th>状态</th><th>摘要 / 备注</th><th>操作</th></tr></thead><tbody>${rows.map(({e,i})=>`<tr><td class="name">${esc(e.id)}</td><td>${esc(e.proj)}</td><td>${esc(e.type)}</td><td>${esc(e.date)}</td><td><span class="status-badge ${STATUS_CLS[e.status]}">${esc(e.status)}</span></td><td style="white-space:normal;max-width:280px">${esc(e.note)}</td><td>${rowActs('exp',i)}</td></tr>`).join('')||'<tr><td colspan="7" class="sub">无匹配记录</td></tr>'}</tbody></table>`;
+  bindRowActs();
 }
 function renderLiterature(){
-  document.getElementById('litTable').innerHTML=`<table class="tbl"><thead><tr><th>标题</th><th>来源</th><th>状态</th></tr></thead><tbody>${DB.literatures.map(l=>`<tr><td class="name">${esc(l.title)}</td><td>${l.meta}</td><td><span class="badge ${l.status==='待精读'?'important':l.status==='笔记待整理'?'urgent':'normal'}">${l.status}</span></td></tr>`).join('')}</tbody></table>`;
+  document.getElementById('litTable').innerHTML=`<table class="tbl"><thead><tr><th>标题</th><th>来源</th><th>状态</th><th>笔记</th><th>操作</th></tr></thead><tbody>${DB.literatures.map((l,i)=>`<tr><td class="name" style="white-space:normal;max-width:340px">${esc(l.title)}</td><td>${esc(l.meta)}</td><td><span class="badge ${l.status==='待精读'?'important':l.status==='笔记待整理'?'urgent':'normal'}">${esc(l.status)}</span></td><td style="white-space:normal;max-width:220px;color:var(--muted)">${esc((l.note||'').slice(0,60))||'—'}</td><td>${rowActs('lit',i,l.doi?`<button class="mini-act" data-doi="${i}">原文</button>`:'')}</td></tr>`).join('')||'<tr><td colspan="5" class="sub">文献库为空，点右上角添加</td></tr>'}</tbody></table>`;
+  bindRowActs();
+  document.querySelectorAll('[data-doi]').forEach(el=>el.onclick=()=>{
+    const l=DB.literatures[+el.dataset.doi];if(!l||!l.doi)return;
+    const u=/^https?:/.test(l.doi)?l.doi:'https://doi.org/'+l.doi.replace(/^doi:/i,'');
+    if(IN_TAURI)invoke('plugin:opener|open_url',{url:u}).catch(e=>toast('打开失败，链接：'+u,7000));else window.open(u,'_blank');
+  });
 }
 let labTab='reagent';
 function renderLab(){
-  const rows=labTab==='reagent'
-    ?`<table class="tbl"><thead><tr><th>名称</th><th>货号</th><th>批次</th><th>位置</th><th>有效期</th><th>余量</th></tr></thead><tbody>${DB.reagents.map(r=>`<tr><td class="name">${r.name}</td><td>${r.no}</td><td>${r.lot}</td><td>${r.loc}</td><td>${r.exp}</td><td>${r.left}</td></tr>`).join('')}</tbody></table>`
-    :`<table class="tbl"><thead><tr><th>仪器</th><th>最近校准</th><th>下次校准</th><th>备注</th></tr></thead><tbody>${DB.instruments.map(i=>`<tr><td class="name">${i.name}</td><td>${i.cal}</td><td>${i.next}</td><td>${i.note}</td></tr>`).join('')}</tbody></table>`;
-  document.getElementById('labTable').innerHTML=rows;
-}
-function renderFocusPage(){
+  const kind=labTab==='reagent'?'reagent':labTab==='instrument'?'instrument':'booking';
+  let html='';
+  if(labTab==='reagent'){
+    html=`<table class="tbl"><thead><tr><th>名称</th><th>货号</th><th>批次</th><th>位置</th><th>开封</th><th>有效期</th><th>余量</th><th>操作</th></tr></thead><tbody>${DB.reagents.map((r,i)=>{
+      const d=daysLeft(r.exp),warn=d===null?'':d<0?' <span class="warn-pill red">已过期</span>':d<=30?` <span class="warn-pill orange">${d} 天</span>`:'';
+      return `<tr><td class="name">${esc(r.name)}</td><td>${esc(r.no)}</td><td>${esc(r.lot)}</td><td>${esc(r.loc)}</td><td>${esc(r.open||'—')}</td><td>${esc(r.exp)}${warn}</td><td>${esc(r.left)}</td><td>${rowActs('reagent',i)}</td></tr>`;
+    }).join('')||'<tr><td colspan="8" class="sub">还没有试剂，点右上角新增</td></tr>'}</tbody></table>`;
+  }else if(labTab==='instrument'){
+    html=`<table class="tbl"><thead><tr><th>仪器</th><th>最近校准</th><th>下次校准</th><th>备注</th><th>操作</th></tr></thead><tbody>${DB.instruments.map((x,i)=>{
+      const d=daysLeft(x.next),warn=d===null?'':d<0?' <span class="warn-pill red">超期</span>':d<=30?` <span class="warn-pill orange">${d} 天</span>`:'';
+      return `<tr><td class="name">${esc(x.name)}</td><td>${esc(x.cal)}</td><td>${esc(x.next)}${warn}</td><td>${esc(x.note)}</td><td>${rowActs('instrument',i)}</td></tr>`;
+    }).join('')||'<tr><td colspan="5" class="sub">还没有仪器，点右上角新增</td></tr>'}</tbody></table>`;
+  }else{
+    html=`<table class="tbl"><thead><tr><th>日期</th><th>时段</th><th>仪器</th><th>使用人</th><th>用途 / 项目</th><th>操作</th></tr></thead><tbody>${DB.bookings.map((b,i)=>{
+      const past=daysLeft(b.date);
+      return `<tr${past!==null&&past<0?' style="opacity:.55"':''}><td class="name">${esc(b.date)}</td><td>${esc(b.slot)}</td><td>${esc(b.inst)}</td><td>${esc(b.who)}</td><td>${esc(b.proj||'—')}</td><td>${rowActs('booking',i)}</td></tr>`;
+    }).join('')||'<tr><td colspan="6" class="sub">还没有机时预约，点右上角新增</td></tr>'}</tbody></table>`;
+  }
+  document.getElementById('labTable').innerHTML=html;
+  const btn=document.getElementById('btnLabNew');
+  if(btn)btn.textContent=labTab==='reagent'?'新增试剂':labTab==='instrument'?'新增仪器':'新增预约';
+  bindRowActs();
+}function renderFocusPage(){
   const byType={},byProj={};let total=0;
   DB.focusRecords.forEach(r=>{byType[r.type]=(byType[r.type]||0)+r.minutes;byProj[r.project]=(byProj[r.project]||0)+r.minutes;total+=r.minutes});
   const colors=['#007AFF','#30D158','#FF9F0A','#7B5CFF','#F0832A'];
-  document.getElementById('focusPie').innerHTML=pieChart(Object.entries(byType).map(([k,v],i)=>[colors[i%5],v]),120)+`<div class="sub" style="margin-top:10px">总时长 ${total} 分钟</div>`;
-  document.getElementById('focusByProj').innerHTML=Object.entries(byProj).map(([k,v])=>`<div class="bar-row"><span class="bl">${esc(k)}</span><div class="bar"><i style="width:${v/total*100}%"></i></div><span class="bv">${v}′</span></div>`).join('');
-  document.getElementById('focusTotal').innerHTML=`<div class="kpi"><div class="num">${total}′</div><div class="label">累计专注</div></div><div class="kpi" style="margin-top:8px"><div class="num">${DB.focusRecords.length}</div><div class="label">专注次数</div></div>`;
-  document.getElementById('focusTable').innerHTML=`<table class="tbl"><thead><tr><th>时间</th><th>项目</th><th>类型</th><th>时长</th></tr></thead><tbody>${[...DB.focusRecords].reverse().map(r=>`<tr><td class="name">${r.at}</td><td>${esc(r.project)}</td><td>${r.type}</td><td>${r.minutes} 分钟</td></tr>`).join('')}</tbody></table>`;
+  const bar=(obj,unit)=>{const mx=Math.max(1,...Object.values(obj));
+    return Object.entries(obj).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="bar-row"><span class="bl" title="${esc(k)}">${esc(k)}</span><div class="bar"><i style="width:${v/mx*100}%"></i></div><span class="bv">${v}${unit}</span></div>`).join('')||'<div class="sub">还没有记录</div>'};
+  document.getElementById('focusPie').innerHTML=(total?pieChart(Object.entries(byType).map(([k,v],i)=>[colors[i%5],v]),120):'<div class="sub" style="padding:26px 0;text-align:center">还没有专注记录</div>')+`<div class="sub" style="margin-top:10px">总时长 ${total} 分钟 · 近 7 天 ${sum(seriesFocus(7))} 分钟</div>`;
+  document.getElementById('focusByProj').innerHTML=bar(byProj,'′');
+  document.getElementById('focusTotal').innerHTML=`<div class="kpi"><div class="num">${total}′</div><div class="label">累计专注</div></div><div class="kpi" style="margin-top:8px"><div class="num">${DB.focusRecords.length}</div><div class="label">专注次数</div></div><div class="kpi" style="margin-top:8px"><div class="num">${focusOn(todayStr())}′</div><div class="label">今日专注</div></div>`;
+  /* 记录表带编辑/删除：以前只能看，记错了只能去改 JSON */
+  const rows=DB.focusRecords.map((r,i)=>({r,i})).sort((a,b)=>String(b.r.at).localeCompare(String(a.r.at)));
+  document.getElementById('focusTable').innerHTML=`<table class="tbl"><thead><tr><th>时间</th><th>项目</th><th>类型</th><th>时长</th><th>操作</th></tr></thead><tbody>${rows.map(({r,i})=>`<tr><td class="name">${esc(fmtRecAt(r))}</td><td>${esc(r.project)}</td><td>${esc(r.type)}</td><td>${r.minutes} 分钟</td><td>${rowActs('focus',i)}</td></tr>`).join('')||'<tr><td colspan="5" class="sub">还没有专注记录，用首页计时卡片开始一次专注</td></tr>'}</tbody></table>`;
+  bindRowActs();
 }
+let reportRange=14;
 function renderReports(){
-  document.getElementById('reportKpi').innerHTML=document.getElementById('kpiRow').innerHTML;
-  const d14=[...DB.weeklyFocus,...DB.weeklyFocus].slice(0,14);
-  document.getElementById('reportChart').innerHTML=lineChart(d14,720,140,'#007AFF');
+  /* 以前这里直接抄 kpiRow.innerHTML，卡片一被移除报表页就空白；现在独立计算 */
+  setHTML('reportKpi',kpiHTML());
+  const n=reportRange,sv=seriesFocus(n),st=seriesTasks(n),days=lastDays(n);
+  setHTML('reportChart',lineChart(sv,720,140,'#007AFF'));
+  setText('reportChartNote',`${days[0]} ~ ${days[n-1]} · 专注合计 ${sum(sv)} 分钟 · 完成任务 ${sum(st)} 项 · 日均 ${Math.round(sum(sv)/n)} 分钟`);
+  const byProj={};DB.focusRecords.forEach(r=>{byProj[r.project]=(byProj[r.project]||0)+r.minutes});
+  const mxp=Math.max(1,...Object.values(byProj));
+  setHTML('reportProj',Object.entries(byProj).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="bar-row"><span class="bl" title="${esc(k)}">${esc(k)}</span><div class="bar"><i style="width:${v/mxp*100}%"></i></div><span class="bv">${v}′</span></div>`).join('')||'<div class="sub">还没有专注记录</div>');
+  const byStatus={};DB.experiments.forEach(e=>{byStatus[e.status]=(byStatus[e.status]||0)+1});
+  const mxs=Math.max(1,...Object.values(byStatus));
+  setHTML('reportExp',Object.entries(byStatus).map(([k,v])=>`<div class="bar-row"><span class="bl">${esc(k)}</span><div class="bar"><i style="width:${v/mxs*100}%"></i></div><span class="bv">${v} 次</span></div>`).join('')||'<div class="sub">还没有实验记录</div>');
+  const byState={todo:0,doing:0,done:0};DB.tasks.forEach(t=>{byState[t.state||(t.done?'done':'todo')]++});
+  setHTML('reportTask',TSTATE.map(([s,l])=>`<div class="bar-row"><span class="bl">${l}</span><div class="bar"><i style="width:${byState[s]/Math.max(1,DB.tasks.length)*100}%"></i></div><span class="bv">${byState[s]} 项</span></div>`).join('')
+    +`<div class="sub" style="margin-top:8px">近 ${n} 天完成 ${sum(st)} 项${DB.tasks.length?'':' · 还没有任务'}</div>`);
+  const byCat={};DB.budget.forEach(b=>{byCat[b.cat]=(byCat[b.cat]||0)+(+b.amount||0)});
+  const spent=sum(DB.budget.map(b=>+b.amount||0));
+  setHTML('reportBudget',Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="bar-row"><span class="bl">${esc(k)}</span><div class="bar"><i style="width:${v/Math.max(1,spent)*100}%"></i></div><span class="bv">¥${v}</span></div>`).join('')
+    +`<div class="sub" style="margin-top:8px">已支出 ¥${spent.toLocaleString()} / 预算 ¥${(+DB.budgetTotal||0).toLocaleString()}（${Math.round(spent/Math.max(1,DB.budgetTotal)*100)}%）</div>`);
 }
 
 /* ===================== 专注计时器 ===================== */
 let timer={running:false,paused:false,phase:'work',left:25*60,total:25*60,tick:null};
 function fmt(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
 function setPreset(w,b){
-  document.getElementById('focusPresetTag').textContent=w+' + '+b;
+  setText('focusPresetTag',w+' + '+b);
   timer.work=w*60;timer.rest=b*60;
   if(!timer.running){timer.phase='work';timer.left=timer.work;drawTimer();}
 }
 function drawTimer(){
   const el=document.getElementById('timerNum');
+  if(!el)return;                       /* 专注卡片被移除时计时照常走，只是不画 */
   el.textContent=fmt(timer.left);
   el.className='timer-num'+(timer.phase==='break'?' breaking':timer.running&&!timer.paused?' running':'');
-  document.getElementById('timerPhase').textContent=timer.phase==='break'?'休息':'专注';
-  document.getElementById('btnTimerStart').textContent=timer.paused?'继续':timer.running?'进行中…':'开始';
-  document.getElementById('btnTimerStart').disabled=timer.running&&!timer.paused;
+  setText('timerPhase',timer.phase==='break'?'休息':'专注');
+  const s=document.getElementById('btnTimerStart');
+  if(s){s.textContent=timer.paused?'继续':timer.running?'进行中…':'开始';s.disabled=timer.running&&!timer.paused;}
 }
 function tickTimer(){
   if(!timer.running||timer.paused)return;
@@ -1145,28 +1608,40 @@ function finishFocus(auto){
   if(timer.tick){clearInterval(timer.tick);timer.tick=null;}
   const mins=Math.round((timer.total-Math.max(timer.left,0))/60);
   if(mins>=1&&!auto||auto&&mins>=1){
-    DB.focusRecords.push({project:document.getElementById('timerProject').value||'未指定',type:document.getElementById('timerType').value,minutes:mins,at:'今天 '+new Date().toTimeString().slice(0,5)});
+    /* 专注卡片可能已被移出 Dashboard，此时按「未指定」记账，计时本身照常 */
+    const pj=document.getElementById('timerProject'),tp=document.getElementById('timerType');
+    DB.focusRecords.push({id:uid('f'),project:(pj&&pj.value)||'未指定',type:(tp&&tp.value)||'实验操作',minutes:mins,at:nowStamp()});
     toast('已记录专注 '+mins+' 分钟');
   }
   timer.running=false;timer.paused=false;timer.phase='work';timer.left=timer.work;timer.total=timer.work;
-  drawTimer();renderKpi();renderFocusPage();
+  saveDB();drawTimer();renderKpi();renderFocusPage();
+  if(activeLayout().some(w=>w.id==='heatmap'))renderHeatCard();
+  queueResize();
 }
-document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('[data-preset]').forEach(x=>x.classList.remove('active'));b.classList.add('active');
-  const [w,rest]=b.dataset.preset.split(',').map(Number);setPreset(w,rest);
-});
-document.getElementById('btnTimerStart').onclick=()=>{
-  if(timer.running&&!timer.paused)return;
-  if(!timer.running){timer.total=timer.left;}
-  timer.running=true;timer.paused=false;
-  if(!timer.tick)timer.tick=setInterval(tickTimer,1000);
+/* 计时器 UI 现在是可移除的 Dashboard 卡片，绑定必须能重复执行：
+   卡片每次重建后由 after() 再调一次，而不是在脚本加载时一次性绑定。 */
+function bindTimerUI(){
+  const sel=document.getElementById('timerProject');
+  if(sel)sel.innerHTML=DB.projects.map(p=>`<option>${esc(p.name)}</option>`).join('')+'<option>未指定</option>';
+  document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('[data-preset]').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+    const [w,rest]=b.dataset.preset.split(',').map(Number);setPreset(w,rest);
+  });
+  const s=document.getElementById('btnTimerStart');
+  if(s)s.onclick=()=>{
+    if(timer.running&&!timer.paused)return;
+    if(!timer.running){timer.total=timer.left;}
+    timer.running=true;timer.paused=false;
+    if(!timer.tick)timer.tick=setInterval(tickTimer,1000);
+    drawTimer();
+  };
+  const p=document.getElementById('btnTimerPause');
+  if(p)p.onclick=()=>{if(!timer.running)return;timer.paused=!timer.paused;drawTimer();toast(timer.paused?'已暂停':'继续')};
+  const st=document.getElementById('btnTimerStop');
+  if(st)st.onclick=()=>{if(timer.running||timer.paused){finishFocus(false)}else toast('计时尚未开始')};
   drawTimer();
-};
-document.getElementById('btnTimerPause').onclick=()=>{
-  if(!timer.running)return;timer.paused=!timer.paused;drawTimer();toast(timer.paused?'已暂停':'继续');
-};
-document.getElementById('btnTimerStop').onclick=()=>{if(timer.running||timer.paused){finishFocus(false)}else toast('计时尚未开始')};
-document.getElementById('btnQuickFocus').onclick=()=>openView('home');
+}
+document.getElementById('btnQuickFocus').onclick=()=>{openView('home');const c=document.querySelector('#dashGrid [data-w="focus"]');if(c)c.scrollIntoView({behavior:'smooth',block:'center'});else toast('专注计时卡片已被移除，可在「+ 添加卡片」中加回')};
 
 /* ===================== 子页交互 ===================== */
 document.querySelectorAll('[data-tview]').forEach(b=>b.onclick=()=>{
@@ -1174,25 +1649,34 @@ document.querySelectorAll('[data-tview]').forEach(b=>b.onclick=()=>{
   const v=b.dataset.tview;
   document.getElementById('taskBoard').style.display=v==='board'?'':'none';
   document.getElementById('taskListWrap').style.display=v==='list'?'':'none';
-  if(v==='day'||v==='week')toast('日/周视图开发中 — 先用看板和清单');
+  const cal=document.getElementById('taskCal');
+  cal.style.display=(v==='day'||v==='week')?'':'none';
+  cal.dataset.mode=v==='week'?'week':'day';
+  renderTaskCal();bindTaskEvents();
 });
 document.querySelectorAll('[data-labtab]').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('[data-labtab]').forEach(x=>x.classList.remove('active'));b.classList.add('active');
   labTab=b.dataset.labtab;renderLab();
 });
 ['expFilterProj','expFilterType','expFilterStatus'].forEach(id=>document.getElementById(id).addEventListener('change',renderExpTable));
-document.getElementById('btnNewTask').onclick=()=>toast('新建任务表单开发中（优先级/项目/标签/截止）');
-document.getElementById('btnNewProject').onclick=()=>toast('新建项目开发中');
-document.getElementById('btnNewExp').onclick=()=>toast('新建实验表单开发中（模板：MASH 造模 / LC-MS / WB）');
-document.getElementById('btnNewLit').onclick=()=>toast('添加文献开发中（DOI/PMID 导入）');
+document.getElementById('btnNewTask').onclick=()=>newTaskModal();
+document.getElementById('btnNewProject').onclick=()=>newProjectModal();
+document.getElementById('btnNewExp').onclick=()=>newExpModal();
+document.getElementById('btnNewLit').onclick=()=>newLitModal();
 function dlCSV(name,rows){
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
   toast('已导出 '+name);
 }
-document.getElementById('btnFocusExport').onclick=()=>dlCSV('专注记录.csv',[['时间','项目','类型','分钟'],...DB.focusRecords.map(r=>[r.at,r.project,r.type,r.minutes])]);
-document.getElementById('btnReportExport').onclick=()=>dlCSV('统计报表.csv',[['指标','数值'],['本周专注(分)',DB.focusRecords.reduce((s,r)=>s+r.minutes,0)],['本周完成任务',DB.tasks.filter(t=>t.done).length],['进行中项目',2]]);
+function dlJSON(name,obj){
+  const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
+  toast('已导出 '+name);
+}
+document.getElementById('btnFocusExport').onclick=()=>dlCSV('专注记录.csv',[['日期','开始','项目','类型','分钟'],...DB.focusRecords.map(r=>[String(r.at).slice(0,10),(String(r.at).match(/T(\d{2}:\d{2})/)||[])[1]||'',r.project,r.type,r.minutes])]);
+document.getElementById('btnReportExport').onclick=()=>{const sv=seriesFocus(reportRange),st=seriesTasks(reportRange),days=lastDays(reportRange);
+  dlCSV('统计报表.csv',[['指标','数值'],['统计区间',days[0]+' ~ '+days[reportRange-1]],['专注合计(分)',sum(sv)],['完成任务',sum(st)],['进行中项目',DB.projects.length],['待办任务',DB.tasks.filter(t=>!t.done).length],['文献待读',DB.literatures.filter(l=>l.status!=='已读完').length],['经费支出',sum(DB.budget.map(b=>+b.amount||0))],[],['日期','专注(分)','完成任务'],...days.map((d,i)=>[d,sv[i],st[i]])])};
 
 /* ===================== Window controls ===================== */
 async function winAction(fn){
@@ -1213,13 +1697,12 @@ let rois=[]; let slideSrc=null; let currentSlidePath='';
 let baseW=0,baseH=0,imgW=0,imgH=0;
 let view={zoom:1,panX:0,panY:0};
 let selected=new Set(), primaryIdx=-1, lastMouse=null, mag=20, ratio='16:9';
-let slideInfo=null; let slideTiles=new Map(); let pendingTiles=new Set();
-let tileTimer=null;   /* scheduleTiles 防抖句柄。必须声明：未声明时首次 clearTimeout(tileTimer)
-                         抛 ReferenceError，applyView 每次缩放/平移都在此中断，瓦片管线整体失效，
-                         画面永远只剩拉伸的缩略图（放大模糊的根因）。 */
+let slideInfo=null;
 let undoStack=[], redoStack=[];
 let pendingOpen=null;      /* {path,gen} — SDPC open queued on the decoder worker */
 let exporting=false;       /* an export job is in flight (button becomes cancel) */
+let exportFailed=0;        /* 首个失败原因，导出结束时一并提示，不再只报一个数字 */
+let exportFirstErr='';
 let roiDb=[], roiDbReady=false;  /* persisted ROIs of ALL slides, backend format */
 const stage=document.getElementById('stage'); const frame=document.getElementById('slideFrame');
 const viewport=document.getElementById('viewport');
@@ -1228,15 +1711,13 @@ const miniNav=document.getElementById('miniNav'); const dropHint=document.getEle
 
 function setSlide(src,name){
   slideSrc=src;
-  whiteRef=null;balancedCache.clear();
+  clearTiles();
   slideImg.onload=async()=>{
     layoutSlide();
-    /* 全片缩略图背景白点 = 全局色彩参考（瓦片逐块曝光/白平衡差异的均衡基准） */
-    try{whiteRef=estimateWhite(slideImg);}catch(e){whiteRef=null;}
     /* Restore persisted ROIs of this slide (regular images have no path). */
     rois=currentSlidePath?roiDb.filter(r=>r.slide_path===currentSlidePath).map(r=>({x:r.x,y:r.y,w:r.w,h:r.h})):[];
     selected.clear();primaryIdx=-1;undoStack=[];redoStack=[];drawRois();
-    if(!slideInfo){await buildTilesFromImage();}else{scheduleTiles();}
+    requestPaint();
   };
   slideImg.src=src;
   document.getElementById('miniImg').src=src;
@@ -1270,7 +1751,7 @@ function layoutSlide(){
 function applyView(){
   viewport.style.transform=`translate(${view.panX}px,${view.panY}px) scale(${view.zoom})`;
   document.getElementById('zoomLabel').textContent=Math.round(view.zoom*100)+'%';
-  drawRois();
+  drawRois(true);
   updateNavViewbox();
   scheduleTiles();
 }
@@ -1309,8 +1790,8 @@ function clampZoom(z){const k=(imgW&&baseW)?baseW/imgW:1;return Math.min(32,Math
    消除逐格跳变的割裂感；拖拽平移保持直跟（零延迟）。 ---- */
 let viewTarget=null, viewRaf=0;
 function setViewTarget(z,px,py,instant){
-  if(instant){viewTarget=null;if(viewRaf){cancelAnimationFrame(viewRaf);viewRaf=0;}view={zoom:z,panX:px,panY:py};applyView();return;}
-  viewTarget={zoom:z,panX:px,panY:py};
+  if(instant){viewTarget=null;if(viewRaf){cancelAnimationFrame(viewRaf);viewRaf=0;}view={zoom:z,panX:px,panY:py};viewMoving=false;applyView();return;}
+  viewTarget={zoom:z,panX:px,panY:py};viewMoving=true;
   if(!viewRaf)viewRaf=requestAnimationFrame(stepView);
 }
 function stepView(){
@@ -1321,7 +1802,7 @@ function stepView(){
   view.panX+=(t.panX-view.panX)*k;
   view.panY+=(t.panY-view.panY)*k;
   if(Math.abs(t.zoom-view.zoom)<t.zoom*0.002&&Math.abs(t.panX-view.panX)<0.4&&Math.abs(t.panY-view.panY)<0.4){
-    view={zoom:t.zoom,panX:t.panX,panY:t.panY};viewTarget=null;applyView();return;
+    view={zoom:t.zoom,panX:t.panX,panY:t.panY};viewTarget=null;viewMoving=false;applyView();return;
   }
   applyView();
   viewRaf=requestAnimationFrame(stepView);
@@ -1334,7 +1815,7 @@ function selectOnly(i){selected.clear();selected.add(i);primaryIdx=i;}
 function undo(){if(!undoStack.length){toast('没有可撤销的操作');return}redoStack.push(JSON.stringify(rois));rois=JSON.parse(undoStack.pop());clearSel();drawRois();persistRois();toast('已撤销');}
 function redo(){if(!redoStack.length){toast('没有可重做的操作');return}undoStack.push(JSON.stringify(rois));rois=JSON.parse(redoStack.pop());clearSel();drawRois();persistRois();toast('已重做');}
 
-function drawRois(){
+function drawRois(skipList){
   const sf=dispToImg(), z=view.zoom;
   /* roiLayer 在缩放容器外、按屏幕坐标绘制：Chrome 会把缩放容器内的亚像素
      border/width 钳制到 ≥1 base px 再乘 zoom，高倍率下边框/手柄被放大成粗块。
@@ -1363,7 +1844,9 @@ function drawRois(){
       roiLayer.appendChild(h);
     }
   }
-  renderRoiList();document.getElementById('roiCount').textContent=rois.length+' 个区域';
+  /* 纯视图变化（缩放/平移）时 ROI 数据没变，跳过右侧列表重建：
+     否则每帧都要重建整份列表 DOM 并重新绑定监听，ROI 多时明显拖慢缩放。 */
+  if(!skipList){renderRoiList();document.getElementById('roiCount').textContent=rois.length+' 个区域';}
 }
 function renderRoiList(){
   const list=document.getElementById('roiList');
@@ -1451,6 +1934,7 @@ window.addEventListener('mousemove',e=>{
   if(!drag)return;
   if(drag.type==='pan'){
     view.panX=drag.px+(e.clientX-drag.sx); view.panY=drag.py+(e.clientY-drag.sy);
+    viewMoving=true;
     /* ROI 层在屏幕空间：平移必须同步重绘 ROI/导航框并补瓦片，否则拖拽时 ROI 脱位 */
     applyView();
     return;
@@ -1480,7 +1964,7 @@ window.addEventListener('mousemove',e=>{
 });
 window.addEventListener('mouseup',()=>{
   if(!drag)return;
-  if(drag.type==='pan')frame.classList.remove('panning');
+  if(drag.type==='pan'){frame.classList.remove('panning');viewMoving=false;requestPaint();}
   if(drag.type==='move'||drag.type==='resize')persistRois();
   drag=null;
 });
@@ -1557,43 +2041,47 @@ document.querySelectorAll('#ratioSeg button').forEach(b=>b.onclick=()=>{
   autoCalcFrame();
 });
 
-/* ===================== 金字塔瓦片渲染（照原版：按需请求 + LRU + 渐进清晰） ===================== */
-/* 预览层白点均衡：SDPC 金字塔逐瓦片 JPEG 存在曝光/白平衡差异（Python 版同样可见
-   色块拼布）。以全片缩略图背景 P90 为参考，对每瓦片做逐通道增益补偿（限幅），
-   仅作用于预览显示；导出走 DLL 原始像素，不受影响。 */
-let whiteRef=null;
-const balancedCache=new Map();
-function chanP90(d,stride){
-  const rs=[],gs=[],bs=[];
-  for(let i=0;i<d.length;i+=stride){rs.push(d[i]);gs.push(d[i+1]);bs.push(d[i+2]);}
-  const p90=a=>{a.sort((u,v)=>u-v);return a[Math.floor(a.length*0.9)]||255;};
-  return [p90(rs),p90(gs),p90(bs)];
+/* ===================== 金字塔瓦片渲染（单 canvas · 设备像素对齐 · 零编码传输） ===================== */
+/* 对齐 Python 版 QGraphicsScene 的做法：所有瓦片画进同一个绘图表面。
+   旧实现的三个致命点已移除：
+   ① 逐瓦片白平衡（chanP90 + 逐像素增益 + toDataURL）——每块 1024² 要在主线程
+      做 100 万次乘法再重编码 JPEG，是缩放卡顿的主因；而且每块增益各不相同，
+      本身就是"色块拼布"的制造者。原版从不做这件事，现在也不做。
+   ② 每块一个被 CSS scale 的 <img> + 淡入动画——Chrome 对每个图层独立取整，
+      共享边出现亚像素缝隙，淡入期间还透出底图 → 接缝 + 闪色。
+   ③ PNG data URL + 250ms 轮询——现在后端直接回 RGBA 原始字节（ArrayBuffer），
+      前端 ImageData 零转换包成 ImageBitmap，请求即等待，无轮询延迟。 */
+const TS=1024;
+const TILE_BUDGET_PX=40e6;   /* ImageBitmap 缓存预算（≈160MB），超出按 LRU 释放 */
+const MAX_INFLIGHT=6;        /* 并发解码请求数：DLL 串行，多了只会排队 */
+let tileCache=new Map();     /* key -> {bmp,level,tx,ty,tw,th,px}，Map 顺序即 LRU */
+let tilePx=0;
+let inflight=new Set();
+let desired=[];              /* 当前视口需要但尚未缓存的瓦片，按距中心排序 */
+let failedAt=new Map();      /* key -> 时间戳，失败退避，避免空转重请求 */
+let tileEpoch=0;             /* 仅在金字塔层级切换时递增，让后端丢弃过期请求 */
+let lastLevel=-1;
+let paintRaf=0;
+let viewMoving=false;
+
+function tileKeyOf(l,x,y,w,h){return l+'_'+x+'_'+y+'_'+w+'_'+h;}
+function cacheTouch(k){
+  const e=tileCache.get(k);
+  if(e){tileCache.delete(k);tileCache.set(k,e);}
+  return e;
 }
-function estimateWhite(img){
-  const w=img.naturalWidth,h=img.naturalHeight;
-  if(!w||!h)return null;
-  const c=document.createElement('canvas');c.width=w;c.height=h;
-  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0);
-  return chanP90(x.getImageData(0,0,w,h).data,16);
-}
-async function balanceTile(key,url){
-  if(!whiteRef)return url;
-  if(balancedCache.has(key))return balancedCache.get(key);
-  const im=new Image();im.src=url;await im.decode();
-  const w=im.naturalWidth,h=im.naturalHeight;
-  const c=document.createElement('canvas');c.width=w;c.height=h;
-  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);
-  const id=x.getImageData(0,0,w,h);const d=id.data;
-  const pw=chanP90(d,64);
-  const g=[0,1,2].map(i=>Math.min(1.18,Math.max(0.85,whiteRef[i]/Math.max(pw[i],1))));
-  let out=url;
-  if(g.some(v=>Math.abs(v-1)>0.015)){
-    for(let i=0;i<d.length;i+=4){d[i]*=g[0];d[i+1]*=g[1];d[i+2]*=g[2];}
-    x.putImageData(id,0,0);
-    out=c.toDataURL('image/jpeg',0.93);
+function cachePut(k,e){
+  tileCache.set(k,e);tilePx+=e.px;
+  while(tilePx>TILE_BUDGET_PX&&tileCache.size>1){
+    const old=tileCache.keys().next().value;
+    const oe=tileCache.get(old);
+    tileCache.delete(old);tilePx-=oe.px;
+    try{oe.bmp.close();}catch(_){}
   }
-  balancedCache.set(key,out);
-  return out;
+}
+function clearTiles(){
+  tileCache.forEach(e=>{try{e.bmp.close();}catch(_){}});
+  tileCache.clear();tilePx=0;inflight.clear();desired=[];failedAt.clear();lastLevel=-1;
 }
 function bestLevelFor(scale){
   if(!slideInfo||!slideInfo.levels)return 0;
@@ -1602,133 +2090,179 @@ function bestLevelFor(scale){
   slideInfo.levels.forEach(lv=>{if(lv.downsample<=target)best=lv.level;});
   return best;
 }
-let tileGen=0;
-function scheduleTiles(){
-  clearTimeout(tileTimer);
-  tileGen+=1;
-  const g=tileGen;
-  /* begin_tiles/pending 清理放进 debounce：平滑缩放期间每帧 applyView 不会
-     造成 IPC/gen 洪泛；视图收敛后一次性切换解码代际。 */
-  tileTimer=setTimeout(()=>{
-    pendingTiles.clear();
-    if(IN_TAURI&&slideInfo)invoke('begin_tiles',{gen:g}).catch(()=>{});
-    renderTiles(g);
-  },200);
-}
-function renderTiles(g){
-  if(!slideSrc)return;
-  g=g||tileGen;
-  const layer=document.getElementById('tileLayer');
-  const sf=dispToImg();
-  const dpr=window.devicePixelRatio||1;
-  const scale=(baseW*view.zoom*dpr)/imgW;
-  const level=bestLevelFor(scale);
-  const lv=slideInfo?slideInfo.levels.find(l=>l.level===level):null;
-  const ds=lv?lv.downsample:1;
-  const TS=1024;
-  const W=Math.ceil((slideInfo?lv?lv.width:imgW:imgW)/1);
-  const LW=lv?lv.width:Math.ceil(imgW/ds), LH=lv?lv.height:Math.ceil(imgH/ds);
+/* 视图几何：level-0 像素 → 画布设备像素。与 viewport 的 CSS 变换严格同源，
+   所以 canvas 里的瓦片与 DOM 里的 ROI 永远对齐。 */
+function viewGeom(){
   const stR=stage.getBoundingClientRect(), frR=frame.getBoundingClientRect();
-  const fx=frR.left-stR.left, fy=frR.top-stR.top;
-  const vx0=(0-fx-view.panX)/view.zoom, vy0=(0-fy-view.panY)/view.zoom;
-  const vx1=(stR.width-fx-view.panX)/view.zoom, vy1=(stR.height-fy-view.panY)/view.zoom;
-  const lx0=Math.max(0,Math.floor(vx0*sf/ds/TS)*TS), ly0=Math.max(0,Math.floor(vy0*sf/ds/TS)*TS);
-  const lx1=Math.min(LW,Math.ceil(vx1*sf/ds/TS)*TS+TS), ly1=Math.min(LH,Math.ceil(vy1*sf/ds/TS)*TS+TS);
-  const needed=[];
-  for(let ty=ly0;ty<ly1;ty+=TS)for(let tx=lx0;tx<lx1;tx+=TS){
-    const tw=Math.min(TS,LW-tx), th=Math.min(TS,LH-ty);
-    if(tw<=0||th<=0)continue;
-    needed.push([tx,ty,tw,th]);
-  }
-  /* 照抄 Python _add_tile_item 精确放置；边界吸附到 1/64 base px 网格
-     （Chrome LayoutUnit 量子）：left/width 均为 1/64 倍数时不会被布局二次取整，
-     相邻瓦片共享边严格相等 → 无缝。屏幕空间误差 ≤ m11/64 ≤ 0.5px（m11≤32）。
-     旧的设备像素吸附比 1/64 更细，高倍率下被 Chrome 取整覆盖 → 1/64×zoom 的缝隙。 */
-  const place=(im,tx,ty,tw,th)=>{
-    const snap=v=>Math.round(v*64)/64;
-    const L=snap(tx*ds/sf), T=snap(ty*ds/sf), R=snap((tx+tw)*ds/sf), B=snap((ty+th)*ds/sf);
-    im.style.left=L+'px';im.style.top=T+'px';
-    im.style.width=(R-L)+'px';im.style.height=(B-T)+'px';
+  const dpr=window.devicePixelRatio||1;
+  const sf=dispToImg();
+  return {
+    dpr, w:stR.width, h:stR.height,
+    k:(view.zoom/sf)*dpr,
+    ox:(frR.left-stR.left+view.panX)*dpr,
+    oy:(frR.top-stR.top+view.panY)*dpr
   };
-  let complete=true;
-  needed.forEach(([tx,ty,tw,th])=>{
-    const key=level+'_'+tx+'_'+ty+'_'+tw+'_'+th;
-    const url=slideTiles.get(key);
-    const exist=layer.querySelector(`[data-key="${key}"]`);
-    if(url){
-      if(exist){place(exist,tx,ty,tw,th);}
-      else{
-        const im=new Image();im.src=url;im.className='tile-img';im.dataset.key=key;im.dataset.lv=level;
-        place(im,tx,ty,tw,th);
-        layer.appendChild(im);
-      }
-    }else{
-      complete=false;
-      if(!pendingTiles.has(key)&&slideInfo&&currentSlidePath){
-        pendingTiles.add(key);
-        invoke('enqueue_tile',{path:currentSlidePath,level,x:tx,y:ty,w:tw,h:th,gen:g}).catch(()=>pendingTiles.delete(key));
-      }
-    }
-  });
-  /* 旧层级瓦片保留为 underlay，直到新层级完整覆盖视口才移除——
-     跨层级瞬间不再闪回拉伸缩略图（割裂感主因之一）；新瓦片淡入衔接。 */
-  if(complete)[...layer.children].forEach(el=>{if(Number(el.dataset.lv)!==level)el.remove();});
-  /* 视口外保留的同层环带瓦片也按当前网格重定位，否则与视口内瓦片共享边错位 */
-  [...layer.children].forEach(el=>{
-    if(Number(el.dataset.lv)!==level)return;
-    const p=el.dataset.key.split('_').map(Number);
-    place(el,p[1],p[2],p[3],p[4]);
-  });
-  /* 视口外同层瓦片回收，限制 DOM 规模 */
-  [...layer.children].forEach(el=>{
-    const p=el.dataset.key.split('_');const lv=Number(p[0]),tx=Number(p[1]),ty=Number(p[2]);
-    if(lv===level&&(tx<lx0-TS||tx>lx1||ty<ly0-TS||ty>ly1))el.remove();
-  });
 }
-async function buildTilesFromImage(){
-  const TS=1024;
-  const W=slideImg.naturalWidth,H=slideImg.naturalHeight;
-  if(W*H>80e6)return;
-  const c=document.createElement('canvas');
-  const ctx=c.getContext('2d');
-  for(let ty=0;ty<H;ty+=TS)for(let tx=0;tx<W;tx+=TS){
-    const tw=Math.min(TS,W-tx),th=Math.min(TS,H-ty);
-    /* Size the canvas to the actual tile: a fixed 1024² canvas would export
-       transparent padding that gets squashed into the tw×th display slot. */
-    c.width=tw;c.height=th;
-    ctx.drawImage(slideImg,tx,ty,tw,th,0,0,tw,th);
-    slideTiles.set('0_'+tx+'_'+ty+'_'+tw+'_'+th,c.toDataURL('image/jpeg',0.92));
-    if(((ty/TS)|0)%4===3)await new Promise(r=>requestAnimationFrame(r));
+function requestPaint(){
+  if(paintRaf)return;
+  paintRaf=requestAnimationFrame(()=>{paintRaf=0;paint();});
+}
+/* 旧版这里是 200ms 重置式防抖：平滑缩放每帧都重置定时器，导致整个手势期间
+   一块瓦片都不请求，松手后才开始加载。现在改为 rAF 合帧，边动边加载。 */
+function scheduleTiles(){requestPaint();}
+
+function paint(){
+  const cv=document.getElementById('tileCanvas');
+  if(!cv)return;
+  const ctx=cv.getContext('2d');
+  const g=viewGeom();
+  const cw=Math.max(1,Math.round(g.w*g.dpr)), ch=Math.max(1,Math.round(g.h*g.dpr));
+  if(cv.width!==cw||cv.height!==ch){cv.width=cw;cv.height=ch;}
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,cw,ch);
+  if(!slideSrc||!imgW||!imgH||!slideImg.naturalWidth){cv.classList.add('hidden');return;}
+  cv.classList.remove('hidden');
+  const X=x=>g.ox+x*g.k, Y=y=>g.oy+y*g.k;
+  const IL=Math.round(X(0)),IT=Math.round(Y(0)),IR=Math.round(X(imgW)),IB=Math.round(Y(imgH));
+  /* 图像投影：跟随图像，取代原 <img> 的 box-shadow */
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,.22)';ctx.shadowBlur=24*g.dpr;ctx.shadowOffsetY=8*g.dpr;
+  ctx.fillStyle='#fff';ctx.fillRect(IL,IT,Math.max(1,IR-IL),Math.max(1,IB-IT));
+  ctx.restore();
+  ctx.imageSmoothingEnabled=true;
+  ctx.imageSmoothingQuality=viewMoving?'low':'high';
+  /* 底图：整片缩略图 / 普通图片本体。瓦片到位后在同一张画布上覆盖，
+     不再有跨图层的淡入混色（旧版 flashes 的来源）。
+     只绘制与视口相交的那一块源区域——深放大时整张缩略图会被放大到千万像素级
+     矩形，逐帧重采样极其昂贵，裁源后每帧只处理一屏的量。 */
+  const nw=slideImg.naturalWidth, nh=slideImg.naturalHeight;
+  const cl=(v,lo,hi)=>v<lo?lo:(v>hi?hi:v);
+  const sx0=cl((0-g.ox)/g.k,0,imgW), sy0=cl((0-g.oy)/g.k,0,imgH);
+  const sx1=cl((cw-g.ox)/g.k,0,imgW), sy1=cl((ch-g.oy)/g.k,0,imgH);
+  if(sx1>sx0&&sy1>sy0){
+    const u0=sx0/imgW*nw, v0=sy0/imgH*nh, u1=sx1/imgW*nw, v1=sy1/imgH*nh;
+    const DL=Math.round(X(sx0)),DT=Math.round(Y(sy0)),DR=Math.round(X(sx1)),DB=Math.round(Y(sy1));
+    if(DR>DL&&DB>DT)ctx.drawImage(slideImg,u0,v0,u1-u0,v1-v0,DL,DT,DR-DL,DB-DT);
   }
-  renderTiles();
+  if(!slideInfo||!slideInfo.levels||!slideInfo.levels.length){desired=[];return;}
+
+  const levels=slideInfo.levels;
+  const thumbLv=levels.length-1;
+  const level=Math.min(thumbLv,bestLevelFor(g.k));
+  /* 粗层 → 细层依次覆盖；同层按行列排序，让 +1px 搭接总被后画的邻居盖住 */
+  const groups=new Map();
+  tileCache.forEach(e=>{
+    if(e.level<level)return;
+    let a=groups.get(e.level);
+    if(!a){a=[];groups.set(e.level,a);}
+    a.push(e);
+  });
+  [...groups.keys()].sort((a,b)=>b-a).forEach(lv=>{
+    const ds=levels[lv]?levels[lv].downsample:1;
+    groups.get(lv).sort((a,b)=>(a.ty-b.ty)||(a.tx-b.tx)).forEach(e=>{
+      const L=Math.round(X(e.tx*ds)),T=Math.round(Y(e.ty*ds));
+      let R=Math.round(X((e.tx+e.tw)*ds)),B=Math.round(Y((e.ty+e.th)*ds));
+      if(R<=L||B<=T||R<0||B<0||L>cw||T>ch)return;
+      /* 共享边由同一个 level-0 边界坐标取整得到 → 相邻瓦片整数边严格相等。
+         再向右/下多铺 1 设备像素，补掉双线性重采样在边界少采一列源像素
+         造成的发丝线；这 1px 会被随后绘制的邻居完全覆盖。 */
+      R=Math.min(R+1,IR);B=Math.min(B+1,IB);
+      if(R<=L||B<=T)return;
+      ctx.drawImage(e.bmp,0,0,e.tw,e.th,L,T,R-L,B-T);
+    });
+  });
+
+  /* 需要的瓦片：固定 1024 网格。手势进行中只补可见区（+6%），停下来再按
+     原版的 30% PRELOAD_MARGIN 预加载周边——移动时要解码的像素少了近一半，
+     缩放跟手感明显提升，静止后的预取能力不变。 */
+  desired=[];
+  if(level<thumbLv){
+    const ds=levels[level].downsample, LW=levels[level].width, LH=levels[level].height;
+    const margin=viewMoving?0.06:0.30;
+    const mx=g.w*margin*g.dpr, my=g.h*margin*g.dpr;
+    const x0=(-mx-g.ox)/g.k, x1=(g.w*g.dpr+mx-g.ox)/g.k;
+    const y0=(-my-g.oy)/g.k, y1=(g.h*g.dpr+my-g.oy)/g.k;
+    const tx0=Math.max(0,Math.floor(x0/ds/TS)*TS), ty0=Math.max(0,Math.floor(y0/ds/TS)*TS);
+    const tx1=Math.min(LW,Math.ceil(x1/ds/TS)*TS), ty1=Math.min(LH,Math.ceil(y1/ds/TS)*TS);
+    const cx=(x0+x1)/2, cy=(y0+y1)/2, now=performance.now();
+    for(let ty=ty0;ty<ty1;ty+=TS)for(let tx=tx0;tx<tx1;tx+=TS){
+      const tw=Math.min(TS,LW-tx), th=Math.min(TS,LH-ty);
+      if(tw<=0||th<=0)continue;
+      const k=tileKeyOf(level,tx,ty,tw,th);
+      if(cacheTouch(k))continue;
+      const f=failedAt.get(k);
+      if(f&&now-f<3000)continue;
+      const dx=(tx+tw/2)*ds-cx, dy=(ty+th/2)*ds-cy;
+      desired.push({k,level,tx,ty,tw,th,d:dx*dx+dy*dy});
+    }
+    desired.sort((a,b)=>a.d-b.d);
+  }
+  /* 只有切换金字塔层级才作废在途请求；同层平移的瓦片仍然有用，不作废。 */
+  if(level!==lastLevel){
+    lastLevel=level;tileEpoch++;
+    if(IN_TAURI)invoke('begin_tiles',{gen:tileEpoch}).catch(()=>{});
+  }
+  pump();
 }
-/* 统一轮询：切片打开 + 瓦片就绪/失败 + 导出事件（原版 poll 语义） */
+
+/* 并发泵：永远先取离视口中心最近的瓦片。过期请求由后端按 epoch 立即丢弃，
+   不会让新瓦片排在一堆废请求后面。 */
+function pump(){
+  if(!IN_TAURI||!slideInfo||!currentSlidePath)return;
+  while(inflight.size<MAX_INFLIGHT&&desired.length){
+    const t=desired.shift();
+    if(inflight.has(t.k)||tileCache.has(t.k))continue;
+    inflight.add(t.k);
+    invoke('fetch_tile',{path:currentSlidePath,level:t.level,x:t.tx,y:t.ty,w:t.tw,h:t.th,gen:tileEpoch})
+      .then(buf=>{
+        inflight.delete(t.k);
+        if(!(buf instanceof ArrayBuffer)||buf.byteLength!==t.tw*t.th*4){requestPaint();return;}
+        const id=new ImageData(new Uint8ClampedArray(buf),t.tw,t.th);
+        return createImageBitmap(id).then(bmp=>{
+          failedAt.delete(t.k);
+          cachePut(t.k,{bmp,level:t.level,tx:t.tx,ty:t.ty,tw:t.tw,th:t.th,px:t.tw*t.th});
+          requestPaint();
+        });
+      })
+      .catch(()=>{inflight.delete(t.k);failedAt.set(t.k,performance.now());requestPaint();})
+      .finally(()=>pump());
+  }
+}
+/* 画布按舞台实际尺寸重建：窗口缩放 / 侧栏收放 / 跨屏 DPI 变化都要重绘 */
+if(window.ResizeObserver)new ResizeObserver(()=>requestPaint()).observe(stage);
+window.addEventListener('resize',()=>requestPaint());
+/* 事件轮询：只负责切片打开 / 导出进度 / 错误。
+   瓦片不再走这里——fetch_tile 是请求即等待的原始字节通道，没有轮询延迟。 */
 setInterval(async()=>{
-  if(!IN_TAURI||(!slideSrc&&!pendingOpen))return;
+  if(!IN_TAURI||(!slideSrc&&!pendingOpen&&!exporting))return;
   try{
     const evs=await invoke('poll_decoder',{max:64});
     (evs||[]).forEach(ev=>{
       if(ev.kind==='opened'&&pendingOpen&&ev.gen===pendingOpen.gen&&ev.thumb_url){
         const p=pendingOpen.path;pendingOpen=null;
         currentSlidePath=p;
-        slideInfo=ev.info;slideTiles.clear();pendingTiles.clear();
+        slideInfo=ev.info;clearTiles();
         autoCalcFrame();  /* 照抄 Python file_controller：切片打开后按当前倍率/比例 + 新 mpp 重算框尺寸 */
         setSlide(ev.thumb_url,p.split(/[\\/]/).pop());
         toast('切片已打开：'+ev.info.full_w+'×'+ev.info.full_h+(ev.info.mpp?(' · '+ev.info.mpp+' µm/px'):''));
-      }else if(ev.kind==='tile'&&ev.url){
-        const k=[ev.key.level,ev.key.x,ev.key.y,ev.key.w,ev.key.h].join('_');
-        pendingTiles.delete(k);
-        /* 白点均衡后再入缓存渲染；失败回退原始瓦片，不阻塞显示 */
-        balanceTile(k,ev.url).then(u=>{slideTiles.set(k,u);renderTiles();})
-          .catch(()=>{slideTiles.set(k,ev.url);renderTiles();});
-      }else if(ev.kind==='tile_failed'){
-        /* Release the pending slot so the tile can be retried on next render. */
-        const k=[ev.key.level,ev.key.x,ev.key.y,ev.key.w,ev.key.h].join('_');
-        pendingTiles.delete(k);
+      }else if(ev.kind==='export'&&ev.event&&ev.event.FileDone){
+        const fd=ev.event.FileDone;
+        if(fd.result&&fd.result.Err){exportFailed++;if(!exportFirstErr)exportFirstErr=(fd.name?fd.name+'：':'')+fd.result.Err;}
+      }else if(ev.kind==='export'&&ev.event&&ev.event.Progress){
+        const pg=ev.event.Progress;
+        if(exporting)['btnExport','btnPreviewExport'].forEach(id=>{
+          const b=document.getElementById(id);if(!b)return;
+          const tn=[...b.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());
+          if(tn)tn.textContent='导出中 '+pg.current+'/'+pg.total;
+        });
       }else if(ev.kind==='export'&&ev.event&&ev.event.Finished){
         const f=ev.event.Finished;
         exporting=false;updateExportButtons();
-        toast(f.cancelled?'导出已取消':('导出完成：成功 '+f.ok+' · 失败 '+f.failed));
+        if(f.cancelled)toast('导出已取消');
+        else if(f.failed&&!f.ok)toast('导出失败：'+(exportFirstErr||'共 '+f.failed+' 个区域失败'),6000);
+        else if(f.failed)toast('导出完成：成功 '+f.ok+' · 失败 '+f.failed+'（'+exportFirstErr+'）',6000);
+        else toast('导出完成：成功 '+f.ok+' 个 TIFF');
+        exportFailed=0;exportFirstErr='';
       }else if(ev.kind==='error'){
         if(pendingOpen){pendingOpen=null;toast('打开失败：'+ev.err);}
         else toast('解码提示：'+ev.err);
@@ -1762,24 +2296,38 @@ function openRoiEditor(i){
   };
 }
 
+/* 按路径打开切片：供「打开切片」按钮、拖拽、以及 Dashboard「最近切片」卡片共用。 */
+async function openSlidePath(p){
+  p=String(p);
+  await ensureRoiDb();
+  persistRois();  /* flush the previous slide's ROIs before switching */
+  rememberSlide(p);
+  if(p.toLowerCase().endsWith('.sdpc')){
+    toast('正在解码 SDPC 切片…');
+    /* Async open on the decoder worker: the DLL handle is opened once and
+       cached there; metadata + thumbnail arrive via poll_decoder. */
+    const gen=await invoke('enqueue_open',{path:p});
+    pendingOpen={path:p,gen};
+    return;
+  }
+  currentSlidePath=''; slideInfo=null; clearTiles();
+  const url=await invoke('read_file_as_data_url',{path:p});
+  setSlide(url,p.split(/[\\/]/).pop());
+}
+function rememberSlide(p){
+  const name=String(p).split(/[\\/]/).pop();
+  DB.recentSlides=(DB.recentSlides||[]).filter(s=>s.path!==p);
+  DB.recentSlides.unshift({path:String(p),name,at:todayStr()});
+  DB.recentSlides=DB.recentSlides.slice(0,8);
+  saveDB();
+  if(activeLayout().some(w=>w.id==='slides'))renderSlidesCard();
+}
 document.getElementById('btnOpenSlide').onclick=async()=>{
   if(IN_TAURI){
     try{
-      await ensureRoiDb();
       const p=await window.__TAURI__.dialog.open({filters:[{name:'SDPC 切片',extensions:['sdpc']},{name:'图片',extensions:['png','jpg','jpeg','tif','tiff']}]});
       if(!p)return;
-      persistRois();  /* flush the previous slide's ROIs before switching */
-      if(String(p).toLowerCase().endsWith('.sdpc')){
-        toast('正在解码 SDPC 切片…');
-        /* Async open on the decoder worker: the DLL handle is opened once and
-           cached there; metadata + thumbnail arrive via poll_decoder. */
-        const gen=await invoke('enqueue_open',{path:String(p)});
-        pendingOpen={path:String(p),gen};
-        return;
-      }
-      currentSlidePath=''; slideInfo=null; slideTiles.clear(); pendingTiles.clear();
-      const url=await invoke('read_file_as_data_url',{path:String(p)});
-      setSlide(url,String(p).split(/[\\/]/).pop());
+      await openSlidePath(p);
     }catch(e){toast('打开失败：'+e)}
   }else{
     document.getElementById('filePicker').click();
@@ -1787,10 +2335,10 @@ document.getElementById('btnOpenSlide').onclick=async()=>{
 };
 const picker=document.createElement('input');picker.type='file';picker.id='filePicker';
 picker.accept='.sdpc,image/*';picker.style.display='none';document.body.appendChild(picker);
-picker.onchange=e=>{const f=e.target.files[0];if(f){slideInfo=null;slideTiles.clear();pendingTiles.clear();currentSlidePath='';setSlide(URL.createObjectURL(f),f.name)}};
+picker.onchange=e=>{const f=e.target.files[0];if(f){slideInfo=null;clearTiles();currentSlidePath='';setSlide(URL.createObjectURL(f),f.name)}};
 stage.addEventListener('dragover',e=>{e.preventDefault();stage.style.outline='2px dashed var(--accent)'});
 stage.addEventListener('dragleave',()=>stage.style.outline='');
-stage.addEventListener('drop',e=>{e.preventDefault();stage.style.outline='';const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')){slideInfo=null;slideTiles.clear();pendingTiles.clear();currentSlidePath='';setSlide(URL.createObjectURL(f),f.name)}});
+stage.addEventListener('drop',e=>{e.preventDefault();stage.style.outline='';const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')){slideInfo=null;clearTiles();currentSlidePath='';setSlide(URL.createObjectURL(f),f.name)}});
 
 function updateExportButtons(){
   ['btnExport','btnPreviewExport'].forEach(id=>{
@@ -1811,8 +2359,11 @@ async function doExport(){
       const dir=await window.__TAURI__.dialog.open({directory:true});
       if(!dir)return;
       const mapped=rois.map(r=>({id:String(Date.now())+Math.random().toString(16).slice(2),slide_path:currentSlidePath,x:r.x,y:r.y,w:r.w,h:r.h,angle:0,created_at:''}));
-      await invoke('export_rois',{rois:mapped,output_dir:String(dir),mag_label:mag+'x'});
-      exporting=true;updateExportButtons();
+      /* Tauri v2 的命令参数按 camelCase 匹配（宏默认 rename_all="camelCase"，
+         且查表是精确匹配、没有 snake_case 回退）。这里必须写 outputDir/magLabel，
+         写成 output_dir 会让命令直接报 "missing required key outputDir"。 */
+      await invoke('export_rois',{rois:mapped,outputDir:String(dir),magLabel:mag+'x'});
+      exporting=true;exportFailed=0;updateExportButtons();
       toast('已提交导出 '+rois.length+' 个区域到 '+String(dir).split(/[\\/]/).pop()+'（再点一次可取消）');
     }catch(e){toast('导出失败：'+e)}
   }else{toast('浏览器预览模式：导出 '+rois.length+' 个 ROI（真实导出需 Tauri + SDPC DLL）')}
@@ -1927,7 +2478,7 @@ async function runQpcr(silent){
   }
   if(!wells.length){toast('未解析出数据孔');return}
   try{
-    const run=await invoke('qpcr_new_run',{wells,source_name:qState.wells===wells?'工作台数据':'粘贴数据'});
+    const run=await invoke('qpcr_new_run',{wells,sourceName:qState.wells===wells?'工作台数据':'粘贴数据'});
     const groups={};
     document.getElementById('groupInput').value.split(/\r?\n/).forEach(l=>{
       const i=l.indexOf('=');
@@ -2098,15 +2649,746 @@ document.getElementById('btnQpcrExport').onclick=async()=>{
   }catch(e){toast('导出失败：'+e)}
 };
 
-/* ===================== Boot ===================== */
-(function initHome(){
+/* ===================== 通用表单弹窗 + 各台账的新建 ===================== */
+function formModal(title,fields,onOK,okLabel){
+  const mask=document.createElement('div');mask.className='modal-mask';
+  const box=document.createElement('div');box.className='roi-modal wide';
+  const fhtml=fields.map((f,i)=>{
+    const id='fm_'+i;let ctl;
+    if(f.type==='select')ctl=`<select id="${id}">${f.options.map(o=>`<option${String(o)===String(f.value)?' selected':''}>${esc(o)}</option>`).join('')}</select>`;
+    else if(f.type==='textarea')ctl=`<textarea id="${id}" placeholder="${esc(f.ph||'')}">${esc(f.value||'')}</textarea>`;
+    else ctl=`<input id="${id}" type="${f.type||'text'}" value="${esc(f.value==null?'':f.value)}" placeholder="${esc(f.ph||'')}">`;
+    return `<div class="fld${f.type==='textarea'||f.full?' full':''}"><div class="lbl2">${esc(f.label)}</div>${ctl}</div>`;
+  }).join('');
+  box.innerHTML=`<h4>${esc(title)}</h4><div class="grid2">${fhtml}</div>
+    <div class="btn-row"><button class="btn pri" id="fm_ok">${esc(okLabel||'保存')}</button><button class="btn sec" id="fm_cancel">取消</button></div>`;
+  mask.appendChild(box);document.getElementById('win').appendChild(mask);
+  const close=()=>mask.remove();
+  mask.onclick=e=>{if(e.target===mask)close()};
+  box.querySelector('#fm_cancel').onclick=close;
+  box.querySelector('#fm_ok').onclick=()=>{
+    const out={};
+    for(let i=0;i<fields.length;i++){
+      const el=box.querySelector('#fm_'+i),v=el.value.trim();
+      if(fields[i].req&&!v){toast('请填写「'+fields[i].label+'」');el.focus();return}
+      out[fields[i].k]=fields[i].type==='number'?(Number(v)||0):v;
+    }
+    close();onOK(out);
+  };
+  setTimeout(()=>{const f=box.querySelector('input,textarea,select');if(f)f.focus()},30);
+}
+/* ===================== 台账 CRUD：一套注册表喂九个页面 =====================
+   以前九个 newXModal 只能「新建」，子页表格是只读的，记错一个字就得去改 JSON。
+   现在每类实体只描述三件事：字段、落库规则、刷新哪些视图；
+   entityModal(kind,i) 里 i 为空就是新建、否则是编辑第 i 条，删除同理。 */
+const PRI_CN={normal:'普通',important:'重要',urgent:'紧急'};
+const PRI_EN={'普通':'normal','重要':'important','紧急':'urgent'};
+const ST_CN={todo:'待办',doing:'进行中',done:'完成'};
+const ST_EN={'待办':'todo','进行中':'doing','完成':'done'};
+const projOpts=()=>['未指定'].concat(DB.projects.map(p=>p.name));
+/* 清空示例数据后项目/仪器可能为空，下拉必须仍有可选项，否则表单会提交 undefined */
+const nameOpts=(arr,fb)=>{const a=arr.map(x=>x.name);return a.length?a:[fb]};
+const projName=id=>{const p=DB.projects.find(x=>x.id===id);return p?p.name:'未指定'};
+function slotOverlap(a,b){
+  const p=s=>{const m=String(s).match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);return m?[+m[1]*60+ +m[2],+m[3]*60+ +m[4]]:null};
+  const x=p(a),y=p(b);if(!x||!y)return false;
+  return x[0]<y[1]&&y[0]<x[1];
+}
+const ENT={
+  task:{name:'任务',arr:()=>DB.tasks,head:0,label:r=>r.name,
+    fields:r=>[
+      {k:'name',label:'任务名称',req:1,full:1,ph:'例如：MASH 小鼠灌胃第 5 周',value:r?r.name:''},
+      {k:'pri',label:'优先级',type:'select',options:['普通','重要','紧急'],value:r?PRI_CN[r.pri]||'普通':'普通'},
+      {k:'state',label:'状态',type:'select',options:['待办','进行中','完成'],value:r?ST_CN[r.state||(r.done?'done':'todo')]:'待办'},
+      {k:'due',label:'截止（可写文字）',value:r?r.due:'今天',ph:'今天 / 明天 / 周五 / 每周五'},
+      {k:'dueDate',label:'具体日期（可留空）',type:'date',value:r?r.dueDate||'':''},
+      {k:'proj',label:'归属项目',type:'select',options:projOpts(),value:r?projName(r.proj):'未指定'},
+      {k:'exp',label:'关联实验 ID',value:r?r.exp||'':'',ph:'E-2026-114'},
+      {k:'tags',label:'标签（逗号分隔）',ph:'动物, WB',value:r?(r.tags||[]).join(', '):''},
+      {k:'key',label:'今日重点',type:'select',options:['否','是'],value:r&&r.key?'是':'否'},
+    ],
+    apply:(v,r)=>{
+      const p=DB.projects.find(x=>x.name===v.proj),st=ST_EN[v.state]||'todo';
+      const o=Object.assign(r||{id:uid('t')},{name:v.name,pri:PRI_EN[v.pri]||'normal',proj:p?p.id:'',exp:v.exp||'',
+        due:v.due||'今天',dueDate:v.dueDate||'',tags:v.tags?v.tags.split(/[,，]/).map(s=>s.trim()).filter(Boolean):[],
+        key:v.key==='是',state:st,done:st==='done'});
+      o.doneAt=st==='done'?(r&&r.doneAt?r.doneAt:todayStr()):'';
+      return o;
+    },
+    refresh:()=>{refreshHome();renderReports()}},
+  project:{name:'项目',arr:()=>DB.projects,label:r=>r.name,
+    fields:r=>[
+      {k:'name',label:'项目名称',req:1,full:1,value:r?r.name:''},
+      {k:'code',label:'项目编号',ph:'MASH-2026-04',value:r?r.code:''},
+      {k:'owner',label:'负责人',value:r?r.owner:'VVEll'},
+      {k:'start',label:'开始（YYYY-MM）',value:r?r.start:todayStr().slice(0,7)},
+      {k:'end',label:'结束（YYYY-MM）',value:r?r.end:''},
+      {k:'stage',label:'阶段',type:'select',options:['开题','实验','数据分析','写作','投稿','结题'],value:r?r.stage:'实验'},
+      {k:'progress',label:'进度 %',type:'number',value:r?r.progress:0},
+      {k:'risk',label:'风险提示',value:r?r.risk||'':'',ph:'样本量不足 / 机时排不上'},
+      {k:'milestones',label:'里程碑（每行一个，已完成的行首加 *）',type:'textarea',full:1,
+        value:r?(r.milestones||[]).map(([n,d])=>(d?'*':'')+n).join('\n'):'开题\n样本采集\n检测\n数据分析\n初稿\n投稿'},
+    ],
+    apply:(v,r)=>Object.assign(r||{id:uid('p')},{name:v.name,code:v.code||'—',owner:v.owner||'—',start:v.start,end:v.end,
+      stage:v.stage,progress:Math.max(0,Math.min(100,+v.progress||0)),risk:v.risk||'',
+      milestones:String(v.milestones||'').split('\n').map(s=>s.trim()).filter(Boolean).map(s=>[s.replace(/^\*/,''),s.startsWith('*')?1:0])}),
+    refresh:()=>{refreshHome();renderReports();bindTimerUI()}},
+  exp:{name:'实验记录',arr:()=>DB.experiments,head:0,label:r=>r.id,
+    fields:r=>[
+      {k:'id',label:'实验 ID',value:r?r.id:'E-'+new Date().getFullYear()+'-'+(DB.experiments.length+100)},
+      {k:'proj',label:'归属项目',type:'select',options:nameOpts(DB.projects,'未指定'),value:r?r.proj:undefined},
+      {k:'type',label:'类型',type:'select',options:['动物','细胞','qPCR','WB','测序','统计分析','其他'],value:r?r.type:'qPCR'},
+      {k:'date',label:'日期',value:r?r.date:todayStr().slice(5),ph:'MM-DD 或 YYYY-MM-DD'},
+      {k:'status',label:'状态',type:'select',options:['待开展','进行中','完成','失败','待重复'],value:r?r.status:'进行中'},
+      {k:'who',label:'执行人',value:r?r.who:'VVEll'},
+      {k:'note',label:'摘要 / 备注',type:'textarea',full:1,ph:'条件、现象、结论、下一步',value:r?r.note||'':''},
+    ],
+    apply:(v,r)=>Object.assign(r||{},{id:v.id,proj:v.proj,type:v.type,date:v.date,who:v.who,status:v.status,note:v.note}),
+    refresh:()=>{refreshHome();renderExpTable();renderReports()}},
+  lit:{name:'文献',arr:()=>DB.literatures,head:0,label:r=>r.title,
+    fields:r=>[
+      {k:'title',label:'标题',req:1,full:1,value:r?r.title:''},
+      {k:'meta',label:'来源 / 年份',ph:'Nat Metab · 2026',value:r?r.meta:''},
+      {k:'status',label:'状态',type:'select',options:['待精读','已读完','笔记待整理'],value:r?r.status:'待精读'},
+      {k:'doi',label:'DOI / 链接',full:1,value:r?r.doi||'':''},
+      {k:'note',label:'读书笔记',type:'textarea',full:1,value:r?r.note||'':''},
+    ],
+    apply:(v,r)=>Object.assign(r||{id:uid('l')},{title:v.title,meta:v.meta||'—',status:v.status,doi:v.doi||'',note:v.note||''}),
+    refresh:()=>{refreshHome();renderLiterature()}},
+  reagent:{name:'试剂',arr:()=>DB.reagents,head:0,label:r=>r.name,
+    fields:r=>[
+      {k:'name',label:'名称',req:1,full:1,value:r?r.name:''},
+      {k:'no',label:'货号',value:r?r.no:''},
+      {k:'lot',label:'批次',value:r?r.lot:''},
+      {k:'loc',label:'存放位置',ph:'-20°C 冰箱 A',value:r?r.loc:''},
+      {k:'open',label:'开封日期',value:r?r.open||'':todayStr().slice(5)},
+      {k:'exp',label:'有效期',type:'date',value:r&&/^\d{4}-/.test(r.exp||'')?r.exp:''},
+      {k:'left',label:'余量',ph:'100% / 2 支',value:r?r.left:'100%'},
+    ],
+    apply:(v,r)=>Object.assign(r||{id:uid('r')},{name:v.name,no:v.no||'—',lot:v.lot||'—',loc:v.loc||'—',
+      open:v.open||todayStr().slice(5),exp:v.exp||'—',left:v.left||'100%'}),
+    refresh:()=>{refreshHome();renderLab();renderKpi()}},
+  instrument:{name:'仪器',arr:()=>DB.instruments,label:r=>r.name,
+    fields:r=>[
+      {k:'name',label:'仪器名称',req:1,full:1,value:r?r.name:''},
+      {k:'cal',label:'上次校准',type:'date',value:r?r.cal:''},
+      {k:'next',label:'下次校准',type:'date',value:r?r.next:''},
+      {k:'note',label:'状态备注',full:1,value:r?r.note||'':''},
+    ],
+    apply:(v,r)=>Object.assign(r||{id:uid('i')},{name:v.name,cal:v.cal||'—',next:v.next||'—',note:v.note||'—'}),
+    refresh:()=>{refreshHome();renderLab()}},
+  booking:{name:'仪器预约',arr:()=>DB.bookings,label:r=>r.inst+' '+r.date,
+    fields:r=>[
+      {k:'inst',label:'仪器',type:'select',options:nameOpts(DB.instruments,'未登记仪器'),value:r?r.inst:undefined},
+      {k:'date',label:'日期',type:'date',value:r?r.date:todayStr()},
+      {k:'slot',label:'时段',ph:'09:00-11:00',value:r?r.slot:'09:00-11:00'},
+      {k:'who',label:'使用人',value:r?r.who:'VVEll'},
+      {k:'proj',label:'用途 / 项目',type:'select',options:projOpts(),value:r?(r.proj||'未指定'):'未指定'},
+    ],
+    /* 机时冲突检测：编辑时要排除自己，否则改个使用人都会被判成冲突 */
+    check:(v,r)=>{
+      const clash=DB.bookings.find(b=>b!==r&&b.inst===v.inst&&b.date===v.date&&slotOverlap(b.slot,v.slot));
+      return clash?'时段冲突：'+clash.who+' 已预约 '+clash.slot+'，请换时段':'';
+    },
+    apply:(v,r)=>Object.assign(r||{id:uid('k')},{inst:v.inst,date:v.date,slot:v.slot,who:v.who,proj:v.proj==='未指定'?'':v.proj}),
+    post:()=>DB.bookings.sort((a,b)=>(a.date+a.slot).localeCompare(b.date+b.slot)),
+    refresh:()=>{refreshHome();renderLab()}},
+  budget:{name:'经费记录',arr:()=>DB.budget,head:0,label:r=>r.item,
+    fields:r=>[
+      {k:'item',label:'事项',req:1,full:1,value:r?r.item:''},
+      {k:'cat',label:'类别',type:'select',options:['耗材','测试费','动物','差旅','版面费','其他'],value:r?r.cat:'耗材'},
+      {k:'amount',label:'金额（元）',type:'number',value:r?r.amount:''},
+      {k:'date',label:'日期',type:'date',value:r?r.date:todayStr()},
+      {k:'note',label:'备注',full:1,value:r?r.note||'':''},
+    ],
+    apply:(v,r)=>Object.assign(r||{id:uid('b')},{item:v.item,cat:v.cat,amount:+v.amount||0,date:v.date,note:v.note}),
+    refresh:()=>{refreshHome();renderReports()}},
+  note:{name:'速记',arr:()=>DB.notes,head:0,label:r=>String(r.text).slice(0,20),
+    fields:r=>[{k:'text',label:'内容',type:'textarea',req:1,full:1,ph:'随手记下现象、排查思路、待办…',value:r?r.text:''}],
+    apply:(v,r)=>Object.assign(r||{id:uid('n'),at:nowStamp()},{text:v.text}),
+    refresh:()=>refreshHome()},
+  reminder:{name:'截止提醒',arr:()=>DB.reminders,label:r=>r.text,
+    fields:r=>[
+      {k:'text',label:'事项',req:1,full:1,ph:'基金结题 / 投稿 deadline / 伦理年审',value:r?r.text:''},
+      {k:'date',label:'日期',type:'date',value:r&&/^\d{4}-/.test(r.date||'')?r.date:todayStr()},
+      {k:'color',label:'紧急程度',type:'select',options:['一般','较急','紧急'],value:r?(r.color==='var(--red)'?'紧急':r.color==='var(--orange)'?'较急':'一般'):'一般'},
+    ],
+    apply:(v,r)=>Object.assign(r||{},{text:v.text,date:v.date,color:{'一般':'var(--accent)','较急':'var(--orange)','紧急':'var(--red)'}[v.color]||'var(--accent)'}),
+    refresh:()=>{refreshHome();renderLitRemind()}},
+  focus:{name:'专注记录',arr:()=>DB.focusRecords,label:r=>r.project+' '+r.minutes+'′',
+    fields:r=>[
+      {k:'project',label:'项目',type:'select',options:DB.projects.map(p=>p.name).concat('未指定'),value:r?r.project:'未指定'},
+      {k:'type',label:'类型',type:'select',options:['实验操作','数据分析','读文献','写论文','组会/汇报'],value:r?r.type:'实验操作'},
+      {k:'minutes',label:'时长（分钟）',type:'number',req:1,value:r?r.minutes:25},
+      {k:'day',label:'日期',type:'date',value:r?String(r.at).slice(0,10):todayStr()},
+      {k:'time',label:'开始时间',ph:'09:00',value:r?(String(r.at).match(/T(\d{2}:\d{2})/)||[])[1]||'09:00':'09:00'},
+    ],
+    apply:(v,r)=>Object.assign(r||{id:uid('f')},{project:v.project,type:v.type,minutes:Math.max(1,+v.minutes||0),
+      at:(v.day||todayStr())+'T'+(/^\d{2}:\d{2}$/.test(v.time||'')?v.time:'09:00')}),
+    refresh:()=>{refreshHome();renderFocusPage();renderReports()}},
+};
+function entityModal(kind,i){
+  const e=ENT[kind];if(!e)return;
+  const arr=e.arr(),rec=(i==null||i<0)?null:arr[i];
+  formModal((rec?'编辑':'新建')+e.name,e.fields(rec),v=>{
+    if(e.check){const err=e.check(v,rec);if(err){toast(err,4200);return}}
+    const o=e.apply(v,rec);
+    if(!rec){if(e.head===0)arr.unshift(o);else arr.push(o)}else arr[i]=o;
+    if(e.post)e.post(o,rec);
+    DB.isDemo=false;
+    saveDB();e.refresh();queueResize();
+    toast((rec?'已更新':'已新建')+e.name+'：'+e.label(o));
+  },rec?'保存':'创建');
+}
+function entityDelete(kind,i){
+  const e=ENT[kind];if(!e)return;
+  const arr=e.arr(),r=arr[i];if(!r)return;
+  confirmModal('删除'+e.name,'确定删除「'+e.label(r)+'」？删除会立即写入磁盘，需要找回可在设置页导入之前的备份。',()=>{
+    arr.splice(i,1);saveDB();e.refresh();queueResize();toast('已删除'+e.name);
+  },'删除');
+}
+function confirmModal(title,msg,onOK,okLabel){
+  const mask=document.createElement('div');mask.className='modal-mask';
+  const box=document.createElement('div');box.className='roi-modal';
+  box.innerHTML=`<h4>${esc(title)}</h4><div class="sub" style="margin:8px 0 16px;line-height:1.75">${esc(msg)}</div>
+    <div class="btn-row"><button class="btn danger" id="cf_ok">${esc(okLabel||'确定')}</button><button class="btn sec" id="cf_no">取消</button></div>`;
+  mask.appendChild(box);document.getElementById('win').appendChild(mask);
+  const close=()=>mask.remove();
+  mask.onclick=ev=>{if(ev.target===mask)close()};
+  box.querySelector('#cf_no').onclick=close;
+  box.querySelector('#cf_ok').onclick=()=>{close();onOK()};
+}
+/* 兼容旧调用名：首页卡片和子页按钮都还在用这些名字 */
+function newTaskModal(){entityModal('task')}
+function newProjectModal(){entityModal('project')}
+function newExpModal(){entityModal('exp')}
+function newLitModal(){entityModal('lit')}
+function newReagentModal(){entityModal('reagent')}
+function newBookingModal(){entityModal('booking')}
+function newBudgetModal(){entityModal('budget')}
+function newNoteModal(){entityModal('note')}
+function newReminderModal(){entityModal('reminder')}
+function newInstrumentModal(){entityModal('instrument')}
+function newFocusModal(){entityModal('focus')}
+/* ===================== Dashboard 卡片体系 =====================
+   卡片 = 注册表里的一项；布局 = [{id,size:'宽x高'}]，存 localStorage。
+   尺寸规范化为整数格：宽 1/2/4 列 × 高 1/2/3/4 行（行单位 150px），如 4x2、2x1。 */
+const DASH_KEY='labkit.dash.v1';
+const WCOLS=[1,2,4],HROWS=[1,2,3,4];
+/* 旧布局用的是 s/m/l 三档，读到老数据时映射到最接近的规范尺寸，不让用户的布局丢失 */
+const LEGACY_SZ={s:'1x2',m:'2x2',l:'4x2'};
+function parseSize(s){
+  const m=String(s||'').match(/^([124])x([1234])$/);
+  return m?{w:+m[1],h:+m[2]}:null;
+}
+function normSize(id,s){
+  const p=parseSize(s)||parseSize(LEGACY_SZ[s]);
+  return p?p.w+'x'+p.h:WIDGETS[id].size;
+}
+function sizeLabel(s){return s.replace('x','×')}
+const GRIP='<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="6" cy="3" r="1.25"/><circle cx="10" cy="3" r="1.25"/><circle cx="6" cy="8" r="1.25"/><circle cx="10" cy="8" r="1.25"/><circle cx="6" cy="13" r="1.25"/><circle cx="10" cy="13" r="1.25"/></svg>';
+
+function renderReagentsCard(){
+  const rows=DB.reagents.map((r,i)=>{
+    const d=daysLeft(r.exp);
+    const pill=d===null?'':d<0?'<span class="warn-pill red">已过期</span>':d<=30?`<span class="warn-pill orange">${d}天到期</span>`:'';
+    const low=(parseInt(r.left)||100)<=20?'<span class="warn-pill red">余量低</span>':'';
+    return `<div class="mini-row"><span class="nm" title="${esc(r.loc)} · 有效期 ${esc(r.exp)}">${esc(r.name)}</span>${pill}${low}<span class="mt">${esc(r.left)}</span><button class="x" data-del-reagent="${i}" title="移除">×</button></div>`;
+  }).join('');
+  setHTML('reagentCard',rows||'<div class="sub">暂无试剂，点右上角入库</div>');
+  document.querySelectorAll('[data-del-reagent]').forEach(b=>b.onclick=()=>{DB.reagents.splice(+b.dataset.delReagent,1);saveDB();refreshHome();renderLab()});
+}
+function renderBookingCard(){
+  const rows=DB.bookings.map((b,i)=>{
+    const d=daysLeft(b.date);
+    const when=d===0?'今天':d===1?'明天':(d!==null&&d>0?d+'天后':b.date);
+    return `<div class="mini-row"><span class="nm" title="${esc(b.proj||'')}">${esc(b.inst)}</span><span class="mt">${esc(b.slot)}</span><span class="warn-pill ${d!==null&&d<=1?'orange':'green'}">${esc(when)}</span><button class="x" data-del-book="${i}" title="取消预约">×</button></div>`;
+  }).join('');
+  setHTML('bookingCard',rows||'<div class="sub">暂无预约，点右上角预约机时</div>');
+  document.querySelectorAll('[data-del-book]').forEach(b=>b.onclick=()=>{DB.bookings.splice(+b.dataset.delBook,1);saveDB();refreshHome()});
+}
+function renderBudgetCard(){
+  const used=DB.budget.reduce((s,b)=>s+(+b.amount||0),0),total=+DB.budgetTotal||0;
+  const pct=total?Math.min(100,Math.round(used/total*100)):0;
+  setHTML('budgetCard',`
+    <div class="big-num">¥${used.toLocaleString()}</div>
+    <div class="sub">已用 ${pct}% · 预算 ¥${total.toLocaleString()} · 余 ¥${Math.max(0,total-used).toLocaleString()}</div>
+    <div class="progress"><div class="progress-fill" style="width:${pct}%;background:${pct>=90?'var(--red)':pct>=70?'var(--orange)':'var(--accent)'}"></div></div>
+    ${pct>=90?'<div class="warn-pill red">预算即将超支</div>':''}
+    <div style="margin-top:2px">${DB.budget.slice(0,3).map(b=>`<div class="mini-row"><span class="nm">${esc(b.item)}</span><span class="mt">¥${(+b.amount||0).toLocaleString()}</span></div>`).join('')||'<div class="sub">还没有支出记录</div>'}</div>`);
+}
+function renderNotesCard(){
+  setHTML('notesCard',DB.notes.slice(0,3).map(n=>`<div class="note-card"><div class="tm">${esc(n.at)}</div>${esc(n.text)}</div>`).join('')||'<div class="sub">随手记下实验现象与排查思路</div>');
+}
+function collectDeadlines(){
+  const out=[],seen=new Set();
+  const push=(text,date,d)=>{
+    /* 同一件事可能同时来自手动提醒和试剂台账（如「逆转录试剂盒过期」），
+       按「名称+剩余天数」去重，避免倒计时里出现两条一模一样的条目。 */
+    const key=text.replace(/\s|过期|到期/g,'')+'@'+(d===null?date:d);
+    if(seen.has(key))return;seen.add(key);
+    out.push({text,date,d});
+  };
+  DB.reminders.forEach(r=>{
+    let d=daysLeft(r.date);
+    if(d===null){const m=String(r.date).match(/^(\d{1,2})-(\d{1,2})$/);if(m)d=daysLeft(new Date().getFullYear()+'-'+m[1].padStart(2,'0')+'-'+m[2].padStart(2,'0'))}
+    push(r.text,r.date,d);
+  });
+  DB.reagents.forEach(r=>{const d=daysLeft(r.exp);if(d!==null&&d<=45)push(r.name+' 过期',r.exp,d)});
+  DB.projects.forEach(p=>{const m=String(p.end||'').match(/^(\d{4})-(\d{2})$/);if(!m)return;
+    const d=daysLeft(m[1]+'-'+m[2]+'-28');if(d!==null&&d<=90)push(p.name+' 结题',p.end,d)});
+  return out.filter(x=>x.d===null||x.d>=-7).sort((a,b)=>(a.d===null?9999:a.d)-(b.d===null?9999:b.d));
+}
+function renderDeadlineCard(){
+  const list=collectDeadlines().slice(0,6);
+  setHTML('deadlineCard',list.map(x=>{
+    const cls=x.d===null?'':x.d<0?'red':x.d<=7?'orange':'green';
+    const txt=x.d===null?x.date:x.d<0?'逾期'+(-x.d)+'天':x.d===0?'今天':x.d+'天';
+    return `<div class="mini-row"><span class="nm">${esc(x.text)}</span><span class="warn-pill ${cls||'green'}">${esc(txt)}</span></div>`;
+  }).join('')||'<div class="sub">近期没有截止事项</div>');
+}
+function renderHeatCard(){
+  const days=lastDays(7),v=seriesFocus(7),mx=Math.max(1,...v);
+  /* 标签跟着真实日期走：这是「近 7 天」滚动窗口，不是固定的周一到周日 */
+  const lbl=days.map(d=>{const dt=new Date(d+'T00:00');return '日一二三四五六'[dt.getDay()]});
+  setHTML('heatCard',`<div class="heat-row">${v.map((x,i)=>`<div class="heat-cell" title="${days[i]} · ${x} 分钟" style="background:rgba(0,122,255,${(0.10+0.75*x/mx).toFixed(3)})"></div>`).join('')}</div>
+    <div class="heat-lbl">${lbl.map(d=>`<span>${d}</span>`).join('')}</div>
+    <div class="sub" style="margin-top:6px">近 7 天合计 ${sum(v)} 分钟</div>`);
+}
+function renderSlidesCard(){
+  const rows=(DB.recentSlides||[]).slice(0,4).map((s,i)=>`<div class="mini-row"><span class="nm" title="${esc(s.path)}">${esc(s.name)}</span><button class="card-act" data-open-slide="${i}">打开</button></div>`).join('');
+  setHTML('slidesCard',rows||'<div class="sub">还没有打开过切片</div>');
+  document.querySelectorAll('[data-open-slide]').forEach(b=>b.onclick=()=>{
+    const s=DB.recentSlides[+b.dataset.openSlide];if(!s)return;
+    openView('crop');openSlidePath(s.path);
+  });
+}
+function renderToolsCard(){
+  const tools=[['crop','病理切片裁剪','ROI 框选 · TIFF 导出'],['qpcr','qPCR 数据分析','ΔΔCt · geNorm · 统计'],['experiments','实验台账','记录与项目绑定'],['labres','试剂 / 仪器','库存 · 效期 · 校准'],['literature','文献库','待读与笔记状态'],['reports','统计报表','专注与产出趋势']];
+  setHTML('toolsCard',`<div class="bento">${tools.map(([v,n,d])=>`<div class="bento-card" data-goto="${v}"><b>${n}</b><p>${d}</p></div>`).join('')}</div>`);
+}
+function renderQpcrCard(){
+  const n=(qState&&qState.wells&&qState.wells.length)||0;
+  setHTML('qpcrCard',`<div class="big-num">${n}</div><div class="sub">当前工作台孔位${n?' · 可直接进入分析':' · 支持 CSV / Excel / 仪器原始文件'}</div>`);
+}
+
+const WIDGETS={
+  kpi:{title:'数据总览',desc:'KPI + 近 7 天趋势',size:'4x2',
+    body:()=>`<div class="kpi-row" id="kpiRow"></div><div class="chart-row"><div class="chart-box"><div class="chart-title">近 7 天专注时长（分钟）</div><div id="chartFocus"></div></div><div class="chart-box"><div class="chart-title">近 7 天任务完成趋势</div><div id="chartTasks"></div></div></div>`},
+  trend:{title:'近 7 天趋势',desc:'专注时长与任务完成',size:'2x2',
+    body:()=>`<div class="chart-box"><div class="chart-title">专注时长（分钟）</div><div id="chartFocus2"></div></div><div class="chart-box"><div class="chart-title">任务完成</div><div id="chartTasks2"></div></div>`,
+    render:()=>{setHTML('chartFocus2',lineChart(seriesFocus(7),300,90,'#007AFF'));setHTML('chartTasks2',lineChart(seriesTasks(7),300,90,'#30D158'))}},
+  tasks:{title:'今日任务',desc:'重点 + 清单，可直接新建',size:'2x4',link:['tasks','任务中心'],
+    acts:[{t:'+ 新建任务',pri:1,fn:()=>newTaskModal()}],
+    body:()=>`<div id="todayKey"></div><div class="divider" style="margin:2px 0"></div><div id="todayTasks"></div>`},
+  focus:{title:'专注计时',desc:'番茄钟 + 项目归属',size:'2x2',link:['focus','专注记录'],
+    body:()=>`<div class="timer-wrap"><div class="timer-phase" id="timerPhase">专注</div><div class="timer-num" id="timerNum">25:00</div>
+      <div class="seg-ctl" style="width:100%"><button class="active" data-preset="25,5">25 + 5</button><button data-preset="50,10">50 + 10</button></div>
+      <div class="field-row" style="width:100%"><select class="native-select" id="timerProject"></select>
+      <select class="native-select" id="timerType"><option>实验操作</option><option>读文献</option><option>绘图</option><option>写论文</option><option>数据分析</option></select></div>
+      <div class="btn-row"><button class="btn pri" id="btnTimerStart">开始</button><button class="btn sec" id="btnTimerPause">暂停</button><button class="btn sec" id="btnTimerStop">结束并记录</button></div>
+      <div class="sub" id="timerToday">今日专注 0 分钟 · 0 次</div></div>`,
+    after:()=>bindTimerUI()},
+  projects:{title:'项目进度',desc:'里程碑与风险',size:'2x2',link:['projects','全部项目'],
+    acts:[{t:'+ 新建项目',pri:1,fn:()=>newProjectModal()}],
+    body:()=>`<div id="projCards"></div>`},
+  literature:{title:'文献 & 提醒',desc:'待读文献与到期提醒',size:'2x3',link:['literature','文献库'],
+    acts:[{t:'+ 添加文献',pri:1,fn:()=>newLitModal()}],
+    body:()=>`<div id="litList"></div><div class="divider" style="margin:4px 0"></div><div class="field-title">到期提醒</div><div id="reminderList"></div>`},
+  experiments:{title:'实验台账',desc:'最近实验与状态',size:'4x2',link:['experiments','进入台账'],
+    acts:[{t:'+ 新建实验',pri:1,fn:()=>newExpModal()}],
+    body:()=>`<div id="expRecent"></div>`},
+  reagents:{title:'试剂耗材',desc:'效期与余量预警',size:'1x2',link:['labres','台账'],
+    acts:[{t:'+ 入库',pri:1,fn:()=>newReagentModal()}],
+    body:()=>`<div id="reagentCard"></div>`,render:()=>renderReagentsCard()},
+  instruments:{title:'仪器预约',desc:'机时安排与冲突检测',size:'2x1',link:['labres','仪器台账'],
+    acts:[{t:'+ 预约',pri:1,fn:()=>newBookingModal()}],
+    body:()=>`<div id="bookingCard"></div>`,render:()=>renderBookingCard()},
+  deadlines:{title:'截止倒计时',desc:'结题 / 投稿 / 效期',size:'1x2',
+    acts:[{t:'+ 提醒',pri:1,fn:()=>newReminderModal()}],
+    body:()=>`<div id="deadlineCard"></div>`,render:()=>renderDeadlineCard()},
+  budget:{title:'经费台账',desc:'支出与预算预警',size:'2x2',
+    acts:[{t:'+ 记一笔',pri:1,fn:()=>newBudgetModal()}],
+    body:()=>`<div id="budgetCard"></div>`,render:()=>renderBudgetCard()},
+  notes:{title:'实验速记',desc:'随手记现象与思路',size:'2x1',
+    acts:[{t:'+ 新建',pri:1,fn:()=>newNoteModal()}],
+    body:()=>`<div id="notesCard"></div>`,render:()=>renderNotesCard()},
+  slides:{title:'最近切片',desc:'一键回到裁剪工作区',size:'1x2',
+    acts:[{t:'打开切片',pri:1,fn:()=>{openView('crop');const b=document.getElementById('btnOpenSlide');if(b)b.click()}}],
+    body:()=>`<div id="slidesCard"></div>`,render:()=>renderSlidesCard()},
+  qpcr:{title:'qPCR 分析',desc:'当前孔位与快速入口',size:'1x1',
+    acts:[{t:'进入分析',pri:1,fn:()=>openView('qpcr')}],
+    body:()=>`<div id="qpcrCard"></div>`,render:()=>renderQpcrCard()},
+  heatmap:{title:'专注热力',desc:'本周每日强度',size:'1x1',
+    body:()=>`<div id="heatCard"></div>`,render:()=>renderHeatCard()},
+  tools:{title:'科研工具',desc:'全部工具入口',size:'4x2',
+    body:()=>`<div id="toolsCard"></div>`,render:()=>renderToolsCard()},
+};
+const DEFAULT_LAYOUT=[
+  {id:'kpi',size:'4x2'},{id:'tasks',size:'2x4'},{id:'focus',size:'2x2'},
+  {id:'deadlines',size:'1x2'},{id:'reagents',size:'1x2'},{id:'projects',size:'2x2'},
+  {id:'literature',size:'2x3'},{id:'instruments',size:'2x1'},{id:'notes',size:'2x1'},{id:'budget',size:'2x2'},
+  {id:'experiments',size:'4x2'},
+];
+let dashLayout=(function(){
+  try{
+    const raw=localStorage.getItem(DASH_KEY);
+    if(raw){const a=JSON.parse(raw);if(Array.isArray(a))return a.filter(x=>WIDGETS[x.id]).map(x=>({id:x.id,size:normSize(x.id,x.size)}))}
+  }catch(e){}
+  return DEFAULT_LAYOUT.map(x=>({...x}));
+})();
+function saveDash(){try{localStorage.setItem(DASH_KEY,JSON.stringify(dashLayout))}catch(e){}}
+let dashEdit=false,dashRO=null,dragW=null,resizeRaf=0;
+
+/* 尺寸现在由网格规格决定，不再量内容高度。这里只负责标记「正文还有内容没显示完」，
+   给卡片底部加一层渐隐提示，鼠标移上去恢复清晰并可滚动。 */
+function resizeDash(){
+  document.querySelectorAll('#dashGrid>.wcard').forEach(c=>{
+    const b=c.querySelector('.card-body');if(!b)return;
+    b.classList.toggle('has-more',b.scrollHeight-b.clientHeight>2);
+  });
+}
+function queueResize(){if(resizeRaf)return;resizeRaf=requestAnimationFrame(()=>{resizeRaf=0;resizeDash()})}
+function clearDropMarks(){document.querySelectorAll('#dashGrid .wcard').forEach(c=>c.classList.remove('drop-before','drop-after'))}
+
+function buildDash(intro){
+  const grid=document.getElementById('dashGrid');if(!grid)return;
+  if(dashRO){dashRO.disconnect();dashRO=null}
+  grid.classList.toggle('dash-edit',dashEdit);
+  const L=activeLayout();
+  if(!L.length){grid.innerHTML='<div class="dash-empty">Dashboard 是空的 — 进入「编辑布局」后点「+ 添加卡片」挑几张放进来</div>';return}
+  grid.innerHTML=L.map((w,i)=>{
+    const def=WIDGETS[w.id];if(!def)return '';
+    const acts=(def.acts||[]).map((a,j)=>`<button class="card-act${a.pri?' pri':''}" data-act="${j}">${esc(a.t)}</button>`).join('');
+    const link=def.link?`<span class="link" data-goto="${def.link[0]}">${esc(def.link[1])} ›</span>`:'';
+    const [cw,ch]=w.size.split('x');
+    return `<div class="dash-card wcard w${cw} h${ch}${intro?' intro':''}" data-w="${w.id}" data-size="${w.size}"${dashEdit?' tabindex="0"':''} style="${intro?'animation-delay:'+Math.min(i*0.05,0.4)+'s':''}">
+      <div class="card-inner">
+        <div class="card-head">
+          <span class="card-grip" title="按住拖动排序">${GRIP}</span>
+          <h2>${esc(def.title)}</h2>
+          <div class="card-actions">${acts}${link}
+            <button class="card-act icon size" data-wc title="切换宽度：1 / 2 / 4 列">⇔</button>
+            <span class="size-tag">${sizeLabel(w.size)}</span>
+            <button class="card-act icon size" data-hc title="切换高度：1 / 2 / 3 / 4 行">⇕</button>
+            <button class="card-act icon size" data-cfg title="精确设置位置与尺寸">⚙</button>
+            <button class="card-act icon del" data-card-del title="从 Dashboard 移除">×</button>
+          </div>
+        </div>
+        <div class="card-body">${def.body()}</div>
+      </div></div>`;
+  }).join('');
+  dashRO=new ResizeObserver(queueResize);
+  grid.querySelectorAll('.wcard').forEach(card=>{
+    const id=card.dataset.w,def=WIDGETS[id];
+    dashRO.observe(card.querySelector('.card-body'));
+    card.querySelectorAll('[data-act]').forEach(b=>b.onclick=e=>{e.stopPropagation();def.acts[+b.dataset.act].fn()});
+    const cycle=(key,vals)=>{
+      const it=activeLayout().find(x=>x.id===id);if(!it)return;
+      const p=parseSize(it.size)||parseSize(WIDGETS[id].size);
+      const cur=key==='w'?p.w:p.h,next=vals[(vals.indexOf(cur)+1)%vals.length];
+      it.size=key==='w'?next+'x'+p.h:p.w+'x'+next;
+      if(dashEdit)touchDraft();else{saveDash();buildDash();refreshHome()}
+    };
+    const wc=card.querySelector('[data-wc]');if(wc)wc.onclick=()=>cycle('w',WCOLS);
+    const hc=card.querySelector('[data-hc]');if(hc)hc.onclick=()=>cycle('h',HROWS);
+    const del=card.querySelector('[data-card-del]');
+    if(del)del.onclick=()=>{removeWidget(id);if(dashEdit)touchDraft();else{saveDash();buildDash();refreshHome()}toast('已移除「'+def.title+'」，可从「+ 添加卡片」加回')};
+    const cfg=card.querySelector('[data-cfg]');if(cfg)cfg.onclick=()=>widgetDialog(id);
+    bindCardDnD(card);bindCardKeys(card);
+    if(def.after)def.after();
+  });
+  if(intro)requestAnimationFrame(()=>requestAnimationFrame(()=>grid.querySelectorAll('.intro').forEach(c=>c.classList.remove('intro'))));
+  queueResize();
+}
+function bindCardDnD(card){
+  const grip=card.querySelector('.card-grip');if(!grip)return;
+  grip.addEventListener('mousedown',()=>{card.draggable=true});
+  grip.addEventListener('mouseup',()=>{card.draggable=false});
+  card.addEventListener('dragstart',e=>{
+    dragW=card.dataset.w;card.classList.add('dragging');
+    e.dataTransfer.effectAllowed='move';
+    try{e.dataTransfer.setData('text/plain',dragW)}catch(_){}
+  });
+  card.addEventListener('dragend',()=>{card.draggable=false;card.classList.remove('dragging');dragW=null;clearDropMarks()});
+  card.addEventListener('dragover',e=>{
+    if(!dragW||card.dataset.w===dragW)return;
+    e.preventDefault();e.dataTransfer.dropEffect='move';
+    const r=card.getBoundingClientRect(),before=(e.clientX-r.left)<r.width/2;
+    clearDropMarks();card.classList.add(before?'drop-before':'drop-after');
+  });
+  card.addEventListener('dragleave',()=>card.classList.remove('drop-before','drop-after'));
+  card.addEventListener('drop',e=>{
+    e.preventDefault();
+    if(!dragW||card.dataset.w===dragW)return;
+    const r=card.getBoundingClientRect(),before=(e.clientX-r.left)<r.width/2;
+    const L=activeLayout();
+    const from=L.findIndex(x=>x.id===dragW);if(from<0)return;
+    const [item]=L.splice(from,1);
+    let to=L.findIndex(x=>x.id===card.dataset.w);
+    if(!before)to++;
+    L.splice(to,0,item);
+    dragW=null;if(dashEdit)touchDraft();else{saveDash();buildDash();refreshHome()}
+  });
+}
+function refreshHome(){
+  /* 这五个由既有的整页渲染器负责（它们同时喂首页卡片和子页表格） */
+  renderTasks();renderKpi();renderProjects();renderLitRemind();renderExperiments();
+  /* 其余卡片各自渲染；卡片被移除时 setHTML 会安静跳过 */
+  activeLayout().forEach(w=>{const d=WIDGETS[w.id];if(d&&d.render)d.render()});
+  queueResize();
+}
+function openPicker(){
+  const mask=document.createElement('div');mask.className='modal-mask';
+  const box=document.createElement('div');box.className='roi-modal wide';
+  const draw=()=>{
+    box.innerHTML=`<h4>选择 Dashboard 卡片</h4>
+      <div class="sub">已选 ${activeLayout().length} / ${Object.keys(WIDGETS).length} 张 · 点击切换显示${dashEdit?' · 改动需点「保存布局」':''}</div>
+      <div class="picker-grid">${Object.entries(WIDGETS).map(([id,d])=>{
+        const on=activeLayout().some(x=>x.id===id);
+        return `<div class="pick-item${on?' on':''}" data-pick="${id}"><div class="nm">${esc(d.title)}<div class="ds">${esc(d.desc||'')}</div></div><span class="sz">${sizeLabel(d.size)}</span></div>`;
+      }).join('')}</div>
+      <div class="btn-row"><button class="btn pri" id="pk_done">完成</button><button class="btn sec" id="pk_reset">恢复默认布局</button></div>`;
+    box.querySelectorAll('[data-pick]').forEach(el=>el.onclick=()=>{
+      const id=el.dataset.pick;
+      if(activeLayout().some(x=>x.id===id))removeWidget(id);
+      else addWidget(id);
+      if(dashEdit)touchDraft();else{saveDash();buildDash();refreshHome()}draw();
+    });
+    box.querySelector('#pk_done').onclick=()=>mask.remove();
+    box.querySelector('#pk_reset').onclick=()=>{if(dashEdit){dashDraft=DEFAULT_LAYOUT.map(x=>({...x}));touchDraft()}else{dashLayout=DEFAULT_LAYOUT.map(x=>({...x}));saveDash();buildDash(true);refreshHome()}draw();toast('已套用默认布局')};
+  };
+  draw();
+  mask.appendChild(box);document.getElementById('win').appendChild(mask);
+  mask.onclick=e=>{if(e.target===mask)mask.remove()};
+}
+/* ===================== 专门的布局编辑器 =====================
+   参考 Homarr 的 board edit mode：从工具栏进入编辑态，改动先落在草稿上，
+   必须显式「保存布局」才写入；「取消」/Esc 原样还原，不会把误操作留在盘上。
+   每张卡片还有一个精确数值对话框（位置序号 + 宽 + 高），拖不准时用它。 */
+let dashDraft=null;
+function activeLayout(){return dashEdit&&dashDraft?dashDraft:dashLayout}
+function layoutDirty(){
+  if(!dashEdit||!dashDraft)return false;
+  return JSON.stringify(dashDraft)!==JSON.stringify(dashLayout);
+}
+function enterDashEdit(){
+  if(dashEdit)return;
+  dashEdit=true;dashDraft=dashLayout.map(x=>({...x}));
+  syncEditBar();buildDash();refreshHome();
+  toast('已进入布局编辑 · 改动要点「保存布局」才生效，Esc 取消',4200);
+}
+function exitDashEdit(commit){
+  if(!dashEdit)return;
+  const dirty=layoutDirty();
+  if(commit){dashLayout=dashDraft.map(x=>({...x}));saveDash()}
+  dashEdit=false;dashDraft=null;
+  syncEditBar();buildDash();refreshHome();
+  if(commit)toast(dirty?'布局已保存':'布局没有改动');
+  else if(dirty)toast('已取消，布局回到编辑前');
+}
+function syncEditBar(){
+  document.getElementById('dashTools').style.display=dashEdit?'none':'';
+  document.getElementById('dashEditTools').style.display=dashEdit?'':'none';
+  const bar=document.querySelector('.dash-toolbar');if(bar)bar.classList.toggle('editing',dashEdit);
+  const st=document.getElementById('editState');
+  if(dashEdit){
+    const d=layoutDirty();
+    st.textContent=d?'有未保存改动':'编辑中';
+    st.classList.toggle('dirty',d);
+  }else{st.textContent='编辑中';st.classList.remove('dirty')}
+  document.getElementById('dashHint').textContent=dashEdit
+    ?'拖把手排序 · ⇔ 宽（1/2/4 列）· ⇕ 高（1–4 行）· ⚙ 精确设置 · × 移除 · 键盘：←→ 排序，Shift+←→ 改宽，Shift+↑↓ 改高'
+    :'卡片右上角可直接新建任务 / 记录 · 点「编辑布局」调整卡片';
+}
+/* 草稿上的每一次改动都走这里：只重绘，不落盘 */
+function touchDraft(){syncEditBar();buildDash();refreshHome()}
+function moveWidgetTo(id,pos){
+  const L=activeLayout(),from=L.findIndex(x=>x.id===id);if(from<0)return;
+  const [it]=L.splice(from,1);
+  L.splice(Math.max(0,Math.min(L.length,pos)),0,it);
+}
+function setWidgetSize(id,w,h){
+  const it=activeLayout().find(x=>x.id===id);if(!it)return;
+  it.size=(WCOLS.includes(+w)?+w:1)+'x'+(HROWS.includes(+h)?+h:2);
+}
+function removeWidget(id){
+  const L=activeLayout(),i=L.findIndex(x=>x.id===id);if(i<0)return;
+  L.splice(i,1);
+}
+function addWidget(id){
+  const L=activeLayout();
+  if(L.some(x=>x.id===id))return;
+  L.push({id,size:WIDGETS[id].size});
+}
+/* 精确数值对话框：拖动难以对准格子时的兜底，也是键盘用户的入口 */
+function widgetDialog(id){
+  const L=activeLayout(),idx=L.findIndex(x=>x.id===id);if(idx<0)return;
+  const def=WIDGETS[id],p=parseSize(L[idx].size)||parseSize(def.size);
+  formModal('调整卡片：'+def.title,[
+    {k:'pos',label:'位置序号（1 = 最前）',type:'number',value:idx+1},
+    {k:'w',label:'宽度',type:'select',options:WCOLS.map(c=>c+' 列'),value:p.w+' 列'},
+    {k:'h',label:'高度',type:'select',options:HROWS.map(r=>r+' 行'),value:p.h+' 行'},
+  ],v=>{
+    setWidgetSize(id,parseInt(v.w,10),parseInt(v.h,10));
+    moveWidgetTo(id,(+v.pos||1)-1);
+    touchDraft();
+    toast('已调整「'+def.title+'」');
+  },'应用');
+}
+function bindCardKeys(card){
+  card.addEventListener('keydown',e=>{
+    if(!dashEdit)return;
+    const id=card.dataset.w,L=activeLayout(),i=L.findIndex(x=>x.id===id);if(i<0)return;
+    const p=parseSize(L[i].size)||parseSize(WIDGETS[id].size);
+    let handled=true;
+    if(e.shiftKey&&e.key==='ArrowLeft')setWidgetSize(id,WCOLS[Math.max(0,WCOLS.indexOf(p.w)-1)],p.h);
+    else if(e.shiftKey&&e.key==='ArrowRight')setWidgetSize(id,WCOLS[Math.min(WCOLS.length-1,WCOLS.indexOf(p.w)+1)],p.h);
+    else if(e.shiftKey&&e.key==='ArrowUp')setWidgetSize(id,p.w,HROWS[Math.min(HROWS.length-1,HROWS.indexOf(p.h)+1)]);
+    else if(e.shiftKey&&e.key==='ArrowDown')setWidgetSize(id,p.w,HROWS[Math.max(0,HROWS.indexOf(p.h)-1)]);
+    else if(e.key==='ArrowLeft')moveWidgetTo(id,i-1);
+    else if(e.key==='ArrowRight')moveWidgetTo(id,i+1);
+    else if(e.key==='Delete'||e.key==='Backspace')removeWidget(id);
+    else if(e.key==='Enter'||e.key===' '){widgetDialog(id);e.preventDefault();return}
+    else handled=false;
+    if(!handled)return;
+    e.preventDefault();
+    touchDraft();
+    const again=document.querySelector('#dashGrid .wcard[data-w="'+id+'"]');
+    if(again)again.focus();
+  });
+}
+document.getElementById('btnDashEdit').onclick=enterDashEdit;
+document.getElementById('btnDashSave').onclick=()=>exitDashEdit(true);
+document.getElementById('btnDashCancel').onclick=()=>exitDashEdit(false);
+document.getElementById('btnDashReset').onclick=()=>{
+  dashDraft=DEFAULT_LAYOUT.map(x=>({...x}));touchDraft();toast('已套用默认布局，仍需点「保存布局」');
+};
+document.getElementById('btnDashAdd').onclick=openPicker;
+document.addEventListener('keydown',e=>{
+  const typing=/^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName||''))||e.target.isContentEditable;
+  if((e.ctrlKey||e.metaKey)&&(e.key==='e'||e.key==='E')){
+    if(document.querySelector('.modal-mask'))return;
+    e.preventDefault();dashEdit?exitDashEdit(true):enterDashEdit();return;
+  }
+  if(e.key==='Escape'&&dashEdit&&!document.querySelector('.modal-mask')&&!typing){
+    e.preventDefault();exitDashEdit(false);
+  }
+});
+window.addEventListener('resize',queueResize);
+/* ===================== 设置页：真实落盘状态 / 备份 / 导入导出 ===================== */
+const DENSITY={compact:[128,10],normal:[152,13],cozy:[176,16]};
+function applyDensity(){
+  const d=(DB.ui&&DB.ui.density)||'normal';
+  const [row,gap]=DENSITY[d]||DENSITY.normal;
+  document.documentElement.style.setProperty('--row',row+'px');
+  document.documentElement.style.setProperty('--gap',gap+'px');
+  document.querySelectorAll('[data-density]').forEach(b=>b.classList.toggle('active',b.dataset.density===d));
+  queueResize();
+}
+function renderDbStatus(){
+  const pill=document.getElementById('dbPill');if(!pill)return;
+  const map={init:['读取中…','saving'],saving:['保存中…','saving'],saved:['已落盘','' ],error:['保存失败','error'],browser:['浏览器模式','browser']};
+  const [txt,cls]=map[dbStatus]||['—','browser'];
+  pill.textContent=txt+(dbStatus==='saved'&&dbSavedAt?' · '+dbSavedAt.slice(11):'');
+  pill.className='db-pill '+cls;
+  pill.title=dbStatus==='error'?dbError:(dbPath||'');
+}
+async function renderSettings(){
+  renderDbStatus();
+  const box=document.getElementById('dbInfo');if(!box)return;
+  let info=null;
+  if(IN_TAURI){try{info=await invoke('db_info');if(info&&info.path)dbPath=info.path}catch(e){}}
+  const counts=[['任务',DB.tasks.length],['项目',DB.projects.length],['实验',DB.experiments.length],['文献',DB.literatures.length],
+    ['试剂',DB.reagents.length],['仪器',DB.instruments.length],['预约',DB.bookings.length],['专注',DB.focusRecords.length],
+    ['经费',DB.budget.length],['速记',DB.notes.length],['提醒',DB.reminders.length]];
+  const kv=[
+    ['数据文件',dbPath||'（浏览器 localStorage，不落盘）'],
+    ['文件大小',info?((info.bytes/1024).toFixed(1)+' KB'):'—'],
+    ['最后修改',info&&info.modified?info.modified:(dbSavedAt||'—')],
+    ['备份份数',info?String(info.backups):'—'],
+    ['记录总数',counts.map(([k,n])=>k+' '+n).join(' · ')],
+    ['数据来源',DB.isDemo?'仍含首次启动的示例数据':'已全部是你自己的记录'],
+  ];
+  if(dbStatus==='error')kv.push(['错误',dbError]);
+  box.innerHTML=kv.map(([k,v])=>`<div class="k">${esc(k)}</div><div class="v">${esc(v)}</div>`).join('');
+  applyDensity();
+}
+document.querySelectorAll('[data-density]').forEach(b=>b.onclick=()=>{
+  DB.ui=Object.assign({},DB.ui,{density:b.dataset.density});
+  saveDB();applyDensity();toast('界面密度：'+b.textContent);
+});
+document.getElementById('btnDbSave').onclick=async()=>{await flushDB();if(dbStatus==='saved')toast('已写入磁盘');renderSettings()};
+document.getElementById('btnDbBackup').onclick=async()=>{
+  if(!IN_TAURI){toast('浏览器模式不支持磁盘备份');return}
+  try{const p=await invoke('db_backup');toast('已备份：'+p,5000);renderSettings()}catch(e){toast('备份失败：'+e,6000)}
+};
+document.getElementById('btnDbExport').onclick=async()=>{
+  if(!IN_TAURI){dlJSON('labkit-'+todayStr()+'.json',DB);return}
+  try{
+    const dest=await invoke('plugin:dialog|save',{options:{title:'导出台账 JSON',defaultPath:'labkit-'+todayStr()+'.json',filters:[{name:'JSON',extensions:['json']}]}});
+    if(!dest)return;
+    const p=await invoke('db_export',{dest:String(dest)});
+    toast('已导出：'+p,5000);
+  }catch(e){toast('导出失败：'+e,6000)}
+};
+document.getElementById('btnDbImport').onclick=async()=>{
+  if(!IN_TAURI){toast('浏览器模式请用桌面版导入');return}
+  try{
+    const src=await invoke('plugin:dialog|open',{options:{title:'选择台账 JSON',multiple:false,filters:[{name:'JSON',extensions:['json']}]}});
+    if(!src)return;
+    const data=await invoke('db_import',{src:String(src)});
+    if(data&&typeof data==='object'){
+      Object.keys(data).forEach(k=>{if(k in DB)DB[k]=data[k]});
+      migrateDB();writeCache();refreshHome();renderLiterature();renderLab();renderFocusPage();renderReports();renderSettings();
+      toast('已导入并覆盖当前台账（导入前已自动备份）',5200);
+    }
+  }catch(e){toast('导入失败：'+e+'（原数据未被改动）',7000)}
+};
+document.getElementById('btnDbFolder').onclick=async()=>{
+  if(!IN_TAURI||!dbPath){toast('数据目录：'+(dbPath||'浏览器模式无目录'),6000);return}
+  try{await invoke('plugin:opener|reveal_item_in_dir',{paths:[dbPath]})}
+  catch(e){toast('打开失败，路径：'+dbPath,7000)}
+};
+const EMPTY_DB={tasks:[],projects:[],focusRecords:[],experiments:[],literatures:[],reagents:[],instruments:[],reminders:[],budget:[],bookings:[],notes:[],recentSlides:[]};
+document.getElementById('btnDbClearDemo').onclick=()=>{
+  if(!DB.isDemo){toast('当前已经没有示例数据了');return}
+  confirmModal('清空示例数据','把首次启动自带的示例任务、项目、实验等全部清空，从零开始记你自己的数据。清空前会自动备份。',async()=>{
+    if(IN_TAURI){try{await invoke('db_backup')}catch(e){}}
+    Object.keys(EMPTY_DB).forEach(k=>DB[k]=[]);
+    DB.isDemo=false;saveDB();await flushDB();
+    refreshHome();renderLiterature();renderLab();renderFocusPage();renderReports();renderSettings();
+    toast('已清空示例数据，可以开始记自己的了',4600);
+  },'清空');
+};
+document.getElementById('btnDbReset').onclick=()=>{
+  confirmModal('重置全部台账','删除磁盘上的台账文件与滚动备份，回到首次启动状态。backups/ 里的历史备份会保留，可用「导入 JSON」找回。',async()=>{
+    try{
+      if(IN_TAURI)await invoke('db_reset');
+      try{localStorage.removeItem(DB_KEY)}catch(e){}
+      location.reload();
+    }catch(e){toast('重置失败：'+e,6000)}
+  },'重置');
+};
+document.querySelectorAll('#reportRange [data-range]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#reportRange [data-range]').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');reportRange=+b.dataset.range;renderReports();
+});
+document.getElementById('btnNewFocus').onclick=()=>entityModal('focus');
+document.getElementById('btnLabNew').onclick=()=>entityModal(labTab==='reagent'?'reagent':labTab==='instrument'?'instrument':'booking');
+/* ===================== Boot =====================
+   必须先把磁盘上的台账读回来再渲染，否则首屏会闪一下示例数据。 */
+(async function initHome(){
   const d=new Date();
   document.getElementById('homeDate').textContent=`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 · 星期${'日一二三四五六'[d.getDay()]}`;
   const h=d.getHours();
   const greet=h<6?'夜深了':h<11?'早安':h<14?'午安':h<18?'下午好':'晚上好';
   document.getElementById('greetTitle').textContent=greet+'，VVEll';
-  document.getElementById('timerProject').innerHTML=DB.projects.map(p=>`<option>${esc(p.name)}</option>`).join('')+'<option>未指定</option>';
-  renderTasks();renderKpi();renderProjects();renderLitRemind();renderExperiments();renderLiterature();renderLab();renderFocusPage();renderReports();
+  await loadDBFromDisk();
+  applyDensity();
+  buildDash(true);
+  refreshHome();
+  renderLiterature();renderLab();renderFocusPage();renderReports();renderSettings();
 })();
 invoke('init_engine').catch(()=>{});
 invoke('app_info').then(info=>{if(info&&info.version)document.querySelector('.side-foot').textContent='v'+info.version+' · Rust + Tauri'}).catch(()=>{});

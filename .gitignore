@@ -28,6 +28,13 @@ Thumbs.db
 # Session files (user data)
 session.json
 
+# 全切片病理图像：单文件可达数百 MB，绝不入库
+*.sdpc
+*.sdpc.*
+
+# 其它 agent 工具的本地记忆目录
+.workbuddy/
+
 # Dotenv
 .env
 

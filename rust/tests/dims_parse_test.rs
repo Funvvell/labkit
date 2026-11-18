@@ -1,4 +1,4 @@
-use pathology_crop_rs::sdpc::structs::parse_layer_info;
+use labkit::sdpc::structs::parse_layer_info;
 
 #[test]
 fn plain_dimensions() {

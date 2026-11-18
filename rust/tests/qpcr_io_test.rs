@@ -1,5 +1,5 @@
-use pathology_crop_rs::qpcr::io_csv::{decode_text, parse_csv_text};
-use pathology_crop_rs::qpcr::io_manual::parse_pasted;
+use labkit::qpcr::io_csv::{decode_text, parse_csv_text};
+use labkit::qpcr::io_manual::parse_pasted;
 
 #[test]
 fn tidy_long_table() {

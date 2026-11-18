@@ -84,6 +84,13 @@ where
             result: Err(format!("创建输出目录失败: {e}")),
         });
         report.failed = rois.len() as u32;
+        // 必须补发 Finished：否则前端的 exporting 标志永远停在 true，
+        // 导出按钮卡在「取消导出」，之后每次点击都只是在取消一个不存在的任务。
+        on_event(ExportEvent::Finished {
+            ok: 0,
+            failed: report.failed,
+            cancelled: false,
+        });
         return report;
     }
 

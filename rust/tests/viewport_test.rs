@@ -1,5 +1,5 @@
-use pathology_crop_rs::render::Viewport;
-use pathology_crop_rs::sdpc::{LevelInfo, SlideInfo};
+use labkit::render::Viewport;
+use labkit::sdpc::{LevelInfo, SlideInfo};
 
 fn info() -> SlideInfo {
     let levels = (0..7)

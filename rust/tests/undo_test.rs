@@ -1,5 +1,5 @@
-use pathology_crop_rs::model::undo::default_stack;
-use pathology_crop_rs::model::{Roi, RoiCommand, RoiStore, UndoStack};
+use labkit::model::undo::default_stack;
+use labkit::model::{Roi, RoiCommand, RoiStore, UndoStack};
 use std::path::{Path, PathBuf};
 
 fn roi(id: &str, path: &str, x: i64, y: i64, w: i64, h: i64) -> Roi {

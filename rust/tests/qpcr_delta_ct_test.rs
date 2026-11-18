@@ -1,5 +1,5 @@
-use pathology_crop_rs::qpcr::model::{Design, QpcrRun, Well};
-use pathology_crop_rs::qpcr::{self, delta_ct, delta_delta_ct, fold_change, pfaffl_ratio};
+use labkit::qpcr::model::{Design, QpcrRun, Well};
+use labkit::qpcr::{self, delta_ct, delta_delta_ct, fold_change, pfaffl_ratio};
 
 fn run() -> QpcrRun {
     let mut wells = Vec::new();

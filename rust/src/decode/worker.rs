@@ -62,6 +62,29 @@ impl DecodeHandle {
         let _ = self.tile_tx.send(Request::Tile { path, key, gen });
     }
 
+    /// Decode one tile and return its raw RGBA bytes.
+    ///
+    /// Blocks the *calling* thread only (a Tauri blocking-pool thread), never
+    /// the decoder thread's queue: stale generations are rejected immediately
+    /// by the worker, so a fast zoom never waits behind abandoned tiles.
+    pub fn fetch_tile(
+        &self,
+        path: PathBuf,
+        key: TileKey,
+        gen: u64,
+        timeout: Duration,
+    ) -> crate::errors::Result<crate::sdpc::RgbaImage> {
+        let (tx, rx) = bounded::<std::result::Result<crate::sdpc::RgbaImage, String>>(1);
+        self.tile_tx
+            .send(Request::TileFetch { path, key, gen, reply: tx })
+            .map_err(|_| AppError::Other("解码线程已退出".into()))?;
+        match rx.recv_timeout(timeout) {
+            Ok(Ok(img)) => Ok(img),
+            Ok(Err(e)) => Err(AppError::Other(e)),
+            Err(_) => Err(AppError::Other("瓦片解码超时".into())),
+        }
+    }
+
     pub fn start_export(&self, rois: Vec<crate::model::Roi>, opts: crate::export::ExportOptions, gen: u64) {
         let _ = self.high_tx.send(Request::Export { rois, opts, gen });
     }
@@ -114,10 +137,13 @@ impl Worker {
 
             match self.tile_rx.try_recv() {
                 Ok(Request::Tile { path, key, gen }) => self.handle_tile(&path, key, gen),
+                Ok(Request::TileFetch { path, key, gen, reply }) => {
+                    self.handle_tile_fetch(&path, key, gen, reply)
+                }
                 Ok(_) => {}
                 Err(crossbeam_channel::TryRecvError::Disconnected) => break,
                 Err(crossbeam_channel::TryRecvError::Empty) => {
-                    thread::sleep(Duration::from_millis(2));
+                    thread::sleep(Duration::from_millis(1));
                 }
             }
         }
@@ -160,8 +186,36 @@ impl Worker {
             Request::CancelTiles { gen } => {
                 self.latest_tile_gen = gen;
             }
-            Request::Tile { .. } | Request::Shutdown => {}
+            Request::Tile { .. } | Request::TileFetch { .. } | Request::Shutdown => {}
         }
+    }
+
+    /// Request/reply tile. Stale generations are dropped before touching the
+    /// DLL, which is what keeps zooming responsive.
+    fn handle_tile_fetch(
+        &mut self,
+        path: &Path,
+        key: TileKey,
+        gen: u64,
+        reply: crate::decode::messages::TileReply,
+    ) {
+        if gen > self.latest_tile_gen {
+            // A newer view generation supersedes everything queued before it.
+            // Accepting it here (instead of waiting for `begin_tiles`) removes
+            // the IPC ordering race between the two commands.
+            self.latest_tile_gen = gen;
+        }
+        if gen != self.latest_tile_gen {
+            return;
+        }
+        let out = self
+            .ensure_reader(path)
+            .and_then(|()| match self.readers.get(path) {
+                Some(reader) => reader.read_level_region_rgba(key.level, key.x, key.y, key.w, key.h),
+                None => Err(AppError::Other("切片未加载".into())),
+            })
+            .map_err(|e| e.to_string());
+        let _ = reply.send(out);
     }
 
     fn handle_tile(&mut self, path: &Path, key: TileKey, gen: u64) {

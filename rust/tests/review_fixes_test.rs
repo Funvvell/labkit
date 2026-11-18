@@ -4,8 +4,8 @@
 
 use std::collections::BTreeMap;
 
-use pathology_crop_rs::qpcr::model::{Design, QpcrRun, RefStrategy, Well};
-use pathology_crop_rs::qpcr::{self, refgene, stats};
+use labkit::qpcr::model::{Design, QpcrRun, RefStrategy, Well};
+use labkit::qpcr::{self, refgene, stats};
 
 fn well(sample: &str, target: &str, cq: f64) -> Well {
     Well::new(sample.into(), target.into(), Some(cq))
