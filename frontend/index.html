@@ -189,7 +189,8 @@
   .canvas-bar .sep{width:1px;height:18px;background:var(--line)}
   .canvas-bar .zoom{font-family:var(--mono);font-size:12px;color:var(--ink-2)}
   .native-input{border:none;background:transparent;outline:none;font-family:var(--mono);font-size:12px;color:var(--ink);width:66px;min-width:0;flex:1}
-  .tile-img{position:absolute;display:block}
+  .tile-img{position:absolute;display:block;animation:tileIn .22s ease-out}
+  @keyframes tileIn{from{opacity:.25}to{opacity:1}}
   .chip{height:28px;padding:0 10px;border-radius:7px;background:var(--bg);font-size:11px;color:var(--ink-2)}
   .stage{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;user-select:none}
   .slide-frame{position:relative;flex:0 0 auto;cursor:grab}
@@ -197,10 +198,15 @@
   .viewport img{display:block;width:100%;height:100%;user-select:none;-webkit-user-drag:none;box-shadow:0 8px 24px rgba(0,0,0,.22)}
   .slide-frame.drawing{cursor:crosshair}
   .slide-frame.panning{cursor:grabbing}
-  /* ROI 样式复刻 Python 版：默认蓝 #0A84FF、选中 Apple 橙 #FF9F0A、hover 红；线宽屏幕恒定（JS 按 zoom 反算） */
-  .roi-rect{position:absolute;border:1.5px solid #0A84FF;background:rgba(10,132,255,.098);cursor:grab}
-  .roi-rect:hover{border-color:#FF453A}
-  .roi-rect.sel{border-color:#FF9F0A}
+  /* ROI 层在缩放容器之外、按屏幕坐标绘制：Chrome 会把缩放容器内的亚像素
+     border/width 钳制到 ≥1 base px 再乘 zoom，高倍率下边框/手柄被放大成粗块。
+     屏幕空间里 --rok = m11（每 level-0 px 的屏幕 px），线宽照抄 Python 非 cosmetic
+     画笔（默认 2 / 选中·hover 2.5，场景单位随缩放）；亚像素钳制只发生在屏幕空间，
+     退化为 1px 发丝线，与 Qt 低倍率下的观感一致。 */
+  #roiLayer{position:absolute;inset:0;pointer-events:none;z-index:3}
+  .roi-rect{position:absolute;pointer-events:auto;border:calc(2*var(--rok,1px)) solid #0A84FF;background:rgba(10,132,255,.098);cursor:grab}
+  .roi-rect:hover{border-color:#FF453A;border-width:calc(2.5*var(--rok,1px))}
+  .roi-rect.sel{border-color:#FF9F0A;border-width:calc(2.5*var(--rok,1px))}
   .drop-hint{
     position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
     color:var(--muted);font-size:13px;pointer-events:none;
@@ -232,6 +238,27 @@
   .qpcr-source{display:flex;gap:8px;flex:0 0 auto}
   .qpcr-source button{flex:1;height:34px;border-radius:8px;background:var(--bg);border:1px solid var(--line);font-size:11px;color:var(--ink-2)}
   .qpcr-source button:hover{border-color:var(--accent);color:var(--accent)}
+  /* qPCR 交互：筛选条、可排序表头、复孔钻取行、FC 图条形生长动画 */
+  .q-filter{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+  .q-filter select,.q-filter input{height:30px;border-radius:8px;border:1px solid var(--line);background:var(--bg);font-size:12px;padding:0 8px;color:var(--ink)}
+  .q-filter input{flex:1;min-width:120px}
+  .q-filter .hint-t{font-size:11px;color:var(--muted)}
+  .result-table th{cursor:pointer;user-select:none;white-space:nowrap}
+  .result-table th:hover{color:var(--accent)}
+  .result-table th .arr{font-size:9px;margin-left:3px;color:var(--accent)}
+  .result-table tbody tr.main-row{cursor:pointer;transition:background .12s}
+  .result-table tbody tr.main-row:hover{background:var(--accent-soft)}
+  .drill-row td{background:var(--bg);padding:8px 12px !important}
+  .well-chip{display:inline-flex;align-items:center;gap:6px;margin:0 10px 4px 0;padding:3px 8px;border-radius:8px;background:var(--card);border:1px solid var(--line);font-family:var(--mono);font-size:11px}
+  .well-chip.excluded{opacity:.5;text-decoration:line-through}
+  .well-chip input{accent-color:var(--accent);cursor:pointer}
+  .fc-chart{margin:0 0 14px}
+  .fc-chart svg{display:block;width:100%}
+  .fc-bar{transform-box:fill-box;transform-origin:bottom;animation:fcGrow .6s cubic-bezier(.22,.9,.3,1) backwards}
+  @keyframes fcGrow{from{transform:scaleY(0)}}
+  .eff-row{display:flex;align-items:center;gap:8px}
+  .eff-row .g{flex:1;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .eff-row input{width:76px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--bg);font-family:var(--mono);font-size:11px;padding:0 6px;color:var(--ink)}
   .result-table{width:100%;border-collapse:collapse;font-size:11px}
   .result-table th,.result-table td{padding:7px 9px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
   .result-table th{font-size:10px;color:var(--muted);font-weight:700;position:sticky;top:0;background:#fff}
@@ -295,6 +322,28 @@
   .kpi .label{font-size:12px;color:var(--muted);margin-top:3px}
   .kpi .delta{font-size:10px;margin-top:2px;color:var(--green);font-family:var(--mono)}
   .kpi .delta.down{color:var(--red)}
+  /* ---- Dashboard 动效：视图切换淡入、卡片错峰入场、悬停抬升、图表描线 ---- */
+  @keyframes riseIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+  @keyframes viewIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .view.active{animation:viewIn .3s cubic-bezier(.22,.9,.3,1)}
+  #view-home .scroll>.dash-card,#view-home .scroll>.dash-grid-2{animation:riseIn .55s cubic-bezier(.22,.9,.3,1) backwards}
+  #view-home .scroll>*:nth-child(1){animation-delay:.03s}
+  #view-home .scroll>*:nth-child(2){animation-delay:.1s}
+  #view-home .scroll>*:nth-child(3){animation-delay:.17s}
+  #view-home .scroll>*:nth-child(4){animation-delay:.24s}
+  #view-home .dash-grid-2>.dash-card{animation:riseIn .55s cubic-bezier(.22,.9,.3,1) backwards}
+  #view-home .dash-grid-2>.dash-card:nth-child(2){animation-delay:.08s}
+  .dash-card{transition:transform .18s cubic-bezier(.22,.9,.3,1),box-shadow .18s}
+  .dash-card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.09)}
+  .kpi:hover{transform:translateY(-2px) scale(1.02)}
+  .progress-fill{transition:width .9s cubic-bezier(.22,.9,.3,1)}
+  .lc-line{stroke-dasharray:1;stroke-dashoffset:1;animation:lcDraw .9s .15s cubic-bezier(.4,0,.2,1) forwards}
+  @keyframes lcDraw{to{stroke-dashoffset:0}}
+  .lc-area{opacity:0;animation:lcFade .7s .5s ease-out forwards}
+  @keyframes lcFade{to{opacity:1}}
+  .lc-dot{opacity:0;transform-box:fill-box;transform-origin:center;animation:lcPop .35s ease-out forwards}
+  @keyframes lcPop{from{opacity:0;transform:scale(0)}to{opacity:1;transform:scale(1)}}
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
   .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .chart-box{background:var(--bg);border-radius:12px;padding:12px}
   .chart-title{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:8px}
@@ -370,7 +419,7 @@
   .tbl td{font-family:var(--mono)}
   .tbl td.name{font-family:var(--sans);font-weight:600}
   /* ROI 选中态与手柄（八方向；小圆点屏幕恒定 8px，忽略视图缩放——原版 ItemIgnoresTransformations） */
-  .roi-handle{position:absolute;width:8px;height:8px;border-radius:50%;background:#fff;border:1.5px solid #0A84FF;z-index:2;transform:translate(-50%,-50%)}
+  .roi-handle{position:absolute;pointer-events:auto;width:8px;height:8px;border-radius:50%;background:#fff;border:1.5px solid #0A84FF;z-index:2;transform:translate(-50%,-50%)}
   .roi-handle.nw{cursor:nwse-resize}
   .roi-handle.n{cursor:ns-resize}
   .roi-handle.ne{cursor:nesw-resize}
@@ -658,8 +707,8 @@
                 <div class="viewport" id="viewport">
                   <img id="slideImg" alt="slide" draggable="false" />
                   <div id="tileLayer"></div>
-                  <div id="roiLayer"></div>
                 </div>
+                <div id="roiLayer"></div>
               </div>
               <div class="mini-nav hidden" id="miniNav"><img id="miniImg" alt="nav" draggable="false" /><div class="viewbox" style="left:0;top:0;width:0;height:0"></div></div>
             </div>
@@ -679,7 +728,7 @@
         <div class="ws-top">
           <button class="back" id="qpcrBack"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <div class="ws-tool"><svg viewBox="0 0 24 24" fill="none"><path d="M4 19V9M10 19V5M16 19V11M22 19V7" stroke="#30D158" stroke-width="2" stroke-linecap="round"/></svg>qPCR 分析</div>
-          <div class="ws-file" id="qpcrFile">ΔCt / ΔΔCt · 2^-ΔΔCt · geNorm · Welch t-test</div>
+          <div class="ws-file" id="qpcrFile">ΔCt / ΔΔCt · 2^-ΔΔCt / Pfaffl · geNorm · Welch t / ANOVA · 标准曲线效率</div>
           <button class="btn-primary" id="btnQpcrExport"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4V15M8 11L12 15L16 11M5 19H19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>导出结果</button>
         </div>
         <div class="ws-body">
@@ -709,6 +758,19 @@
                 <button class="active" data-ref="GeometricMean">几何平均</button><button data-ref="Genorm">geNorm</button>
               </div>
             </div>
+            <div>
+              <div class="field-title">扩增效率 E（%）· 空=100%（Livak）；非 100% 自动 Pfaffl</div>
+              <div id="effInputs" style="display:flex;flex-direction:column;gap:6px"><span style="font-size:11px;color:var(--muted)">解析数据后按基因填写</span></div>
+            </div>
+            <div>
+              <div class="field-title">标准曲线 → 效率（稀释倍数⇥Cq，重复行自动均值）</div>
+              <textarea class="qpcr-paste" id="stdCurveInput" style="min-height:64px" placeholder="1&#9;20.1&#10;1&#9;20.3&#10;0.1&#9;23.5&#10;0.1&#9;23.6&#10;0.01&#9;26.8&#10;0.01&#9;27.0"></textarea>
+              <div class="field-row" style="margin-top:6px">
+                <select class="native-select" id="stdCurveGene"></select>
+                <button class="btn sec" id="btnStdCurve" style="flex:0 0 auto">计算并应用</button>
+              </div>
+              <div class="sub" id="stdCurveOut" style="margin-top:4px">slope / R² / E 将显示在此（qPCRtools 定义 E=10^(-1/slope)-1）</div>
+            </div>
             <div class="field-row">
               <div class="input"><span class="k">CV≤</span><input class="native-input" id="cvTh" type="number" value="0.05" step="0.01"></div>
               <div class="input"><span class="k">SD≤</span><input class="native-input" id="sdTh" type="number" value="0.25" step="0.05"></div>
@@ -728,6 +790,9 @@
           <aside class="panel right">
             <h3>质控与统计</h3>
             <div class="stat-grid" id="qpcrStats"></div>
+            <div class="divider"></div>
+            <div class="field-title">内参稳定性（geNorm M，越小越稳）</div>
+            <div class="warn-list" id="qpcrRefStab"><span style="font-size:11px;color:var(--muted)">—</span></div>
             <div class="divider"></div>
             <div class="field-title">QC 警告</div>
             <div class="warn-list" id="qpcrWarns"><span style="font-size:11px;color:var(--muted)">暂无</span></div>
@@ -913,7 +978,7 @@ function lineChart(data,w,h,color,fill){
   const pts=data.map((v,i)=>`${(i/(n-1))*w},${h-6-(v/max)*(h-14)}`).join(' ');
   const area=`0,${h} ${pts} ${w},${h}`;
   const grid=[0.25,0.5,0.75].map(f=>`<line x1="0" y1="${h*f}" x2="${w}" y2="${h*f}" stroke="rgba(0,0,0,.06)" stroke-width="1"/>`).join('');
-  return `<svg viewBox="0 0 ${w} ${h}" height="${h}"><defs><linearGradient id="g${color.slice(1)}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".22"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>${grid}<polygon points="${area}" fill="url(#g${color.slice(1)})"/><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${data.map((v,i)=>`<circle cx="${(i/(n-1))*w}" cy="${h-6-(v/max)*(h-14)}" r="2.6" fill="#fff" stroke="${color}" stroke-width="1.8"/>`).join('')}</svg>`;
+  return `<svg viewBox="0 0 ${w} ${h}" height="${h}"><defs><linearGradient id="g${color.slice(1)}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".22"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>${grid}<polygon class="lc-area" points="${area}" fill="url(#g${color.slice(1)})"/><polyline class="lc-line" pathLength="1" points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${data.map((v,i)=>`<circle class="lc-dot" style="animation-delay:${0.2+i*0.07}s" cx="${(i/(n-1))*w}" cy="${h-6-(v/max)*(h-14)}" r="2.6" fill="#fff" stroke="${color}" stroke-width="1.8"/>`).join('')}</svg>`;
 }
 function pieChart(parts,size){
   let acc=0;const total=parts.reduce((s,p)=>s+p[1],0)||1;
@@ -982,6 +1047,13 @@ function renderKpi(){
     ['2','文献待读','1 篇待精读','literature'],
   ];
   document.getElementById('kpiRow').innerHTML=kpis.map(([n,l,d,g])=>`<div class="kpi" data-goto="${g}" title="点击查看详情"><div class="num">${n}</div><div class="label">${l}</div>${d?`<div class="delta">${d}</div>`:''}</div>`).join('');
+  /* KPI 数字滚动入场 */
+  document.querySelectorAll('#kpiRow .num').forEach((el,idx)=>{
+    const m=el.textContent.match(/^(\d+)(.*)$/);if(!m)return;
+    const target=+m[1],suf=m[2],t0=performance.now(),dur=700+idx*60;
+    const step=t=>{const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);el.textContent=Math.round(target*e)+suf;if(p<1)requestAnimationFrame(step);};
+    requestAnimationFrame(step);
+  });
   document.getElementById('chartFocus').innerHTML=lineChart(DB.weeklyFocus,300,90,'#007AFF');
   document.getElementById('chartTasks').innerHTML=lineChart(DB.weeklyTasks,300,90,'#30D158');
   document.getElementById('timerToday').textContent=`今日专注 ${todayFocus} 分钟 · ${DB.focusRecords.filter(r=>r.at.startsWith('今天')).length} 次`;
@@ -991,7 +1063,7 @@ function renderProjects(){
     const ms=p.milestones.map(([m,d])=>`<span class="ms ${d?'done':''}">${m}</span>`).join('');
     return `<div class="proj-mini"><div class="row1"><b>${esc(p.name)}</b><span class="badge normal">${p.stage}</span></div>
       <div class="sub" style="margin-top:2px">${p.code} · ${p.owner} · ${p.start} ~ ${p.end}</div>
-      <div class="progress"><div class="progress-fill" style="width:${p.progress}%"></div></div>
+      <div class="progress"><div class="progress-fill" data-w="${p.progress}" style="width:0"></div></div>
       <div class="milestones">${ms}</div>
       ${p.risk?`<div class="sub" style="color:#8a5a00">风险：${esc(p.risk)}</div>`:''}</div>`;
   };
@@ -1000,6 +1072,8 @@ function renderProjects(){
     <div class="btn-row"><button class="btn sec" data-open-exp="${p.id}">实验列表</button><button class="btn sec" data-proj-note="${p.id}">项目笔记</button></div></div>`).join('');
   document.querySelectorAll('[data-open-exp]').forEach(el=>el.onclick=()=>{document.getElementById('expFilterProj').value=el.dataset.openExp;renderExpTable();openView('experiments')});
   document.querySelectorAll('[data-proj-note]').forEach(el=>el.onclick=()=>toast('项目笔记（Markdown）开发中'));
+  /* 进度条从 0 伸展到目标宽度（双 rAF 确保过渡生效） */
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{document.querySelectorAll('.progress-fill[data-w]').forEach(el=>{el.style.width=el.dataset.w+'%';});}));
 }
 function renderLitRemind(){
   document.getElementById('litList').innerHTML=DB.literatures.slice(0,3).map(l=>`<div class="lit-item"><div class="t">${esc(l.title)}</div><span class="badge ${l.status==='待精读'?'important':l.status==='笔记待整理'?'urgent':'normal'}">${l.status}</span></div>`).join('');
@@ -1140,6 +1214,9 @@ let baseW=0,baseH=0,imgW=0,imgH=0;
 let view={zoom:1,panX:0,panY:0};
 let selected=new Set(), primaryIdx=-1, lastMouse=null, mag=20, ratio='16:9';
 let slideInfo=null; let slideTiles=new Map(); let pendingTiles=new Set();
+let tileTimer=null;   /* scheduleTiles 防抖句柄。必须声明：未声明时首次 clearTimeout(tileTimer)
+                         抛 ReferenceError，applyView 每次缩放/平移都在此中断，瓦片管线整体失效，
+                         画面永远只剩拉伸的缩略图（放大模糊的根因）。 */
 let undoStack=[], redoStack=[];
 let pendingOpen=null;      /* {path,gen} — SDPC open queued on the decoder worker */
 let exporting=false;       /* an export job is in flight (button becomes cancel) */
@@ -1151,8 +1228,11 @@ const miniNav=document.getElementById('miniNav'); const dropHint=document.getEle
 
 function setSlide(src,name){
   slideSrc=src;
+  whiteRef=null;balancedCache.clear();
   slideImg.onload=async()=>{
     layoutSlide();
+    /* 全片缩略图背景白点 = 全局色彩参考（瓦片逐块曝光/白平衡差异的均衡基准） */
+    try{whiteRef=estimateWhite(slideImg);}catch(e){whiteRef=null;}
     /* Restore persisted ROIs of this slide (regular images have no path). */
     rois=currentSlidePath?roiDb.filter(r=>r.slide_path===currentSlidePath).map(r=>({x:r.x,y:r.y,w:r.w,h:r.h})):[];
     selected.clear();primaryIdx=-1;undoStack=[];redoStack=[];drawRois();
@@ -1185,8 +1265,7 @@ function layoutSlide(){
   const nk=Math.min(150/imgW,112/imgH);
   miniNav.style.width=Math.max(60,imgW*nk)+'px';
   miniNav.style.height=Math.max(45,imgH*nk)+'px';
-  view={zoom:1,panX:0,panY:0};
-  applyView();
+  setViewTarget(1,0,0,true);
 }
 function applyView(){
   viewport.style.transform=`translate(${view.panX}px,${view.panY}px) scale(${view.zoom})`;
@@ -1215,15 +1294,38 @@ miniNav.addEventListener('click',e=>{
   const ix=((e.clientX-r.left)/r.clientWidth)*imgW;
   const iy=((e.clientY-r.top)/r.clientHeight)*imgH;
   const sf=dispToImg();
-  view.panX=baseW/2-(ix/sf)*view.zoom;
-  view.panY=baseH/2-(iy/sf)*view.zoom;
-  applyView();
+  setViewTarget(view.zoom,baseW/2-(ix/sf)*view.zoom,baseH/2-(iy/sf)*view.zoom);
 });
 function toView(e){
   const r=frame.getBoundingClientRect();
   return {x:(e.clientX-r.left-view.panX)/view.zoom, y:(e.clientY-r.top-view.panY)/view.zoom};
 }
 function dispToImg(){return (imgW&&baseW)?imgW/baseW:1}
+/* 缩放上下限照抄 Python 语义：Python wheelEvent 直接 scale()，无相对倍率上限，
+   可以放大到 1:1 原生像素甚至更高。这里按绝对比例 m11（屏幕px/level-0 px，
+   等价 Qt transform().m11()）限制，覆盖全部有用倍率并防止数值退化。 */
+function clampZoom(z){const k=(imgW&&baseW)?baseW/imgW:1;return Math.min(32,Math.max(1e-4,z*k))/k;}
+/* ---- 平滑缩放：滚轮/适配/导航设置目标视图，rAF 指数逼近（~120ms 收敛），
+   消除逐格跳变的割裂感；拖拽平移保持直跟（零延迟）。 ---- */
+let viewTarget=null, viewRaf=0;
+function setViewTarget(z,px,py,instant){
+  if(instant){viewTarget=null;if(viewRaf){cancelAnimationFrame(viewRaf);viewRaf=0;}view={zoom:z,panX:px,panY:py};applyView();return;}
+  viewTarget={zoom:z,panX:px,panY:py};
+  if(!viewRaf)viewRaf=requestAnimationFrame(stepView);
+}
+function stepView(){
+  viewRaf=0;
+  if(!viewTarget)return;
+  const t=viewTarget,k=0.32;
+  view.zoom+=(t.zoom-view.zoom)*k;
+  view.panX+=(t.panX-view.panX)*k;
+  view.panY+=(t.panY-view.panY)*k;
+  if(Math.abs(t.zoom-view.zoom)<t.zoom*0.002&&Math.abs(t.panX-view.panX)<0.4&&Math.abs(t.panY-view.panY)<0.4){
+    view={zoom:t.zoom,panX:t.panX,panY:t.panY};viewTarget=null;applyView();return;
+  }
+  applyView();
+  viewRaf=requestAnimationFrame(stepView);
+}
 
 /* ---- 撤销 / 重做（与原版 Ctrl+Z/Y 语义一致：批量操作单步回退） ---- */
 function snapshot(){undoStack.push(JSON.stringify(rois));if(undoStack.length>50)undoStack.shift();redoStack.length=0;}
@@ -1233,28 +1335,34 @@ function undo(){if(!undoStack.length){toast('没有可撤销的操作');return}r
 function redo(){if(!redoStack.length){toast('没有可重做的操作');return}undoStack.push(JSON.stringify(rois));rois=JSON.parse(redoStack.pop());clearSel();drawRois();persistRois();toast('已重做');}
 
 function drawRois(){
-  const sf=dispToImg();
-  const hs=8/view.zoom;   /* 手柄屏幕恒定 8px（原版 ItemIgnoresTransformations 语义） */
+  const sf=dispToImg(), z=view.zoom;
+  /* roiLayer 在缩放容器外、按屏幕坐标绘制：Chrome 会把缩放容器内的亚像素
+     border/width 钳制到 ≥1 base px 再乘 zoom，高倍率下边框/手柄被放大成粗块。
+     sx/sy：level-0 px → 屏幕 px（相对 frame 原点，与 viewport 变换一致）。 */
+  const sx=v=>view.panX+v/sf*z, sy=v=>view.panY+v/sf*z;
   roiLayer.innerHTML='';
   rois.forEach((ro,i)=>{
     const d=document.createElement('div');
     d.className='roi-rect'+(selected.has(i)?' sel':'');
-    d.style.left=(ro.x/sf)+'px';d.style.top=(ro.y/sf)+'px';
-    d.style.width=(ro.w/sf)+'px';d.style.height=(ro.h/sf)+'px';
-    d.style.borderWidth=((selected.has(i)?2:1.5)/view.zoom)+'px';   /* 框线屏幕恒定 */
-    if(i===primaryIdx){
-      const pts={nw:[0,0],n:[0.5,0],ne:[1,0],e:[1,0.5],se:[1,1],s:[0.5,1],sw:[0,1],w:[0,0.5]};
-      for(const k of Object.keys(pts)){
-        const h=document.createElement('span');
-        h.className='roi-handle '+k;
-        h.style.left=((ro.x/sf)+pts[k][0]*(ro.w/sf))+'px';
-        h.style.top=((ro.y/sf)+pts[k][1]*(ro.h/sf))+'px';
-        h.style.width=hs+'px';h.style.height=hs+'px';
-        d.appendChild(h);
-      }
-    }
+    d.style.left=sx(ro.x)+'px';d.style.top=sy(ro.y)+'px';
+    d.style.width=(ro.w/sf*z)+'px';d.style.height=(ro.h/sf*z)+'px';
+    /* --rok = m11（每 level-0 px 的屏幕 px）：线宽 2/2.5 场景单位随缩放，照抄 Python 非 cosmetic 画笔 */
+    d.style.setProperty('--rok',(z/sf)+'px');
     roiLayer.appendChild(d);
   });
+  /* 手柄挂在 layer 上（不挂在 rect 内，避免 rect 边框挤偏手柄定位）；
+     屏幕恒定 8px，照抄 Python ItemIgnoresTransformations；CSS translate(-50%,-50%) 居中 */
+  if(primaryIdx>=0&&rois[primaryIdx]){
+    const ro=rois[primaryIdx];
+    const pts={nw:[0,0],n:[0.5,0],ne:[1,0],e:[1,0.5],se:[1,1],s:[0.5,1],sw:[0,1],w:[0,0.5]};
+    for(const k of Object.keys(pts)){
+      const h=document.createElement('span');
+      h.className='roi-handle '+k;
+      h.style.left=sx(ro.x+pts[k][0]*ro.w)+'px';
+      h.style.top=sy(ro.y+pts[k][1]*ro.h)+'px';
+      roiLayer.appendChild(h);
+    }
+  }
   renderRoiList();document.getElementById('roiCount').textContent=rois.length+' 个区域';
 }
 function renderRoiList(){
@@ -1291,19 +1399,19 @@ function hitHandle(vx,vy){
 function fitToRoi(showToast){
   if(primaryIdx>=0&&rois[primaryIdx]){
     const sf=dispToImg();const r=rois[primaryIdx];
-    const z=Math.min(baseW*0.8/(r.w/sf),baseH*0.8/(r.h/sf));
-    view.zoom=Math.min(40,Math.max(0.05,z));
+    const z=clampZoom(Math.min(baseW*0.8/(r.w/sf),baseH*0.8/(r.h/sf)));
     const cx=(r.x+r.w/2)/sf, cy=(r.y+r.h/2)/sf;
-    view.panX=baseW/2-cx*view.zoom; view.panY=baseH/2-cy*view.zoom;
-    applyView();
+    setViewTarget(z,baseW/2-cx*z,baseH/2-cy*z);
     if(showToast)toast('已适配选中 ROI');
-  }else{view={zoom:1,panX:0,panY:0};applyView();if(showToast)toast('已适配窗口');}
+  }else{setViewTarget(1,0,0);if(showToast)toast('已适配窗口');}
 }
 function placeRoiAt(){
   if(!slideSrc||!lastMouse)return;
-  const baseW0=parseInt(document.getElementById('frameW').value)||512;
-  const baseH0=parseInt(document.getElementById('frameH').value)||512;
-  const fw=Math.round(baseW0*20/mag), fh=Math.round(baseH0*20/mag);
+  /* 照抄 Python _place_roi_at_frame：框宽/高输入值本身就是 level-0 像素尺寸
+     （autoCalcFrame 已按当前倍率/mpp 换算），直接取用，不再二次缩放。
+     范围对齐 Python QSpinBox 的 64..999999。 */
+  const fw=Math.min(999999,Math.max(64,parseInt(document.getElementById('frameW').value)||512));
+  const fh=Math.min(999999,Math.max(64,parseInt(document.getElementById('frameH').value)||512));
   const sf=dispToImg();
   const cx=lastMouse.x*sf, cy=lastMouse.y*sf;
   let X=Math.round(cx-fw/2), Y=Math.round(cy-fh/2);
@@ -1334,6 +1442,7 @@ frame.addEventListener('mousedown',e=>{
     return;
   }
   clearSel();drawRois();
+  viewTarget=null;if(viewRaf){cancelAnimationFrame(viewRaf);viewRaf=0;}
   drag={type:'pan',sx:e.clientX,sy:e.clientY,px:view.panX,py:view.panY};
   frame.classList.add('panning');
 });
@@ -1342,7 +1451,8 @@ window.addEventListener('mousemove',e=>{
   if(!drag)return;
   if(drag.type==='pan'){
     view.panX=drag.px+(e.clientX-drag.sx); view.panY=drag.py+(e.clientY-drag.sy);
-    viewport.style.transform=`translate(${view.panX}px,${view.panY}px) scale(${view.zoom})`;
+    /* ROI 层在屏幕空间：平移必须同步重绘 ROI/导航框并补瓦片，否则拖拽时 ROI 脱位 */
+    applyView();
     return;
   }
   if(drag.type==='none')return;
@@ -1374,16 +1484,16 @@ window.addEventListener('mouseup',()=>{
   if(drag.type==='move'||drag.type==='resize')persistRois();
   drag=null;
 });
-/* 滚轮缩放：以鼠标位置为中心（原版 WHEEL_FACTOR 1.15） */
+/* 滚轮缩放：以鼠标位置为中心（原版 WHEEL_FACTOR 1.15），目标视图平滑逼近 */
 stage.addEventListener('wheel',e=>{
   if(!slideSrc)return;e.preventDefault();
   const f=e.deltaY<0?1.15:1/1.15;
-  const z2=Math.min(40,Math.max(0.05,view.zoom*f));
+  const cur=viewTarget||view;
+  const z2=clampZoom(cur.zoom*f);
   const r=frame.getBoundingClientRect();
   const mx=e.clientX-r.left,my=e.clientY-r.top;
-  const vx=(mx-view.panX)/view.zoom, vy=(my-view.panY)/view.zoom;
-  view.panX=mx-z2*vx; view.panY=my-z2*vy; view.zoom=z2;
-  applyView();
+  const vx=(mx-cur.panX)/cur.zoom, vy=(my-cur.panY)/cur.zoom;
+  setViewTarget(z2,mx-z2*vx,my-z2*vy);
 },{passive:false});
 /* 键盘：Space 创建 · Del 删除 · Ctrl+Z/Y 撤销重做 · F 适配 */
 window.addEventListener('keydown',e=>{
@@ -1448,6 +1558,43 @@ document.querySelectorAll('#ratioSeg button').forEach(b=>b.onclick=()=>{
 });
 
 /* ===================== 金字塔瓦片渲染（照原版：按需请求 + LRU + 渐进清晰） ===================== */
+/* 预览层白点均衡：SDPC 金字塔逐瓦片 JPEG 存在曝光/白平衡差异（Python 版同样可见
+   色块拼布）。以全片缩略图背景 P90 为参考，对每瓦片做逐通道增益补偿（限幅），
+   仅作用于预览显示；导出走 DLL 原始像素，不受影响。 */
+let whiteRef=null;
+const balancedCache=new Map();
+function chanP90(d,stride){
+  const rs=[],gs=[],bs=[];
+  for(let i=0;i<d.length;i+=stride){rs.push(d[i]);gs.push(d[i+1]);bs.push(d[i+2]);}
+  const p90=a=>{a.sort((u,v)=>u-v);return a[Math.floor(a.length*0.9)]||255;};
+  return [p90(rs),p90(gs),p90(bs)];
+}
+function estimateWhite(img){
+  const w=img.naturalWidth,h=img.naturalHeight;
+  if(!w||!h)return null;
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0);
+  return chanP90(x.getImageData(0,0,w,h).data,16);
+}
+async function balanceTile(key,url){
+  if(!whiteRef)return url;
+  if(balancedCache.has(key))return balancedCache.get(key);
+  const im=new Image();im.src=url;await im.decode();
+  const w=im.naturalWidth,h=im.naturalHeight;
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);
+  const id=x.getImageData(0,0,w,h);const d=id.data;
+  const pw=chanP90(d,64);
+  const g=[0,1,2].map(i=>Math.min(1.18,Math.max(0.85,whiteRef[i]/Math.max(pw[i],1))));
+  let out=url;
+  if(g.some(v=>Math.abs(v-1)>0.015)){
+    for(let i=0;i<d.length;i+=4){d[i]*=g[0];d[i+1]*=g[1];d[i+2]*=g[2];}
+    x.putImageData(id,0,0);
+    out=c.toDataURL('image/jpeg',0.93);
+  }
+  balancedCache.set(key,out);
+  return out;
+}
 function bestLevelFor(scale){
   if(!slideInfo||!slideInfo.levels)return 0;
   const target=1/Math.max(scale,1e-9);
@@ -1459,12 +1606,14 @@ let tileGen=0;
 function scheduleTiles(){
   clearTimeout(tileTimer);
   tileGen+=1;
-  /* The worker silently drops tiles of older generations; clear pending so
-     still-needed tiles are re-requested instead of being blocked forever. */
-  pendingTiles.clear();
   const g=tileGen;
-  if(IN_TAURI&&slideInfo)invoke('begin_tiles',{gen:g}).catch(()=>{});
-  tileTimer=setTimeout(()=>renderTiles(g),200);
+  /* begin_tiles/pending 清理放进 debounce：平滑缩放期间每帧 applyView 不会
+     造成 IPC/gen 洪泛；视图收敛后一次性切换解码代际。 */
+  tileTimer=setTimeout(()=>{
+    pendingTiles.clear();
+    if(IN_TAURI&&slideInfo)invoke('begin_tiles',{gen:g}).catch(()=>{});
+    renderTiles(g);
+  },200);
 }
 function renderTiles(g){
   if(!slideSrc)return;
@@ -1485,23 +1634,56 @@ function renderTiles(g){
   const vx1=(stR.width-fx-view.panX)/view.zoom, vy1=(stR.height-fy-view.panY)/view.zoom;
   const lx0=Math.max(0,Math.floor(vx0*sf/ds/TS)*TS), ly0=Math.max(0,Math.floor(vy0*sf/ds/TS)*TS);
   const lx1=Math.min(LW,Math.ceil(vx1*sf/ds/TS)*TS+TS), ly1=Math.min(LH,Math.ceil(vy1*sf/ds/TS)*TS+TS);
-  [...layer.children].forEach(el=>{if(Number(el.dataset.lv)!==level)el.remove();});
+  const needed=[];
   for(let ty=ly0;ty<ly1;ty+=TS)for(let tx=lx0;tx<lx1;tx+=TS){
     const tw=Math.min(TS,LW-tx), th=Math.min(TS,LH-ty);
     if(tw<=0||th<=0)continue;
+    needed.push([tx,ty,tw,th]);
+  }
+  /* 照抄 Python _add_tile_item 精确放置；边界吸附到 1/64 base px 网格
+     （Chrome LayoutUnit 量子）：left/width 均为 1/64 倍数时不会被布局二次取整，
+     相邻瓦片共享边严格相等 → 无缝。屏幕空间误差 ≤ m11/64 ≤ 0.5px（m11≤32）。
+     旧的设备像素吸附比 1/64 更细，高倍率下被 Chrome 取整覆盖 → 1/64×zoom 的缝隙。 */
+  const place=(im,tx,ty,tw,th)=>{
+    const snap=v=>Math.round(v*64)/64;
+    const L=snap(tx*ds/sf), T=snap(ty*ds/sf), R=snap((tx+tw)*ds/sf), B=snap((ty+th)*ds/sf);
+    im.style.left=L+'px';im.style.top=T+'px';
+    im.style.width=(R-L)+'px';im.style.height=(B-T)+'px';
+  };
+  let complete=true;
+  needed.forEach(([tx,ty,tw,th])=>{
     const key=level+'_'+tx+'_'+ty+'_'+tw+'_'+th;
     const url=slideTiles.get(key);
+    const exist=layer.querySelector(`[data-key="${key}"]`);
     if(url){
-      if(layer.querySelector(`[data-key="${key}"]`))continue;
-      const im=new Image();im.src=url;im.className='tile-img';im.dataset.key=key;im.dataset.lv=level;
-      im.style.left=(tx*ds/sf)+'px';im.style.top=(ty*ds/sf)+'px';
-      im.style.width=(tw*ds/sf+1)+'px';im.style.height=(th*ds/sf+1)+'px';
-      layer.appendChild(im);
-    }else if(!pendingTiles.has(key)&&slideInfo&&currentSlidePath){
-      pendingTiles.add(key);
-      invoke('enqueue_tile',{path:currentSlidePath,level,x:tx,y:ty,w:tw,h:th,gen:g}).catch(()=>pendingTiles.delete(key));
+      if(exist){place(exist,tx,ty,tw,th);}
+      else{
+        const im=new Image();im.src=url;im.className='tile-img';im.dataset.key=key;im.dataset.lv=level;
+        place(im,tx,ty,tw,th);
+        layer.appendChild(im);
+      }
+    }else{
+      complete=false;
+      if(!pendingTiles.has(key)&&slideInfo&&currentSlidePath){
+        pendingTiles.add(key);
+        invoke('enqueue_tile',{path:currentSlidePath,level,x:tx,y:ty,w:tw,h:th,gen:g}).catch(()=>pendingTiles.delete(key));
+      }
     }
-  }
+  });
+  /* 旧层级瓦片保留为 underlay，直到新层级完整覆盖视口才移除——
+     跨层级瞬间不再闪回拉伸缩略图（割裂感主因之一）；新瓦片淡入衔接。 */
+  if(complete)[...layer.children].forEach(el=>{if(Number(el.dataset.lv)!==level)el.remove();});
+  /* 视口外保留的同层环带瓦片也按当前网格重定位，否则与视口内瓦片共享边错位 */
+  [...layer.children].forEach(el=>{
+    if(Number(el.dataset.lv)!==level)return;
+    const p=el.dataset.key.split('_').map(Number);
+    place(el,p[1],p[2],p[3],p[4]);
+  });
+  /* 视口外同层瓦片回收，限制 DOM 规模 */
+  [...layer.children].forEach(el=>{
+    const p=el.dataset.key.split('_');const lv=Number(p[0]),tx=Number(p[1]),ty=Number(p[2]);
+    if(lv===level&&(tx<lx0-TS||tx>lx1||ty<ly0-TS||ty>ly1))el.remove();
+  });
 }
 async function buildTilesFromImage(){
   const TS=1024;
@@ -1525,17 +1707,20 @@ setInterval(async()=>{
   if(!IN_TAURI||(!slideSrc&&!pendingOpen))return;
   try{
     const evs=await invoke('poll_decoder',{max:64});
-    let need=false;
     (evs||[]).forEach(ev=>{
       if(ev.kind==='opened'&&pendingOpen&&ev.gen===pendingOpen.gen&&ev.thumb_url){
         const p=pendingOpen.path;pendingOpen=null;
         currentSlidePath=p;
         slideInfo=ev.info;slideTiles.clear();pendingTiles.clear();
+        autoCalcFrame();  /* 照抄 Python file_controller：切片打开后按当前倍率/比例 + 新 mpp 重算框尺寸 */
         setSlide(ev.thumb_url,p.split(/[\\/]/).pop());
         toast('切片已打开：'+ev.info.full_w+'×'+ev.info.full_h+(ev.info.mpp?(' · '+ev.info.mpp+' µm/px'):''));
       }else if(ev.kind==='tile'&&ev.url){
         const k=[ev.key.level,ev.key.x,ev.key.y,ev.key.w,ev.key.h].join('_');
-        slideTiles.set(k,ev.url);pendingTiles.delete(k);need=true;
+        pendingTiles.delete(k);
+        /* 白点均衡后再入缓存渲染；失败回退原始瓦片，不阻塞显示 */
+        balanceTile(k,ev.url).then(u=>{slideTiles.set(k,u);renderTiles();})
+          .catch(()=>{slideTiles.set(k,ev.url);renderTiles();});
       }else if(ev.kind==='tile_failed'){
         /* Release the pending slot so the tile can be retried on next render. */
         const k=[ev.key.level,ev.key.x,ev.key.y,ev.key.w,ev.key.h].join('_');
@@ -1549,7 +1734,6 @@ setInterval(async()=>{
         else toast('解码提示：'+ev.err);
       }
     });
-    if(need)renderTiles();
   }catch(e){}
 },250);
 /* 精确编辑浮层（双击列表项） */
@@ -1637,7 +1821,7 @@ document.getElementById('btnExport').onclick=doExport;
 document.getElementById('btnPreviewExport').onclick=doExport;
 
 /* ===================== qPCR workspace（照原版：三输入 + 分析配置 + QC + 导出） ===================== */
-let qState={wells:[],targets:[],samples:[],refSet:new Set(),calibrator:null,refStrategy:'GeometricMean'};
+let qState={wells:[],targets:[],samples:[],refSet:new Set(),calibrator:null,refStrategy:'GeometricMean',eff:{}};
 let lastAnalysis=null;
 const FLAG_MAP={Undetermined:'未检出',Outlier:'离群孔',ExcludedByUser:'手动排除',ExcludedBySource:'来源排除',NoReference:'无内参',NoCalibrator:'无对照'};
 function flagText(f){
@@ -1667,14 +1851,47 @@ function renderQConfig(){
   document.querySelectorAll('[data-rt]').forEach(el=>el.onclick=()=>{
     const t=el.dataset.rt;
     if(qState.refSet.has(t))qState.refSet.delete(t);else qState.refSet.add(t);
-    renderQConfig();
+    renderQConfig();scheduleQ();
   });
   document.getElementById('calibratorSel').innerHTML=qState.samples.map(s=>`<option ${s===qState.calibrator?'selected':''}>${esc(s)}</option>`).join('')||'<option>—</option>';
+  /* 每基因扩增效率输入（qPCRtools 语义：E=10^(-1/slope)-1；100% → Livak） */
+  document.getElementById('effInputs').innerHTML=qState.targets.length?qState.targets.map(t=>`<div class="eff-row"><span class="g" title="${esc(t)}">${esc(t)}</span><input type="number" step="1" min="50" max="150" data-eff="${esc(t)}" value="${qState.eff[t]!=null?Math.round(qState.eff[t]*100):''}" placeholder="100"></div>`).join(''):'<span style="font-size:11px;color:var(--muted)">解析数据后按基因填写</span>';
+  document.querySelectorAll('[data-eff]').forEach(inp=>inp.oninput=()=>{
+    const t=inp.dataset.eff,v=parseFloat(inp.value);
+    if(isFinite(v)&&v>0&&Math.abs(v-100)>1e-9)qState.eff[t]=v/100;else delete qState.eff[t];
+    scheduleQ();
+  });
+  document.getElementById('stdCurveGene').innerHTML=qState.targets.map(t=>`<option>${esc(t)}</option>`).join('')||'<option>—</option>';
 }
 document.querySelectorAll('#refSeg button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#refSeg button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
-  qState.refStrategy=b.dataset.ref;
+  qState.refStrategy=b.dataset.ref;scheduleQ();
 });
+/* 配置变更自动重算（防抖 500ms） */
+let qTimer=0;
+function scheduleQ(){clearTimeout(qTimer);qTimer=setTimeout(()=>{if(qState.wells.length)runQpcr(true);},500);}
+document.getElementById('calibratorSel').onchange=e=>{qState.calibrator=e.target.value;scheduleQ();};
+['cvTh','sdTh'].forEach(id=>document.getElementById(id).addEventListener('input',scheduleQ));
+document.getElementById('groupInput').addEventListener('input',scheduleQ);
+/* 标准曲线：log10(稀释度) vs 平均 Cq 线性回归 → slope/R²/E（qPCRtools 定义） */
+document.getElementById('btnStdCurve').onclick=()=>{
+  const text=document.getElementById('stdCurveInput').value.trim();
+  const out=document.getElementById('stdCurveOut');
+  if(!text){toast('请先粘贴标准曲线数据');return}
+  const pts={};
+  text.split(/\r?\n/).forEach(l=>{const c=l.split(/[\t,; ]+/).filter(Boolean);if(c.length<2)return;const d=parseFloat(c[0]),q=parseFloat(c[1]);if(isFinite(d)&&d>0&&isFinite(q)){(pts[d]=pts[d]||[]).push(q);}});
+  const xs=Object.keys(pts).map(Number).sort((a,b)=>a-b);
+  if(xs.length<3){out.textContent='至少需要 3 个稀释度';return}
+  const X=xs.map(d=>Math.log10(d)),Y=xs.map(d=>pts[d].reduce((a,b)=>a+b,0)/pts[d].length);
+  const n=X.length,mx=X.reduce((a,b)=>a+b,0)/n,my=Y.reduce((a,b)=>a+b,0)/n;
+  let sxy=0,sxx=0,syy=0;for(let i=0;i<n;i++){sxy+=(X[i]-mx)*(Y[i]-my);sxx+=(X[i]-mx)*(X[i]-mx);syy+=(Y[i]-my)*(Y[i]-my);}
+  const slope=sxy/sxx,r2=syy>0?(sxy*sxy)/(sxx*syy):0;
+  const E=Math.pow(10,-1/slope)-1;
+  const gene=document.getElementById('stdCurveGene').value;
+  out.textContent=`slope=${slope.toFixed(3)} · R²=${r2.toFixed(4)} · E=${(E*100).toFixed(1)}%`;
+  if(gene&&gene!=='—'&&isFinite(E)&&E>0&&E<1.5){qState.eff[gene]=E;renderQConfig();scheduleQ();toast('标准曲线效率已应用：'+gene+' '+(E*100).toFixed(1)+'%');}
+  else toast('效率超出合理范围（0–150%），未应用');
+};
 function analyzeLocal(run){
   const wells=run.wells||[];
   const samples=[...new Set(wells.map(w=>w.sample_id))],targets=[...new Set(wells.map(w=>w.target_id))];
@@ -1690,12 +1907,16 @@ function analyzeLocal(run){
     let dct=null,ddct=null,fc=null;
     if(tc!=null&&tr!=null)dct=tc-tr;
     if(dct!=null&&cc!=null&&cr!=null)ddct=dct-(cc-cr);
-    if(ddct!=null)fc=Math.pow(2,-ddct);
-    results.push({sample_id:s,target_id:t,group:null,mean_cq:tc,n_tech:wells.filter(w=>w.sample_id===s&&w.target_id===t).length,cv:null,delta_ct:dct,delta_delta_ct:ddct,fold_change:fc,efficiency:null,flags:[]});
+    if(ddct!=null){
+      const e=qState.eff[t],er=qState.eff[refs[0]];
+      if(e!=null&&Math.abs(e-1)>1e-9)fc=Math.pow(1+e,cc-tc)/Math.pow(1+(er!=null?er:1),cr-tr);
+      else fc=Math.pow(2,-ddct);
+    }
+    results.push({sample_id:s,target_id:t,group:null,mean_cq:tc,n_tech:wells.filter(w=>w.sample_id===s&&w.target_id===t).length,cv:null,delta_ct:dct,delta_delta_ct:ddct,fold_change:fc,efficiency:qState.eff[t]!=null?qState.eff[t]:null,flags:[]});
   }));
   return{results,ref_stability:[],ref_used:refs,warnings:[],stats:[]};
 }
-async function runQpcr(){
+async function runQpcr(silent){
   let wells=qState.wells;
   const text=document.getElementById('qpcrPaste').value.trim();
   if(!wells.length){
@@ -1712,13 +1933,13 @@ async function runQpcr(){
       const i=l.indexOf('=');
       if(i>0){const k=l.slice(0,i).trim(),v=l.slice(i+1).trim();if(k&&v)groups[k]=v;}
     });
-    run.design={calibrator_sample:qState.calibrator||null,reference_targets:[...qState.refSet],target_ids:qState.targets,sample_groups:groups,cv_threshold:parseFloat(document.getElementById('cvTh').value)||0.05,sd_threshold:parseFloat(document.getElementById('sdTh').value)||null,efficiency:{},ref_strategy:qState.refStrategy};
+    run.design={calibrator_sample:qState.calibrator||null,reference_targets:[...qState.refSet],target_ids:qState.targets,sample_groups:groups,cv_threshold:parseFloat(document.getElementById('cvTh').value)||0.05,sd_threshold:parseFloat(document.getElementById('sdTh').value)||null,efficiency:{...qState.eff},ref_strategy:qState.refStrategy};
     let analysis=await invoke('qpcr_analyze',{run});
     if(!analysis||!analysis.results||!analysis.results.length)analysis=analyzeLocal(run);
     lastAnalysis=analysis;
     renderQpcr(analysis,wells.length);
     if(IN_TAURI)invoke('qpcr_save_session',{run}).catch(()=>{});
-    toast('分析完成：'+analysis.results.length+' 个结果 · 内参 '+(analysis.ref_used||[]).join('/'));
+    if(!silent)toast('分析完成：'+analysis.results.length+' 个结果 · 内参 '+(analysis.ref_used||[]).join('/'));
   }catch(e){toast('分析失败：'+e)}
 }
 document.getElementById('btnQpcrAnalyze').onclick=runQpcr;
@@ -1753,27 +1974,112 @@ document.getElementById('qSrcInstr').onclick=async()=>{
   }catch(e){toast('读取失败：'+e)}
 };
 
+let qSort={k:null,dir:1}, qFilter={t:'',s:''}, qExpanded=new Set();
+const GROUP_COLORS=['#007AFF','#30D158','#FF9F0A','#AF52DE','#FF453A','#5AC8FA','#FF2D55','#64D2FF'];
+/* Fold Change 分组柱状图：组均值 ± SD，log2 轴，星号来自后端组间检验（HTqPCR 式可视化） */
+function fcChartSvg(analysis){
+  const res=(analysis.results||[]).filter(r=>r.fold_change!=null);
+  if(!res.length)return '';
+  const targets=[...new Set(res.map(r=>r.target_id))];
+  const groups=[...new Set(res.map(r=>r.group||'未分组'))];
+  const stats={};(analysis.stats||[]).forEach(s=>{stats[s.target_id]=s;});
+  const mean=a=>a.reduce((x,y)=>x+y,0)/a.length;
+  const sd=a=>{if(a.length<2)return 0;const m=mean(a);return Math.sqrt(a.reduce((s,v)=>s+(v-m)*(v-m),0)/(a.length-1));};
+  let lo=0,hi=1;const cells=[];
+  targets.forEach(t=>groups.forEach(g=>{
+    const vals=res.filter(r=>r.target_id===t&&(r.group||'未分组')===g).map(r=>r.fold_change);
+    if(!vals.length)return;
+    const m=mean(vals),s=sd(vals);
+    cells.push({t,g,m,s});
+    lo=Math.min(lo,Math.log2(Math.max(1e-6,m-s)));hi=Math.max(hi,Math.log2(m+s));
+  }));
+  if(!cells.length)return '';
+  lo=Math.floor(lo)-0.5;hi=Math.ceil(hi)+0.5;
+  const W=640,H=216,padL=44,padB=36,padT=16;
+  const y=v=>padT+(hi-Math.log2(Math.max(1e-6,v)))/(hi-lo)*(H-padT-padB);
+  const gw=(W-padL-10)/targets.length;
+  const bw=Math.min(34,(gw-14)/groups.length);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" height="${H}">`;
+  for(let k=Math.ceil(lo);k<=Math.floor(hi);k++){
+    const yy=y(Math.pow(2,k));
+    const lab=k===0?'1':(k===1?'2':(k===-1?'0.5':'2^'+k));
+    svg+=`<line x1="${padL}" y1="${yy}" x2="${W-6}" y2="${yy}" stroke="rgba(0,0,0,${k===0?'.22':'.06'})" stroke-width="1"${k===0?' stroke-dasharray="4 3"':''}/><text x="${padL-6}" y="${yy+3}" text-anchor="end" font-size="9" fill="#8e8e93">${lab}</text>`;
+  }
+  cells.forEach((c,ci)=>{
+    const ti=targets.indexOf(c.t),gi=groups.indexOf(c.g);
+    const x=padL+ti*gw+7+gi*bw;
+    const y0=y(1),y1=y(c.m);
+    const top=Math.min(y0,y1),h=Math.max(1.5,Math.abs(y0-y1));
+    const col=GROUP_COLORS[gi%GROUP_COLORS.length];
+    svg+=`<rect class="fc-bar" style="animation-delay:${ci*0.05}s" x="${x}" y="${top}" width="${Math.max(6,bw-4)}" height="${h}" rx="3" fill="${col}" fill-opacity=".85"/>`;
+    if(c.s>0){
+      const cx=x+Math.max(6,bw-4)/2,ye1=y(c.m+c.s),ye2=y(Math.max(1e-6,c.m-c.s));
+      svg+=`<line x1="${cx}" y1="${ye1}" x2="${cx}" y2="${ye2}" stroke="${col}" stroke-width="1.4"/><line x1="${cx-4}" y1="${ye1}" x2="${cx+4}" y2="${ye1}" stroke="${col}" stroke-width="1.4"/><line x1="${cx-4}" y1="${ye2}" x2="${cx+4}" y2="${ye2}" stroke="${col}" stroke-width="1.4"/>`;
+    }
+  });
+  targets.forEach((t,ti)=>{
+    const st=stats[t];
+    const star=st?(st.p<0.001?'***':st.p<0.01?'**':st.p<0.05?'*':'ns'):'';
+    svg+=`<text x="${padL+ti*gw+gw/2}" y="${H-18}" text-anchor="middle" font-size="10" font-weight="600" fill="#3a3a3c">${esc(t)}</text>`;
+    if(star)svg+=`<text x="${padL+ti*gw+gw/2}" y="${H-5}" text-anchor="middle" font-size="9" fill="${star==='ns'?'#8e8e93':'#FF9F0A'}">${star} (p=${Number(st.p).toFixed(3)})</text>`;
+  });
+  groups.forEach((g,gi)=>{
+    svg+=`<rect x="${padL+gi*92}" y="3" width="8" height="8" rx="2" fill="${GROUP_COLORS[gi%GROUP_COLORS.length]}"/><text x="${padL+gi*92+12}" y="11" font-size="9" fill="#636366">${esc(g)}</text>`;
+  });
+  svg+='</svg>';
+  return `<div class="fc-chart"><div class="chart-title">Fold Change（组均值 ± SD，log2 轴；星号=组间检验）</div>${svg}</div>`;
+}
 function renderQpcr(analysis,nwells){
   const res=analysis.results||[];
   const host=document.getElementById('qpcrResult');
   if(!res.length){host.innerHTML='<div class="empty-state">未解析出结果，请检查列名与数据</div>';return}
-  const cols=[['sample_id','样本'],['target_id','基因'],['n_tech','重复数'],['mean_cq','平均 Cq'],['delta_ct','ΔCt'],['delta_delta_ct','ΔΔCt'],['fold_change','Fold Change']];
-  const rows=res.map(r=>{
+  const targets=[...new Set(res.map(r=>r.target_id))];
+  const cols=[['sample_id','样本'],['target_id','基因'],['n_tech','重复数'],['mean_cq','平均 Cq'],['cv','CV'],['delta_ct','ΔCt'],['delta_delta_ct','ΔΔCt'],['fold_change','Fold Change'],['efficiency','E']];
+  let rowsArr=res.map((r,i)=>({r,i}));
+  if(qFilter.t)rowsArr=rowsArr.filter(x=>x.r.target_id===qFilter.t);
+  if(qFilter.s)rowsArr=rowsArr.filter(x=>x.r.sample_id.toLowerCase().includes(qFilter.s.toLowerCase()));
+  if(qSort.k)rowsArr=rowsArr.sort((a,b)=>{const va=a.r[qSort.k],vb=b.r[qSort.k];if(va==null)return 1;if(vb==null)return -1;return (typeof va==='string'?va.localeCompare(vb):va-vb)*qSort.dir;});
+  const rows=rowsArr.map(({r,i})=>{
     const flags=(r.flags||[]).map(flagText);
-    return `<tr>${cols.map(([k])=>{
+    const key=r.sample_id+'|'+r.target_id;
+    let html=`<tr class="main-row" data-ri="${i}">${cols.map(([k])=>{
       let v=r[k];let cls='';
       if(k==='fold_change'&&v!=null){cls=v>=2?'fold-hi':(v<=0.5?'fold-lo':'')}
-      return `<td class="${k==='sample_id'?'name':''} ${cls}">${v==null?'—':(typeof v==='number'?v.toFixed(3):esc(v))}</td>`
+      const txt=v==null?'—':(typeof v==='number'?(k==='efficiency'?(v*100).toFixed(0)+'%':v.toFixed(3)):esc(v));
+      return `<td class="${k==='sample_id'?'name':''} ${cls}">${txt}</td>`;
     }).join('')}<td style="font-family:var(--sans);color:${flags.length?'#8a5a00':'var(--muted)'}">${flags.length?esc(flags.join(' / ')):'—'}</td></tr>`;
+    if(qExpanded.has(key)){
+      const ws=qState.wells.filter(w=>w.sample_id===r.sample_id&&w.target_id===r.target_id);
+      html+=`<tr class="drill-row"><td colspan="${cols.length+1}">${ws.map(w=>`<label class="well-chip ${w.excluded?'excluded':''}"><input type="checkbox" data-wid="${esc(w.id)}" ${w.excluded?'checked':''}>${w.cq==null?'Undet':w.cq.toFixed(2)}${w.flags&&w.flags.length?' · '+esc(w.flags.map(flagText).join(',')):''}</label>`).join('')}<span class="hint-t">勾选=排除该孔，自动重算</span></td></tr>`;
+    }
+    return html;
   }).join('');
   const allCols=cols.concat([['flags','QC 标记']]);
-  host.innerHTML=`<table class="result-table"><thead><tr>${allCols.map(c=>`<th>${c[1]}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
-  document.getElementById('qpcrSummary').textContent=res.length+' 个结果 · 内参 '+(analysis.ref_used||[]).join('/')+' · 策略 '+qState.refStrategy;
+  host.innerHTML=`<div class="q-filter">
+      <select id="qFilterTarget"><option value="">全部基因</option>${targets.map(t=>`<option ${qFilter.t===t?'selected':''}>${esc(t)}</option>`).join('')}</select>
+      <input id="qFilterSample" placeholder="筛选样本…" value="${esc(qFilter.s)}">
+      <span class="hint-t">点击行展开复孔 · 点击表头排序</span>
+    </div>`+fcChartSvg(analysis)+`<table class="result-table"><thead><tr>${allCols.map(([k,l])=>`<th data-sort="${k}">${l}${qSort.k===k?`<span class="arr">${qSort.dir>0?'▲':'▼'}</span>`:''}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
+  document.getElementById('qFilterTarget').onchange=e=>{qFilter.t=e.target.value;renderQpcr(lastAnalysis,qState.wells.length);};
+  document.getElementById('qFilterSample').oninput=e=>{
+    qFilter.s=e.target.value;renderQpcr(lastAnalysis,qState.wells.length);
+    const el=document.getElementById('qFilterSample');el.focus();el.setSelectionRange(el.value.length,el.value.length);
+  };
+  host.querySelectorAll('th[data-sort]').forEach(th=>th.onclick=()=>{const k=th.dataset.sort;if(qSort.k===k)qSort.dir*=-1;else{qSort.k=k;qSort.dir=1;}renderQpcr(lastAnalysis,qState.wells.length);});
+  host.querySelectorAll('tr.main-row').forEach(tr=>tr.onclick=()=>{const r=res[+tr.dataset.ri];const key=r.sample_id+'|'+r.target_id;if(qExpanded.has(key))qExpanded.delete(key);else qExpanded.add(key);renderQpcr(lastAnalysis,qState.wells.length);});
+  host.querySelectorAll('input[data-wid]').forEach(cb=>cb.onchange=()=>{const w=qState.wells.find(x=>x.id===cb.dataset.wid);if(w){w.excluded=cb.checked;runQpcr(true);}});
+  const effTxt=Object.entries(qState.eff).map(([t,e])=>t+' '+(e*100).toFixed(0)+'%').join(', ');
+  document.getElementById('qpcrSummary').textContent=res.length+' 个结果 · 内参 '+(analysis.ref_used||[]).join('/')+' · 策略 '+qState.refStrategy+(effTxt?' · Pfaffl '+effTxt:'');
   const stats=document.getElementById('qpcrStats');
+  const nex=qState.wells.filter(w=>w.excluded).length;
   stats.innerHTML=`<div class="stat"><div class="k">样本数</div><div class="v">${new Set(res.map(r=>r.sample_id)).size}</div></div>
     <div class="stat"><div class="k">靶基因数</div><div class="v">${new Set(res.map(r=>r.target_id)).size}</div></div>
-    <div class="stat"><div class="k">数据孔</div><div class="v">${nwells||''}</div></div>
-    <div class="stat"><div class="k">有效结果</div><div class="v">${res.filter(r=>r.fold_change!=null).length}</div></div>`;
+    <div class="stat"><div class="k">数据孔</div><div class="v">${nwells||qState.wells.length}</div></div>
+    <div class="stat"><div class="k">有效结果</div><div class="v">${res.filter(r=>r.fold_change!=null).length}</div></div>
+    <div class="stat"><div class="k">排除孔</div><div class="v">${nex}</div></div>`;
+  const rs=document.getElementById('qpcrRefStab');
+  const stab=analysis.ref_stability||[];
+  rs.innerHTML=stab.length?stab.map(([t,m])=>`<div class="warn" style="background:${m<0.5?'rgba(48,209,88,.08)':m<1?'rgba(255,159,10,.08)':'rgba(255,69,58,.08)'};color:var(--ink-2)"><b>${esc(t)}</b> · M=${Number(m).toFixed(3)}${m<0.5?'（稳定）':m<1?'（可接受）':'（偏不稳定）'}</div>`).join(''):'<span style="font-size:11px;color:var(--muted)">需≥2 个内参基因</span>';
   const warns=document.getElementById('qpcrWarns');
   const w=analysis.warnings||[];
   warns.innerHTML=w.length?w.map(x=>`<div class="warn">${esc(x)}</div>`).join(''):'<span style="font-size:11px;color:var(--muted)">全部通过质控</span>';
@@ -1814,9 +2120,11 @@ if(IN_TAURI){
     if(d.reference_targets&&d.reference_targets.length)qState.refSet=new Set(d.reference_targets);
     if(d.calibrator_sample)qState.calibrator=d.calibrator_sample;
     if(d.ref_strategy)qState.refStrategy=d.ref_strategy;
+    if(d.efficiency)qState.eff={...d.efficiency};
     document.getElementById('groupInput').value=Object.entries(d.sample_groups||{}).map(([k,v])=>k+'='+v).join('\n');
     document.querySelectorAll('#refSeg button').forEach(b=>b.classList.toggle('active',b.dataset.ref===qState.refStrategy));
     renderQConfig();
+    scheduleQ();
   }).catch(()=>{});
 }
 </script>

@@ -5,6 +5,10 @@
 //!   pathology-crop-rs --export --slide <s.sdpc> --session <rois.json> --out <dir>
 //! With no arguments the Tauri macOS-style toolbox window starts.
 
+// Release 构建为 GUI 子系统：双击启动不再弹出命令行黑框。
+// Debug 保留控制台便于开发；从终端启动时 CLI 模式仍继承父控制台输出。
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use std::path::PathBuf;
 
 use pathology_crop_rs::commands::AppState;
