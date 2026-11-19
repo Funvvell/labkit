@@ -64,7 +64,7 @@
       return '';
     }
     function syncKind() {
-      const t = TESTS.find(x => x.id === $('stKind').value);
+      const t = TESTS.find(x => x.id === $('stKind').value) || TESTS[0];
       $('stInputs').innerHTML = inputHTML(t.kind);
       const show = (id, on) => { $(id).style.display = on ? '' : 'none'; };
       show('stAltWrap', t.opts.includes('alternative'));
@@ -87,7 +87,7 @@
     function pStr(p) { return p < 0.001 ? '< .001' : '= ' + p.toFixed(3).replace(/^0/, ''); }
 
     function run() {
-      const t = TESTS.find(x => x.id === $('stKind').value);
+      const t = TESTS.find(x => x.id === $('stKind').value) || TESTS[0];
       const alt = $('stAlt').value;
       try {
         let r, extra = '';
@@ -126,6 +126,7 @@
         $('stOut').innerHTML = html;
         $('stCopy').disabled = !lastReport;
         window.__labkitLastTest = { id: t.id, r, alt };
+        Store.set('session:lastTest', { id: t.id, r, alt });   // P2：落盘，apa 跨重启可载入
       } catch (e) {
         $('stOut').innerHTML = `<div class="terr">${esc(e.message || String(e))}</div>`;
         $('stCopy').disabled = true;
@@ -148,7 +149,7 @@
       navigator.clipboard.writeText(lastReport).then(() => toast('已复制报告串')).catch(() => toast('复制失败'));
     });
     $('stDemo').addEventListener('click', () => {
-      const t = TESTS.find(x => x.id === $('stKind').value);
+      const t = TESTS.find(x => x.id === $('stKind').value) || TESTS[0];
       const set = (id, v) => { const el = $(id); if (el) el.value = v; };
       if (t.kind === 'two') { set('stX', '19, 22, 16, 29, 24'); set('stY', '20, 11, 17, 12'); }
       else if (t.kind === 'one') set('stX', '12.1, 13.4, 11.8, 12.9, 13.1, 12.5');
@@ -158,5 +159,30 @@
       else if (t.kind === 'fisher') { set('stA', 1); set('stB', 9); set('stC', 11); set('stD', 3); }
       toast('已填入示例数据');
     });
+    /* P2：统一壳示例入口 + 接收「数据清洗」数据集 */
+    host.__lkExample = () => $('stDemo').click();
+    const sess = Store.get('session:dataset', null);
+    if (sess && sess.rows && sess.rows.length && sess.cols) {
+      const numCols = sess.cols.filter(c => sess.rows.some(r => Number.isFinite(parseFloat(r[c]))));
+      if (numCols.length) {
+        const b = document.createElement('div'); b.className = 'tool-banner';
+        const opts = sel => numCols.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+        b.innerHTML = `<span>检测到「数据清洗」送来的数据（${sess.rows.length} 行）：选列载入为样本</span>
+          <select id="stDsX">${opts()}</select><select id="stDsY"><option value="">（Y 留空）</option>${opts()}</select>`;
+        const load = document.createElement('button'); load.className = 'tbtn pri'; load.textContent = '载入';
+        load.onclick = () => {
+          const xc = b.querySelector('#stDsX').value, yc = b.querySelector('#stDsY').value;
+          const col = c => sess.rows.map(r => r[c]).filter(v => v !== '' && v != null && Number.isFinite(parseFloat(v))).join(', ');
+          if ($('stX')) $('stX').value = col(xc);
+          if (yc && $('stY')) $('stY').value = col(yc);
+          toast('已载入清洗数据列'); b.remove();
+        };
+        const dismiss = document.createElement('button'); dismiss.className = 'tbtn sec'; dismiss.textContent = '忽略';
+        dismiss.onclick = () => { Store.set('session:dataset', null); b.remove(); };
+        b.append(load, dismiss);
+        host.querySelector('.tool-section').prepend(b);
+        if (numCols[1]) b.querySelector('#stDsY').value = numCols[1];
+      }
+    }
   };
 })();

@@ -142,12 +142,12 @@
     });
     $('fgSave').addEventListener('click', () => {
       const json = JSON.stringify({ tpl: $('fgTpl').value, mm: $('fgMm').value, canvas: canvas.toJSON(['panelLabel']) });
-      try { localStorage.setItem('labkit-figure', json); } catch (e) { /* 忽略 */ }
+      try { Store.set('tool:figure', json); } catch (e) { /* 忽略 */ }
       dl(URL.createObjectURL(new Blob([json], { type: 'application/json' })), 'figure_layout.json');
     });
     $('fgLoad').addEventListener('click', () => {
       let raw = null;
-      try { raw = localStorage.getItem('labkit-figure'); } catch (e) { /* 忽略 */ }
+      try { raw = Store.get('tool:figure', null); } catch (e) { /* 忽略 */ }
       if (!raw) { toast('无已保存布局'); return; }
       const d = JSON.parse(raw);
       $('fgTpl').value = d.tpl; $('fgMm').value = d.mm;

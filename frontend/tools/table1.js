@@ -111,5 +111,23 @@
         toast(e.message || String(e));
       }
     });
+    /* P2：统一壳示例入口 + 接收「数据清洗」数据集 */
+    host.__lkExample = () => $('t1Demo').click();
+    const sess = Store.get('session:dataset', null);
+    if (sess && sess.rows && sess.rows.length && sess.cols) {
+      const b = document.createElement('div'); b.className = 'tool-banner';
+      b.innerHTML = `<span>检测到「数据清洗」送来的数据（${sess.rows.length} 行 × ${sess.cols.length} 列）</span>`;
+      const load = document.createElement('button'); load.className = 'tbtn pri'; load.textContent = '载入为 CSV';
+      load.onclick = () => {
+        const csv = Papa.unparse([sess.cols, ...sess.rows.map(r => sess.cols.map(c => r[c] ?? ''))]);
+        $('t1Data').value = csv;
+        try { parse(csv); toast('已载入清洗数据'); } catch (e) { toast(e.message); }
+        b.remove();
+      };
+      const dismiss = document.createElement('button'); dismiss.className = 'tbtn sec'; dismiss.textContent = '忽略';
+      dismiss.onclick = () => { Store.set('session:dataset', null); b.remove(); };
+      b.append(load, dismiss);
+      host.querySelector('.tool-section').prepend(b);
+    }
   };
 })();

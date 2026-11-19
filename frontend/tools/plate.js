@@ -80,11 +80,11 @@
 
     function layer() { return plate.Layers[activeLayer]; }
     function persist() {
-      try { localStorage.setItem('labkit-plate', JSON.stringify({ plate: PM.save(plate), activeLayer })); } catch (e) { /* 忽略 */ }
+      try { Store.set('tool:plate', JSON.stringify({ plate: PM.save(plate), activeLayer })); } catch (e) { /* 忽略 */ }
     }
     function restore() {
       try {
-        const raw = localStorage.getItem('labkit-plate');
+        const raw = Store.get('tool:plate', null);
         if (!raw) return;
         const d = JSON.parse(raw);
         plate = PM.load(d.plate);

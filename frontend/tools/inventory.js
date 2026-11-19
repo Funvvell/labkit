@@ -141,7 +141,7 @@
     // ---- 通知 ----
     async function notifyScan(manual) {
       const today = new Date().toISOString().slice(0, 10);
-      if (!manual && localStorage.getItem('labkit-inv-notify') === today) return;
+      if (!manual && Store.get('tool:inv-notify', null) === today) return;
       const expired = rows().filter(r => status(r).k === 'expired');
       const expiring = rows().filter(r => status(r).k === 'expiring');
       const low = rows().filter(r => status(r).k === 'low');
@@ -159,7 +159,7 @@
       } else {
         toast('浏览器模式：' + body.replace(/\n/g, '；'));
       }
-      localStorage.setItem('labkit-inv-notify', today);
+      Store.set('tool:inv-notify', today);
       if (manual) $('ivLog').innerHTML = `<div class="twarn" style="white-space:pre-wrap">${esc(body)}</div>`;
     }
     $('ivNotify').onclick = () => notifyScan(true);
@@ -202,13 +202,13 @@
       const el = $('ivApi');
       el.style.display = el.style.display === 'none' ? '' : 'none';
       try {
-        const cfg = JSON.parse(localStorage.getItem('labkit-inv-api') || '{}');
+        const cfg = JSON.parse(Store.get('tool:inv-api', null) || '{}');
         $('ivApiUrl').value = cfg.url || ''; $('ivApiToken').value = cfg.token || '';
       } catch (e) { /* 忽略 */ }
     };
     function apiCfg() {
       const cfg = { url: $('ivApiUrl').value.trim().replace(/\/$/, ''), token: $('ivApiToken').value.trim() };
-      localStorage.setItem('labkit-inv-api', JSON.stringify(cfg));
+      Store.set('tool:inv-api', JSON.stringify(cfg));
       return cfg;
     }
     $('ivApiTest').onclick = async () => {

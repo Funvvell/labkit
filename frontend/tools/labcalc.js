@@ -121,5 +121,14 @@
       const r = mixology.moi({ moi: parseFloat($('mo-m').value), cells: parseFloat($('mo-c').value), titerPfuPerMl: parseFloat($('mo-t').value) });
       show('mo-out', r, x => `需 ${x.pfu.toExponential(3)} PFU → 加病毒液 ${mixology.formatNumber(x.volumeUl)} µL`);
     };
+    /* P2：统一壳一键示例（0.1 mol/L NaCl 500 mL + 10× 稀释 + 1000×g 离心 + MOI 0.1） */
+    host.__lkExample = () => {
+      $('lc-mw').value = '58.443'; $('lc-v').value = '0.5'; $('lc-vu').value = 'L';
+      $('lc-c').value = '0.1'; $('lc-ct').value = 'mol/L'; $('lc-stock').value = '1'; $('lc-st').value = 'mol/L';
+      $('dl-c1').value = '1'; $('dl-c2').value = '0.1'; $('dl-v2').value = '100';
+      $('cf-r').value = '10'; $('cf-rcf').value = '1000';
+      $('lc-run').click(); $('dl-run').click(); $('cf-run').click(); $('mo-run').click();
+      toast('已载入示例并计算全部模块');
+    };
   };
 })();

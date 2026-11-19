@@ -93,6 +93,7 @@
       const sec = Math.max(1, Math.round(parseFloat($('tm-dur').value) * parseFloat($('tm-unit').value)));
       steps.push({ name, seconds: sec }); renderSteps();
     };
+    host.__lkExample = () => $('tm-preset').click();
     $('tm-preset').onclick = () => {
       steps = [
         { name: '预变性 95°C', seconds: 180 }, { name: '变性 95°C', seconds: 15 },

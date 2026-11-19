@@ -73,6 +73,10 @@ async function renderTool(id){
     if(typeof fn!=='function')throw new Error('工具未注册：'+id);
     host.innerHTML='';
     fn(host);
+    /* P2 统一壳：示例 / 导出指向 / 帮助抽屉 + 表单状态持久化 */
+    setupToolChrome(meta,host);
+    if(meta.persist!==false){formRestore(host,Store.get('toolform:'+id,null));_formId=id;}
+    else _formId=null;
   }catch(err){
     if(seq!==_renderSeq)return;
     host.innerHTML='<div class="terr">'+esc(err.message||String(err))+'</div>';
@@ -90,6 +94,70 @@ document.getElementById('toolFav').onclick=()=>{
   shellRenderFavs();renderToolHub();syncToolFav();
   toast(on?'已加入收藏（侧栏可见）':'已取消收藏');
 };
+/* ---- P2：统一壳控件与表单持久化 ----
+   表单快照按 id/name/序号 键控；恢复时派发 input/change 让工具自行重算。
+   动态行类工具（figure/plate/checklists/plotter/timer/imgbatch/inventory）在 registry 声明 persist:false，
+   用自己的模型持久化（已迁移到 Store）。 */
+let _formId=null,_formT=0;
+const _toolHostEl=document.getElementById('toolHost');
+function formSnapshot(host){
+  const m={};
+  host.querySelectorAll('input,select,textarea').forEach((el,i)=>{
+    if(el.type==='file'||el.type==='button'||el.type==='submit')return;
+    const k=el.id||el.name||('idx:'+i);
+    m[k]=el.type==='checkbox'?{c:el.checked}:{v:el.value};
+  });
+  return m;
+}
+function formRestore(host,map){
+  if(!map||typeof map!=='object')return;
+  /* 按快照键遍历（而非捕获的节点列表）：select 的 change 可能重建动态输入区
+     （如 tests 切方法后 stX/stY → stA..stD），每个键派发前实时重取存活节点。 */
+  const cur=()=>[...host.querySelectorAll('input,select,textarea')].filter(el=>el.type!=='file'&&el.type!=='button'&&el.type!=='submit');
+  for(const [k,s] of Object.entries(map)){
+    if(!s||typeof s!=='object')continue;
+    let live=null;
+    if(k.startsWith('idx:'))live=cur()[+k.slice(4)]||null;
+    else live=host.querySelector('#'+CSS.escape(k))||host.querySelector('[name="'+CSS.escape(k)+'"]');
+    if(!live||!live.isConnected)continue;
+    if(live.type==='checkbox')live.checked=!!s.c;else live.value=s.v??'';
+    if(live.type==='checkbox')live.dispatchEvent(new Event('change',{bubbles:true}));
+    else{live.dispatchEvent(new Event('input',{bubbles:true}));live.dispatchEvent(new Event('change',{bubbles:true}));}
+  }
+}
+function _onFormEvt(){
+  if(!_formId)return;
+  clearTimeout(_formT);
+  _formT=setTimeout(()=>{if(_formId)Store.set('toolform:'+_formId,formSnapshot(_toolHostEl))},600);
+}
+_toolHostEl.addEventListener('input',_onFormEvt);
+_toolHostEl.addEventListener('change',_onFormEvt);
+function setupToolChrome(meta,host){
+  document.getElementById('toolExample').hidden=!meta.example;
+  document.getElementById('toolExports').innerHTML=(meta.exports||[]).map((x,i)=>`<button class="tbtn sec" data-texport="${i}">${esc(x.label)}</button>`).join('');
+  document.getElementById('toolHelp').hidden=true;
+  document.getElementById('toolHelpBody').innerHTML='<h3>'+esc(meta.name)+'</h3><p>'+esc(meta.help||meta.desc)+'</p>'+(meta.source?'<div class="tnote"><b>技术来源</b> · '+esc(meta.source)+'</div>':'');
+}
+document.getElementById('toolExample').onclick=()=>{
+  const f=_toolHostEl.__lkExample;
+  if(typeof f==='function')f();else toast('该工具未提供一键示例');
+};
+document.getElementById('toolReset').onclick=()=>{
+  if(!_route.arg)return;
+  Store.set('toolform:'+_route.arg,null);
+  renderTool(_route.arg);
+  toast('已重置为初始状态');
+};
+document.getElementById('toolHelpBtn').onclick=()=>{
+  const h=document.getElementById('toolHelp');h.hidden=!h.hidden;
+};
+document.getElementById('toolExports').addEventListener('click',e=>{
+  const b=e.target.closest('[data-texport]');if(!b)return;
+  const meta=(window.TOOL_META||[]).find(t=>t.id===_route.arg);
+  const x=meta&&meta.exports&&meta.exports[+b.dataset.texport];if(!x)return;
+  const btn=_toolHostEl.querySelector('#'+x.btn);
+  if(btn)btn.click();else toast('导出按钮未就绪，请先运行计算');
+});
 renderToolHub();
 /* 工作区顶栏下方的技术来源小字，与工具库注册表同源 */
 (function(){

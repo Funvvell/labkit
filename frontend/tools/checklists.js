@@ -189,9 +189,9 @@
     const $ = id => host.querySelector('#' + id);
     let cur = 'prisma', state = {}, md = '';
     function load() {
-      try { state = JSON.parse(localStorage.getItem('labkit-checklist-' + cur) || '{}'); } catch (e) { state = {}; }
+      try { state = JSON.parse(Store.get('tool:checklist-' + cur, null) || '{}'); } catch (e) { state = {}; }
     }
-    function save() { localStorage.setItem('labkit-checklist-' + cur, JSON.stringify(state)); }
+    function save() { Store.set('tool:checklist-' + cur, JSON.stringify(state)); }
     function render() {
       const c = CHECKLISTS[cur];
       $('ck-cite').textContent = '出处：' + c.cite;

@@ -16,4 +16,19 @@ const Store = {
   },
   recent() { const a = this.get('recent', []); return Array.isArray(a) ? a : []; },
   pushRecent(id) { const a = this.recent().filter(x => x !== id); a.unshift(id); this.set('recent', a.slice(0, 8)); },
+  /* P2：把 P0 时代散落在 localStorage 的工具状态一次性搬进台账（搬完即删旧键）。
+     工具侧已改读 Store，旧键仅作迁移来源。 */
+  migrateLegacy() {
+    let moved = false;
+    const put = (nw, raw) => { if (raw == null) return; try { if (this.get(nw) == null) { this.bag()[nw] = JSON.parse(raw); moved = true; } } catch (e) { } };
+    const map = { 'labkit-figure': 'tool:figure', 'labkit-plate': 'tool:plate', 'labkit-plotter-cfg': 'tool:plotter-cfg', 'labkit-inv-api': 'tool:inv-api', 'labkit-inv-notify': 'tool:inv-notify' };
+    try {
+      for (const [old, nw] of Object.entries(map)) { put(nw, localStorage.getItem(old)); localStorage.removeItem(old); }
+      for (const k of Object.keys(localStorage).filter(k => k.startsWith('labkit-checklist-'))) {
+        put('tool:' + k.slice('labkit-'.length), localStorage.getItem(k)); localStorage.removeItem(k);
+      }
+    } catch (e) { /* 浏览器隐私模式等场景忽略 */ }
+    if (moved) saveDB();
+    return moved;
+  },
 };

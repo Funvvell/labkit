@@ -8,6 +8,7 @@
   const greet=h<6?'夜深了':h<11?'早安':h<14?'午安':h<18?'下午好':'晚上好';
   document.getElementById('greetTitle').textContent=greet+'，VVEll';
   await loadDBFromDisk();
+  Store.migrateLegacy();   // P2：旧 localStorage 工具状态搬进台账
   if(typeof shellRenderFavs==='function')shellRenderFavs();   // 磁盘读回后刷新收藏侧栏
   applyDensity();
   buildDash(true);

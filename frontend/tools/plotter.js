@@ -199,7 +199,7 @@
       W.QpcrPlots.exportBar($('ptBar'), () => $('ptPlot'), 'figure');
       const sigCount = annotations.length;
       $('ptNote').textContent = `${xs.length} 个 X 水平 · ${groups.length} 组 · ${sigCount} 个显著性标注。箱线四分位为 linear 法（与 numpy percentile 默认一致）。`;
-      try { localStorage.setItem('labkit-plotter-cfg', JSON.stringify(cfg())); } catch (e) { /* 忽略 */ }
+      try { Store.set('tool:plotter-cfg', JSON.stringify(cfg())); } catch (e) { /* 忽略 */ }
     }
     function cfg() {
       return { type: $('ptType').value, x: $('ptX').value, y: $('ptY').value, g: $('ptG').value, err: $('ptErr').value, sig: $('ptSig').checked, method: $('ptSigMethod').value, fit: $('ptFit').checked, palette: $('ptPalette').value, font: $('ptFont').value };
@@ -219,8 +219,26 @@
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     };
     $('ptLoadCfg').onclick = () => {
-      try { applyCfg(JSON.parse(localStorage.getItem('labkit-plotter-cfg') || 'null')); toast('已载入上次配置'); } catch (e) { toast('无已保存配置'); }
+      try { applyCfg(JSON.parse(Store.get('tool:plotter-cfg', null) || 'null')); toast('已载入上次配置'); } catch (e) { toast('无已保存配置'); }
     };
     ['ptType', 'ptErr', 'ptSig', 'ptSigMethod', 'ptPalette', 'ptFit'].forEach(id => $(id).addEventListener('change', () => { if (rows.length) draw(); }));
+    /* P2：统一壳示例入口 + 接收「数据清洗」数据集 */
+    host.__lkExample = () => $('ptDemo').click();
+    const sess = Store.get('session:dataset', null);
+    if (sess && sess.rows && sess.rows.length && sess.cols) {
+      const b = document.createElement('div'); b.className = 'tool-banner';
+      b.innerHTML = `<span>检测到「数据清洗」送来的数据（${sess.rows.length} 行 × ${sess.cols.length} 列）</span>`;
+      const load = document.createElement('button'); load.className = 'tbtn pri'; load.textContent = '载入为 CSV';
+      load.onclick = () => {
+        const csv = Papa.unparse([sess.cols, ...sess.rows.map(r => sess.cols.map(c => r[c] ?? ''))]);
+        $('ptData').value = csv;
+        try { parse(csv); toast('已载入清洗数据'); } catch (e) { toast(e.message); }
+        b.remove();
+      };
+      const dismiss = document.createElement('button'); dismiss.className = 'tbtn sec'; dismiss.textContent = '忽略';
+      dismiss.onclick = () => { Store.set('session:dataset', null); b.remove(); };
+      b.append(load, dismiss);
+      host.querySelector('.tool-section').prepend(b);
+    }
   };
 })();

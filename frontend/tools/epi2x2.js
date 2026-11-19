@@ -53,5 +53,12 @@
       if (!txt) { toast('先计算'); return; }
       navigator.clipboard.writeText(txt).then(() => toast('已复制'));
     };
+    /* P2：统一壳一键示例（两层分层数据，演示 MH 调整） */
+    host.__lkExample = () => {
+      $('oe-strata').value = '10 20 30 40\n15 25 35 45';
+      $('oe-cc').checked = false;
+      $('oe-run').click();
+      toast('已载入分层示例并计算');
+    };
   };
 })();

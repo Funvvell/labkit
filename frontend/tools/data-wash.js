@@ -191,5 +191,20 @@
     $('dw-csv').onclick = () => { if (!rows.length) return; const blob = new Blob(['\ufeff' + Papa.unparse(exportRows())], { type: 'text/csv;charset=utf-8' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'cleaned.csv'; a.click(); URL.revokeObjectURL(a.href); };
     $('dw-xlsx').onclick = () => { if (!rows.length) return; const ws = XLSX.utils.aoa_to_sheet(exportRows()); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'cleaned'); XLSX.writeFile(wb, 'cleaned.xlsx'); };
     $('dw-copy').onclick = () => { if (!rows.length) return; navigator.clipboard.writeText(Papa.unparse(exportRows(), { delimiter: '\t' })).then(() => toast('TSV 已复制')); };
+    /* P2：统一壳示例入口 + 清洗结果发送到下游工具 */
+    host.__lkExample = () => $('dw-demo').click();
+    const send = document.createElement('div'); send.className = 'trow'; send.style.marginTop = '8px';
+    send.innerHTML = '<span style="font-size:12.5px;color:var(--muted)">发送清洗数据到：</span>';
+    [['tests', '快速假设检验'], ['plotter', '数据绘图器'], ['table1', 'Table 1 基线表']].forEach(([id, name]) => {
+      const b = document.createElement('button'); b.className = 'tbtn sec'; b.textContent = name;
+      b.onclick = () => {
+        if (!rows.length) return toast('暂无数据，先导入或载入示例');
+        Store.set('session:dataset', { cols, rows, at: Date.now() });
+        navigate('tool', id);
+        toast('已发送：在目标工具顶部横幅载入');
+      };
+      send.append(b);
+    });
+    host.querySelector('.tool-section').append(send);
   };
 })();

@@ -143,7 +143,7 @@
     }
     $('apaGen').addEventListener('click', gen);
     $('apaLast').addEventListener('click', () => {
-      const m = W.LabKitAPA.fromLastTest(W.__labkitLastTest);
+      const m = W.LabKitAPA.fromLastTest(W.__labkitLastTest || Store.get('session:lastTest', null));
       if (!m) { toast('暂无最近检验结果（先运行「快速假设检验」）'); return; }
       $('apaType').value = m.type; renderFields();
       Object.entries(m.fields).forEach(([k, v]) => {
