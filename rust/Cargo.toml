@@ -1,9 +1,11 @@
 [package]
 name = "labkit"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.91"
 build = "build.rs"
+license = "MIT"
+repository = "https://github.com/Funvvell/pathology-crop-tool"
 description = "科研工具箱 LabKit — Tauri + Rust 科研工作台（病理切片裁剪 / qPCR / 科研管理）"
 
 [lib]

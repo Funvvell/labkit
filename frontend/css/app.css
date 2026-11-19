@@ -705,3 +705,5 @@
   #btnBell{position:relative}
   #btnBell.has-dot::after{content:"";position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--red);border:1.5px solid var(--glass)}
   .tbl td.sub[colspan]{text-align:center;padding:26px 10px;color:var(--muted);font-family:var(--sans)}
+  .dll-help{margin:10px 20px 0}
+  .dll-help .tmono{background:var(--hover);border-radius:8px;padding:6px 10px;font-size:12px}

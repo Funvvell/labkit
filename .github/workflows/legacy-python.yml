@@ -1,0 +1,37 @@
+name: Legacy Python Build (manual)
+
+# 旧版 Python/PySide6 病理裁剪工具（liver_portal_crop/）仅作算法参照保留。
+# 不再随 tag 自动发布；如确需旧版 exe，手动触发本工作流。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install "PySide6>=6.6" "sdpc-for-python>=1.0" numpy Pillow tifffile scipy scikit-image scikit-learn requests pyinstaller
+          pip install deepliif --no-deps
+
+      - name: Build exe
+        run: pyinstaller build.spec --noconfirm
+
+      - name: Rename exe
+        run: ren "dist\病理裁剪工具.exe" "PathologyCropTool-legacy.exe"
+        shell: cmd
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PathologyCropTool-legacy
+          path: dist/PathologyCropTool-legacy.exe

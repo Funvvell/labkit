@@ -14,7 +14,7 @@
 | seedrandom.min.js | seedrandom | 3.0.5 | MIT |
 | stdlib-stats.bundle.js | stdlib-js 统计子集 | 见 tools/vendor-build/package.json | Apache-2.0 |
 | markdown-table.bundle.js | markdown-table | 3.1.0 | MIT |
-| openepi/*.js | OpenEpi（含 MartinStats 公有领域） | 2026 抓取 | 开源（见 NOTICE.md） |
+| openepi/*.js | OpenEpi（MIT，官方声明见 NOTICE.md；含 MartinStats 公有领域模块） | 2026 抓取 | MIT |
 
 ## MIT（通用文本，适用于上表 MIT 组件，版权行见 NOTICE.md）
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:

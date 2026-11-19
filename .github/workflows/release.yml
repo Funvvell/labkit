@@ -1,36 +1,58 @@
-name: Build & Release
+name: Release LabKit
 
+# tag 推送（v*）触发：tauri-action 出 Windows NSIS 安装包，另附 portable zip。
+# 前端零构建（classic script），无需 Node 步骤。
+# 注意：安装包不含闭源 SDPC 解码 DLL（许可未覆盖再分发），
+# 用户 pip install sdpc-for-python 后应用自动探测；其余工具不受影响。
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  build-windows:
+  release-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
         with:
-          python-version: "3.11"
+          workspaces: rust -> target
 
-      - name: Install dependencies
+      - name: Read version from tauri.conf.json
+        id: ver
+        shell: pwsh
         run: |
-          pip install "PySide6>=6.6" "sdpc-for-python>=1.0" numpy Pillow tifffile scipy scikit-image scikit-learn requests pyinstaller
-          pip install deepliif --no-deps
+          $v = (Get-Content rust/tauri.conf.json -Raw | ConvertFrom-Json).version
+          "version=$v" >> $env:GITHUB_OUTPUT
 
-      - name: Build exe
-        run: pyinstaller build.spec --noconfirm
+      - name: Build & publish NSIS installer
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: rust
+          tagName: v__VERSION__
+          releaseName: "LabKit v__VERSION__"
+          releaseBody: "更新内容见 CHANGELOG.md。安装包不含闭源 SDPC 解码组件：安装后执行 pip install sdpc-for-python，应用会自动探测解码目录；其余 18 个工具与台账功能不受影响。"
+          releaseDraft: false
+          prerelease: false
+          args: --bundles nsis
 
-      - name: Rename exe for release
-        run: ren "dist\病理裁剪工具.exe" "PathologyCropTool.exe"
-        shell: cmd
+      - name: Pack portable zip
+        shell: pwsh
+        run: |
+          $exe = "rust/target/release/labkit.exe"
+          if (-not (Test-Path $exe)) { throw "labkit.exe not found after tauri build" }
+          Compress-Archive -Path $exe -DestinationPath "LabKit-portable-win-x64.zip"
 
-      - name: Upload release asset
+      - name: Upload portable asset
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/PathologyCropTool.exe
-          generate_release_notes: true
+          tag_name: v${{ steps.ver.outputs.version }}
+          files: LabKit-portable-win-x64.zip

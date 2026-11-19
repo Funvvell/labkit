@@ -1,0 +1,49 @@
+name: Bug 报告 · Bug report
+description: 报告一个可复现的问题 / Report a reproducible problem
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢报告！安全漏洞请改走 Security → Report a vulnerability 私密渠道。
+        For security vulnerabilities use private vulnerability reporting instead.
+  - type: input
+    id: version
+    attributes:
+      label: 版本 / Version
+      description: 设置页底部或 Release 版本号（如 0.3.0）；Web 演示请注明 / or "web demo"
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: 运行模式 / Mode
+      options:
+        - 桌面版 Windows / Desktop
+        - Web 演示 / Browser demo
+        - 源码运行 / From source
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      placeholder: |
+        1. 打开 … / Open …
+        2. 点击 … / Click …
+        3. 看到 … / See …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为 / Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 截图 / 日志 / Screenshots or logs
+      description: 桌面版日志位于数据目录 logs/；浏览器请附控制台报错 / Console errors for web demo
+    validations:
+      required: false

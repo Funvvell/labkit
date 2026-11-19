@@ -55,9 +55,15 @@ LabKit（MIT）复用以下成熟开源项目。除注明外均以原样或最�
 - **F 分布 CDF / 不完全 Beta 函数（B2）** — Numerical Recipes 标准连分式算法实现（`frontend/tools/lib/tableone.js`）。
 
 ## 其他许可
-- **OpenEpi**（www.openepi.com，Kevin M. Sullivan / Andrew G. Dean 等）— 开源发布；
+- **OpenEpi**（www.openepi.com，Kevin M. Sullivan / Andrew G. Dean 等）— **MIT License**（官方许可声明：
+  https://openepi.com/Documentation/ToolkitDoc.htm ）；
   `frontend/vendor/openepi/` 逐字保留上游源码，仅外包 IIFE 隔离（`tools/vendor-build/wrap-openepi.mjs`）。
+  其中 MartinStats 模块另声明公有领域（见上）。
   引用：Dean AG, Sullivan KM, Soe MM. OpenEpi: Open Source Epidemiologic Statistics for Public Health. www.openepi.com.
+- **sdpc-for-python / sdpc-win**（JWonderLand / Jiawen Li 等，https://pypi.org/project/sdpc-for-python/ ）—
+  Python 包装层 PyPI 元数据声明 MIT；**其内嵌的 `DecodeSdpcDll.dll` 为扫描仪厂商专有闭源二进制，
+  无独立开源许可文本覆盖，本仓库与 Release 安装包均不再分发该 DLL**。
+  用户自行 `pip install sdpc-for-python` 后由应用运行时探测加载（`rust/src/sdpc/loader.rs`）。
 - **PRISMA 2020** 清单 — CC-BY 4.0。Page MJ, et al. BMJ 2021;372:n71. https://www.prisma-statement.org
 - **STROBE / CONSORT / MIQE** 清单条目 — 依各自声明用于学术自查工具，保留出处链接。
 

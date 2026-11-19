@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>科研工具箱 LabKit</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="tools/tools.css">
 <script src="tools/registry.js"></script>
@@ -206,6 +207,14 @@
           <button class="btn-primary" id="btnExport"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" stroke="white" stroke-width="1.9"/><path d="M3 15L9 10L15 15L18 12L21 15" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>导出 TIFF</button>
         </div>
         <div class="tech-source ws" id="cropSource"></div>
+        <!-- P4：SDPC 解码组件缺失时的获取指引（DLL 不随包再分发） -->
+        <div class="tool-help dll-help" id="cropDllHelp" hidden>
+          <h3>缺少 SDPC 解码组件</h3>
+          <p>浏览 .sdpc 切片需要厂商闭源解码库 DecodeSdpcDll.dll。出于许可考虑，本软件不随包分发该 DLL；安装开源 Python 包装后即可自动探测：</p>
+          <p class="tmono" style="margin:6px 0">pip install sdpc-for-python</p>
+          <p>应用会依次探测：随包目录 → 环境变量 SDPC_DLL_DIR → Python site-packages 中的 sdpc/WINDOWS/dll。安装后重新打开切片即可；其余 18 个工具与台账功能不受影响。普通图片（png/jpg/tif）裁剪无需该组件。</p>
+          <button class="tbtn sec" id="cropDllHelpClose">知道了</button>
+        </div>
         <div class="ws-body">
           <aside class="panel left">
             <h3>裁剪参数</h3>

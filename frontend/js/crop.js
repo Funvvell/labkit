@@ -572,7 +572,10 @@ setInterval(async()=>{
         if(!f.cancelled&&typeof notifyPush==='function')notifyPush('裁剪导出完成：成功 '+f.ok+' 个 TIFF'+(f.failed?' · 失败 '+f.failed:''),null);
         exportFailed=0;exportFirstErr='';
       }else if(ev.kind==='error'){
-        if(pendingOpen){pendingOpen=null;toast('打开失败：'+ev.err);}
+        if(pendingOpen){pendingOpen=null;toast('打开失败：'+ev.err);
+          /* P4：缺解码组件时给获取指引（DLL 不随包再分发） */
+          if(/DecodeSdpcDll|解码组件|未找到/.test(ev.err)){const h=document.getElementById('cropDllHelp');if(h)h.hidden=false;}
+        }
         else toast('解码提示：'+ev.err);
       }
     });
@@ -630,6 +633,7 @@ function rememberSlide(p){
   saveDB();
   if(activeLayout().some(w=>w.id==='slides'))renderSlidesCard();
 }
+document.getElementById('cropDllHelpClose').onclick=()=>{document.getElementById('cropDllHelp').hidden=true;};
 document.getElementById('btnOpenSlide').onclick=async()=>{
   if(IN_TAURI){
     try{
