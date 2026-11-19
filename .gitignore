@@ -53,3 +53,6 @@ _ui_preview_*.png
 
 # vendor 构建依赖（锁版见 tools/vendor-build/package-lock.json）
 tools/vendor-build/node_modules/
+
+# Git worktrees（本地多分支检出，不入库）
+.worktrees/

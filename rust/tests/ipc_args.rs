@@ -15,12 +15,31 @@
 use std::fs;
 use std::path::PathBuf;
 
+/// 前端全部脚本源：index.html 壳 + js/ 模块（P0 拆分后 invoke 调用所在）+ tools/ 工具脚本。
+/// 按文件名排序拼接，保证扫描结果稳定。
 fn frontend_source() -> String {
-    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
-        .join("frontend")
-        .join("index.html");
-    fs::read_to_string(&p).unwrap_or_else(|e| panic!("读取前端失败 {}: {e}", p.display()))
+        .join("frontend");
+    let mut paths = vec![root.join("index.html")];
+    for dir in ["js", "tools"] {
+        let d = root.join(dir);
+        let mut entries: Vec<PathBuf> = fs::read_dir(&d)
+            .unwrap_or_else(|e| panic!("读取前端目录失败 {}: {e}", d.display()))
+            .filter_map(|e| e.ok().map(|e| e.path()))
+            .filter(|p| p.extension().map(|x| x == "js").unwrap_or(false))
+            .collect();
+        entries.sort();
+        paths.extend(entries);
+    }
+    let mut src = String::new();
+    for p in paths {
+        src.push_str(
+            &fs::read_to_string(&p).unwrap_or_else(|e| panic!("读取前端失败 {}: {e}", p.display())),
+        );
+        src.push('\n');
+    }
+    src
 }
 
 /// 从 `start`（指向 '{'）开始做括号配对，返回对象字面量的结束下标（含 '}'）。
