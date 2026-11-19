@@ -608,3 +608,51 @@
     *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
     ::view-transition-old(root),::view-transition-new(root){animation:none !important}
   }
+
+  /* ============ P1：持久侧栏 / 命令面板 / 快捷键帮助 ============ */
+  /* hidden 属性兜底：组件类的 display:flex 不得盖过 UA 的 [hidden]{display:none} */
+  [hidden]{display:none !important}
+  .sidebar{overflow-y:auto;scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--ink) 18%,transparent) transparent}
+  .side-search{width:100%;border:0;cursor:pointer;font-family:inherit;text-align:left}
+  .side-search:hover{background:rgba(0,0,0,.08)}
+  .side-search kbd{margin-left:auto}
+  kbd{font-family:var(--mono);font-size:10px;color:var(--muted);background:rgba(0,0,0,.06);border:1px solid rgba(0,0,0,.08);border-radius:4px;padding:1px 5px;white-space:nowrap}
+  .nav-item.sub{height:30px;font-size:12px;padding-left:16px}
+  .nav-item.sub svg{width:14px;height:14px}
+  .side-cat{margin:2px 0}
+  .side-cat summary{list-style:none;display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted);padding:8px 10px 4px;border-radius:6px}
+  .side-cat summary::-webkit-details-marker{display:none}
+  .side-cat summary:hover{background:rgba(0,0,0,.04)}
+  .side-cat summary::before{content:'▸';font-size:9px;transition:transform .12s}
+  .side-cat[open] summary::before{transform:rotate(90deg)}
+  .side-cat .cat-n{margin-left:auto;font-weight:400;font-size:10px}
+  .tool-card{position:relative}
+  .tc-fav{position:absolute;top:8px;right:10px;font-size:14px;color:var(--disabled);cursor:pointer;line-height:1}
+  .tc-fav:hover,.tc-fav.on{color:var(--orange)}
+  #toolFav.on{color:var(--orange);border-color:color-mix(in srgb,var(--orange) 45%,transparent)}
+  .pal-mask,.help-mask{position:fixed;inset:0;background:rgba(20,20,22,.32);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:90;display:flex;align-items:flex-start;justify-content:center;padding:12vh 16px 16px}
+  .pal{width:min(620px,92vw);background:var(--card);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.22);overflow:hidden;display:flex;flex-direction:column;max-height:70vh}
+  .pal-in{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .pal-in svg{width:17px;height:17px;color:var(--muted);flex:0 0 auto}
+  .pal-in input{flex:1;border:0;outline:0;font-size:15px;font-family:inherit;background:transparent;color:var(--ink)}
+  .pal-list{overflow-y:auto;padding:6px}
+  .pal-sec{font-size:10px;font-weight:700;color:var(--muted);padding:8px 10px 4px;letter-spacing:.04em}
+  .pal-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;cursor:pointer}
+  .pal-item.sel{background:var(--accent-soft)}
+  .pal-ico{width:26px;height:26px;border-radius:7px;background:rgba(0,0,0,.05);display:flex;align-items:center;justify-content:center;color:var(--ink-2);flex:0 0 auto}
+  .pal-ico svg{width:15px;height:15px}
+  .pal-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+  .pal-txt b{font-size:13px;color:var(--ink)}
+  .pal-txt small{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pal-kind{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:1px 6px;flex:0 0 auto}
+  .pal-empty{padding:26px 16px;text-align:center;color:var(--muted);font-size:12px}
+  .pal-foot{padding:8px 16px;border-top:1px solid var(--line);font-size:10px;color:var(--muted)}
+  .help-mask{align-items:center;padding:16px}
+  .help{width:min(560px,92vw);max-height:80vh;overflow-y:auto;background:var(--card);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.22);padding:20px 22px}
+  .help h2{font-size:16px;margin-bottom:4px}
+  .help .sub{margin-bottom:10px}
+  .help-sec{font-size:11px;font-weight:700;color:var(--muted);margin:12px 0 6px}
+  .help-table{width:100%;border-collapse:collapse}
+  .help-table td{padding:5px 8px;font-size:12px;color:var(--ink-2);border-bottom:1px solid var(--line)}
+  .help-table td:first-child{width:46%;white-space:nowrap}
+  .help-close{margin-top:14px}

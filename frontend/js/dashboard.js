@@ -397,7 +397,7 @@ document.getElementById('btnDashAdd').onclick=openPicker;
 document.addEventListener('keydown',e=>{
   const typing=/^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName||''))||e.target.isContentEditable;
   if((e.ctrlKey||e.metaKey)&&(e.key==='e'||e.key==='E')){
-    if(document.querySelector('.modal-mask'))return;
+    if(typing||document.querySelector('.modal-mask'))return;
     e.preventDefault();dashEdit?exitDashEdit(true):enterDashEdit();return;
   }
   if(e.key==='Escape'&&dashEdit&&!document.querySelector('.modal-mask')&&!typing){

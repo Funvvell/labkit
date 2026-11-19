@@ -1,38 +1,63 @@
-// LabKit · router.js — P0 由 index.html 机械拆分，保持原顺序与语义（classic script，零构建）
+// LabKit · router.js — hash 路由（P1 重写）
+// 深链（#/tool/epi2x2）、前进/后退、刷新恢复；openView 保留为兼容入口。
 /* ===================== 页面路由 ===================== */
-const VIEW_MAP={home:'view-home',tasks:'view-tasks',focus:'view-focus',projects:'view-projects',experiments:'view-experiments',literature:'view-literature',labres:'view-labres',reports:'view-reports',settings:'view-settings',ds:'view-ds',crop:'view-crop',qpcr:'view-qpcr',toolhub:'view-toolhub',tool:'view-tool'};
-/* 工作区返回目标：默认回首页；从工具库卡片进入时回工具库 */
-const wsBack={crop:'home',qpcr:'home'};
-let _wsBackNext=null;
-const _reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');
-function openView(name){
-  const apply=()=>{
-    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-    document.getElementById(VIEW_MAP[name]||'view-home').classList.add('active');
-    // 仅三个工具工作区收起侧栏；其余子页保持侧栏便于切换
-    const isWorkspace = (name==='crop'||name==='qpcr'||name==='ds'||name==='tool');
-    document.getElementById('sidebar').classList.toggle('hidden', isWorkspace);
-    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-    const navKey = (name==='crop'||name==='qpcr'||name==='tool') ? null : (name==='ds'?'ds':name);
-    if(navKey)document.querySelector(`.nav-item[data-nav="${navKey}"], .nav-item[data-tool-open="${name}"]`)?.classList.add('active');
-    if(name==='crop'||name==='qpcr'){wsBack[name]=_wsBackNext||'home';_wsBackNext=null;}
-  };
-  /* View Transitions API：原生跨视图淡切；不支持或用户偏好减少动效时直接切换 */
-  if(document.startViewTransition&&!_reduceMotion.matches){document.startViewTransition(apply);}
-  else apply();
-}
-document.getElementById('cropBack').onclick=()=>openView(wsBack.crop);
-document.getElementById('qpcrBack').onclick=()=>openView(wsBack.qpcr);
-document.getElementById('dsBack').onclick=()=>openView('home');
-document.querySelectorAll('.nav-item[data-nav]').forEach(n=>n.addEventListener('click',()=>{
-  openView(n.dataset.nav);
-  if(n.dataset.nav==='ds')toast('设计规范页 — 新增工具时对照使用');
-}));
-document.querySelectorAll('.nav-item[data-tool-open]').forEach(n=>n.addEventListener('click',()=>openView(n.dataset.toolOpen)));
-document.addEventListener('click',e=>{
-  const g=e.target.closest('[data-goto]');
-  if(g)openView(g.dataset.goto);
-  const bk=e.target.closest('[data-back]');
-  if(bk)openView('home');
-});
+const VIEW_MAP = { home: 'view-home', tasks: 'view-tasks', focus: 'view-focus', projects: 'view-projects', experiments: 'view-experiments', literature: 'view-literature', labres: 'view-labres', reports: 'view-reports', settings: 'view-settings', ds: 'view-ds', crop: 'view-crop', qpcr: 'view-qpcr', toolhub: 'view-toolhub', tool: 'view-tool' };
+let _route = { name: 'home', arg: null };
+let _navDepth = 0;       // 本会话 push 过的次数：决定返回键能否 history.back()
 
+function parseHash(h) {
+  const s = (h || '').replace(/^#\/?/, '');
+  if (!s) return { name: 'home', arg: null };
+  const [name, ...rest] = s.split('/');
+  if (name === 'tool' && rest[0]) return { name: 'tool', arg: rest.join('/') };
+  return VIEW_MAP[name] ? { name, arg: null } : { name: 'home', arg: null };
+}
+function routeHash(r) { return r.name === 'tool' ? '#/tool/' + r.arg : '#/' + r.name; }
+
+function applyView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  (document.getElementById(VIEW_MAP[name]) || document.getElementById('view-home')).classList.add('active');
+  // 工作区收起侧栏（顶部面包屑返回）；其余视图保持持久侧栏
+  const isWorkspace = (name === 'crop' || name === 'qpcr' || name === 'ds' || name === 'tool');
+  document.getElementById('sidebar').classList.toggle('hidden', isWorkspace);
+  if (typeof shellSyncNav === 'function') shellSyncNav(name);
+}
+/* 视图切换同步生效；淡入由 CSS .view.active 动画承担（reduced-motion 全局已关动画）。
+   不用 View Transitions API：其更新回调异步等渲染帧，低帧率/无头环境下视图会卡在半路，
+   且并发 skipTransition 会取消 DOM 更新回调（P1 实测踩坑）。 */
+function renderRoute(r) {
+  _route = r;
+  applyView(r.name);
+  if (r.name === 'tool' && r.arg) renderTool(r.arg);   // toolhub.js：注入脚本并渲染，不再改路由
+}
+function navigate(name, arg) {
+  const r = (name === 'tool') ? { name: 'tool', arg } : parseHash('#/' + name);
+  const h = routeHash(r);
+  if (location.hash === h) { renderRoute(r); return; }
+  _navDepth++;
+  location.hash = h;   // hashchange → renderRoute
+}
+/* 兼容旧调用（home / dashboard / entities / crop / qpcr 里大量 openView） */
+function openView(name) { navigate(name); }
+function routerBack(fallback) {
+  if (_navDepth > 0) { _navDepth--; history.back(); }
+  else navigate(fallback || 'home');
+}
+window.addEventListener('hashchange', () => renderRoute(parseHash(location.hash)));
+
+/* 工作区返回键：走真实历史（从工具库进就回工具库，从首页进就回首页） */
+document.getElementById('cropBack').onclick = () => routerBack('home');
+document.getElementById('qpcrBack').onclick = () => routerBack('home');
+document.getElementById('dsBack').onclick = () => routerBack('home');
+document.getElementById('toolBack').onclick = () => routerBack('toolhub');
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-goto]');
+  if (g) { navigate(g.dataset.goto); return; }
+  const bk = e.target.closest('[data-back]');
+  if (bk) navigate('home');
+});
+function routerInit() {
+  const r = parseHash(location.hash);
+  if (!location.hash) history.replaceState(null, '', '#/home');
+  renderRoute(r);
+}

@@ -55,7 +55,7 @@ function layoutSlide(){
   miniNav.style.height=Math.max(45,imgH*nk)+'px';
   setViewTarget(1,0,0,true);
 }
-function applyView(){
+function applyCanvasView(){
   viewport.style.transform=`translate(${view.panX}px,${view.panY}px) scale(${view.zoom})`;
   document.getElementById('zoomLabel').textContent=Math.round(view.zoom*100)+'%';
   drawRois(true);
@@ -97,7 +97,7 @@ function clampZoom(z){const k=(imgW&&baseW)?baseW/imgW:1;return Math.min(32,Math
    消除逐格跳变的割裂感；拖拽平移保持直跟（零延迟）。 ---- */
 let viewTarget=null, viewRaf=0;
 function setViewTarget(z,px,py,instant){
-  if(instant){viewTarget=null;if(viewRaf){cancelAnimationFrame(viewRaf);viewRaf=0;}view={zoom:z,panX:px,panY:py};viewMoving=false;applyView();return;}
+  if(instant){viewTarget=null;if(viewRaf){cancelAnimationFrame(viewRaf);viewRaf=0;}view={zoom:z,panX:px,panY:py};viewMoving=false;applyCanvasView();return;}
   viewTarget={zoom:z,panX:px,panY:py};viewMoving=true;
   if(!viewRaf)viewRaf=requestAnimationFrame(stepView);
 }
@@ -109,9 +109,9 @@ function stepView(){
   view.panX+=(t.panX-view.panX)*k;
   view.panY+=(t.panY-view.panY)*k;
   if(Math.abs(t.zoom-view.zoom)<t.zoom*0.002&&Math.abs(t.panX-view.panX)<0.4&&Math.abs(t.panY-view.panY)<0.4){
-    view={zoom:t.zoom,panX:t.panX,panY:t.panY};viewTarget=null;viewMoving=false;applyView();return;
+    view={zoom:t.zoom,panX:t.panX,panY:t.panY};viewTarget=null;viewMoving=false;applyCanvasView();return;
   }
-  applyView();
+  applyCanvasView();
   viewRaf=requestAnimationFrame(stepView);
 }
 
@@ -243,7 +243,7 @@ window.addEventListener('mousemove',e=>{
     view.panX=drag.px+(e.clientX-drag.sx); view.panY=drag.py+(e.clientY-drag.sy);
     viewMoving=true;
     /* ROI 层在屏幕空间：平移必须同步重绘 ROI/导航框并补瓦片，否则拖拽时 ROI 脱位 */
-    applyView();
+    applyCanvasView();
     return;
   }
   if(drag.type==='none')return;

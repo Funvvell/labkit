@@ -41,33 +41,55 @@ function renderToolHub(){
   const groups={};
   (window.TOOL_META||[]).forEach(t=>{(groups[t.group]=groups[t.group]||[]).push(t)});
   const host=document.getElementById('toolhubGrid');
-  host.innerHTML=Object.entries(groups).map(([g,ts])=>`<div class="toolhub-group"><h3>${esc(g)}</h3><div class="toolhub-grid">${ts.map(t=>`<button class="tool-card" data-tool-id="${t.id}" style="--tc:${TOOL_GROUP_COLOR[g]||'#007AFF'}"><span class="tc-ico">${toolIcon(t.id)}</span><span class="tc-body"><span class="tc-name">${esc(t.name)}</span><span class="tc-desc">${esc(t.desc)}</span></span></button>`).join('')}</div></div>`).join('');
-  host.querySelectorAll('[data-tool-id]').forEach(b=>b.onclick=()=>openTool(b.dataset.toolId));
+  host.innerHTML=Object.entries(groups).map(([g,ts])=>`<div class="toolhub-group"><h3>${esc(g)}</h3><div class="toolhub-grid">${ts.map(t=>`<button class="tool-card" data-tool-id="${t.id}" style="--tc:${TOOL_GROUP_COLOR[g]||'#007AFF'}"><span class="tc-ico">${toolIcon(t.id)}</span><span class="tc-body"><span class="tc-name">${esc(t.name)}</span><span class="tc-desc">${esc(t.desc)}</span></span><span class="tc-fav${Store.isFav(t.id)?' on':''}" data-fav-toggle="${t.id}" role="button" aria-label="收藏 ${esc(t.name)}" title="收藏 / 取消收藏">${Store.isFav(t.id)?'★':'☆'}</span></button>`).join('')}</div></div>`).join('');
+  /* 点击统一由 shell.js 委托处理（含卡内星标，避免嵌套 button 与双触发） */
 }
-async function openTool(id){
+/* P1：openTool 只改路由；渲染由 renderRoute → renderTool 完成（深链/刷新/前进后退同路径） */
+function openTool(id){
   const meta=(window.TOOL_META||[]).find(t=>t.id===id);
   if(!meta){toast('工具不存在');return}
-  /* 内置工作区（图像裁剪 / qPCR）：直接打开对应视图，返回键回到工具库 */
-  if(meta.workspace){_wsBackNext='toolhub';openView(meta.id);return}
-  openView('tool');
+  /* 内置工作区（图像裁剪 / qPCR）：直接打开对应视图，返回键走真实历史 */
+  if(meta.workspace){navigate(meta.id);return}
+  navigate('tool',id);
+}
+let _renderSeq=0;
+async function renderTool(id){
+  const meta=(window.TOOL_META||[]).find(t=>t.id===id);
+  if(!meta){toast('工具不存在');navigate('toolhub');return}
+  const seq=++_renderSeq;
   setText('toolTitle',meta.name);
   setText('toolSub',meta.desc);
   const src=document.getElementById('toolSource');
   if(meta.source){src.innerHTML='<b>技术来源</b> · '+esc(meta.source);src.hidden=false;}
   else{src.hidden=true;src.textContent='';}
+  Store.pushRecent(id);
+  syncToolFav();
   const host=document.getElementById('toolHost');
   host.innerHTML='<div class="tnote">加载中…</div>';
   try{
     for(const s of meta.scripts)await loadScript(s);
+    if(seq!==_renderSeq)return;   // 快速切换时丢弃过期渲染
     const fn=window.LabKitTools[id];
     if(typeof fn!=='function')throw new Error('工具未注册：'+id);
     host.innerHTML='';
     fn(host);
   }catch(err){
+    if(seq!==_renderSeq)return;
     host.innerHTML='<div class="terr">'+esc(err.message||String(err))+'</div>';
   }
 }
-document.getElementById('toolBack').onclick=()=>openView('toolhub');
+function syncToolFav(){
+  const b=document.getElementById('toolFav');if(!b)return;
+  const on=!!(_route.arg&&Store.isFav(_route.arg));
+  b.classList.toggle('on',on);
+  b.textContent=on?'★ 已收藏':'☆ 收藏';
+}
+document.getElementById('toolFav').onclick=()=>{
+  if(!_route.arg)return;
+  const on=Store.toggleFav(_route.arg);
+  shellRenderFavs();renderToolHub();syncToolFav();
+  toast(on?'已加入收藏（侧栏可见）':'已取消收藏');
+};
 renderToolHub();
 /* 工作区顶栏下方的技术来源小字，与工具库注册表同源 */
 (function(){

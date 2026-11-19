@@ -6,6 +6,9 @@
 const DB = {
   isDemo:true,
   ui:{density:'normal'},
+  /* P1：偏好/收藏/最近/工具状态的统一落盘袋（Store 门面读写，随台账原子写+备份）。
+     必须在种子里存在：loadDBFromDisk 只回填 DB 已有的键。 */
+  _store:{},
   projects:[
     {id:'p1',name:'PFKFB3 过表达与 MASH',code:'MASH-2026-03',owner:'VVEll',start:'2026-03',end:'2027-03',stage:'实验',progress:42,milestones:[['开题',1],['动物造模',1],['样本采集',1],['检测',0],['初稿',0],['投稿',0]],risk:'LC-MS 排期待定'},
     {id:'p2',name:'胆汁酸代谢组学',code:'BA-LCMS-26',owner:'VVEll',start:'2026-06',end:'2026-12',stage:'数据分析',progress:65,milestones:[['开题',1],['样本采集',1],['检测',1],['数据分析',1],['初稿',0],['投稿',0]],risk:'样本余量不足'},

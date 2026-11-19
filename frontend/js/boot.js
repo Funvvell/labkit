@@ -8,6 +8,7 @@
   const greet=h<6?'夜深了':h<11?'早安':h<14?'午安':h<18?'下午好':'晚上好';
   document.getElementById('greetTitle').textContent=greet+'，VVEll';
   await loadDBFromDisk();
+  if(typeof shellRenderFavs==='function')shellRenderFavs();   // 磁盘读回后刷新收藏侧栏
   applyDensity();
   buildDash(true);
   refreshHome();
@@ -32,3 +33,9 @@ if(IN_TAURI){
     scheduleQ();
   }).catch(()=>{});
 }
+/* P1：外壳 / 命令面板 / 全局快捷键 / 路由初始化。
+   路由放最后：深链（#/tool/x）渲染时侧栏与面板已就绪。 */
+shellInit();
+paletteInit();
+keysInit();
+routerInit();
