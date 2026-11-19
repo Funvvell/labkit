@@ -115,7 +115,7 @@ window.TOOL_META = [
   { id: 'crop', name: '图像裁剪', group: '写作与图', workspace: true,
     py: 'cj caijian qp qiepian sdpc roi tiff wsi bingli',
     desc: 'SDPC 全切片金字塔浏览 · ROI 框选与组织检测 · 全分辨率 TIFF 批量导出',
-    source: 'SDPC 解码 sdpc-for-python（DecodeSdpcDll）· TIFF 导出 image-rs/image + image-tiff（MIT/Apache-2.0）· 算法参照 HistomicsTK（Apache-2.0）与 Python 版实现' },
+    source: 'SDPC 解码 sdpc-for-python（DecodeSdpcDll）· TIFF 导出 image-rs/image + image-tiff（MIT/Apache-2.0）· 算法参照 HistomicsTK（Apache-2.0）' },
   { id: 'checklists', name: '报告规范清单', group: '写作与图', desc: 'PRISMA/STROBE/CONSORT/MIQE 逐条自查与导出',
     py: 'qd qingdan prisma strobe consort miqe guifan zicha',
     help: 'PRISMA 2020 / STROBE / CONSORT / MIQE 逐条自查（是/否/部分/不适用 + 备注），导出 Markdown 自查表供投稿附件；进度自动保存到台账。参考文献：PRISMA 2020（Page et al. BMJ 2021，CC-BY 4.0）；各清单官方条目.',

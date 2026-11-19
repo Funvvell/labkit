@@ -6,7 +6,7 @@
 | --- | --- |
 | 0.3.x（最新 Release） | ✅ |
 | 0.2.x 及更早 | ❌（请升级） |
-| legacy Python 版 | ❌（仅算法参照，不再维护安全修复） |
+| legacy Python 版 | 已移除（v0.3.0 清理仓库，不再存在） |
 
 ## 报告漏洞 / Reporting a vulnerability
 

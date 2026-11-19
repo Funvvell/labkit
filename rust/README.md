@@ -181,16 +181,16 @@ labkit.exe --tileprobe "D:/文件/切片.sdpc" 3
 labkit.exe --export --slide "D:/文件/切片.sdpc" --session out/rois.json --out out/rust --mag 20
 ```
 
-## 与 Python 版逐像素对比
+## 导出 parity 验证
 
-```bash
-python tests/parity/generate_rois.py --slide "D:/文件/切片.sdpc" --out out/rois.json
-python tests/parity/reference_export.py --slide "D:/文件/切片.sdpc" --session out/rois.json --out out/ref --mag 20
-labkit.exe --export --slide "D:/文件/切片.sdpc" --session out/rois.json --out out/rust --mag 20
-python tests/parity/compare.py out/ref/manifest.json out/rust/manifest.json
-```
+Python 参照实现已于 v0.3.0 从仓库移除（见 CHANGELOG），parity 基线改由以下方式保留：
 
-对比的是解码后的 RGB 字节 SHA256，不比较 TIFF 容器字节（两版 Deflate 流/tag 顺序不同）。
+- `cargo test` 中导出 / TIFF / 会话相关单测；
+- 无头 CLI `labkit.exe --export --slide S --session rois.json --out dir --mag 20`
+  逐 ROI 输出 `sha256_rgb`（`src/cli.rs`），可与任何参照实现离线对比；
+- qPCR 可选 R 对数：`rust/tests/qpcr_parity/compare.R`。
+
+对比的是解码后的 RGB 字节 SHA256，不比较 TIFF 容器字节（不同实现 Deflate 流/tag 顺序不同）。
 
 ## 行为契约
 

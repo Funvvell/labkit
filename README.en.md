@@ -111,7 +111,6 @@ frontend/            zero-build UI (index.html shell + css/ + js/ modules + tool
 rust/                Tauri 2 + Rust: SDPC FFI decode, TIFF export, qPCR parsing, disk notebook, 96 tests
 tests/js/            node:test parity tests (vs OpenEpi/scipy/tableone) + shell unit tests
 rust/tests/          IPC naming-contract tests
-liver_portal_crop/   legacy Python/PySide6 implementation (algorithm reference only)
 ```
 
 ## 🛠️ Development
@@ -123,10 +122,6 @@ node --test tests/js/*.test.mjs       # frontend parity / shell tests (Node 18+)
 
 Adding a tool takes three steps (registry entry + script + parity test) — see [CONTRIBUTING.md](CONTRIBUTING.md).
 Interaction patterns reference [IT-Tools](https://github.com/CorentinTh/it-tools), [DevToys](https://github.com/DevToys-app/DevToys), [Rubick](https://github.com/rubickCenter/rubick) (ideas only, no code copied); the pathology workspace uses [QuPath](https://github.com/qupath/qupath) as its domain baseline.
-
-## 📦 Legacy Python version
-
-`liver_portal_crop/` (PySide6) is the older, functionally equivalent implementation, kept **only as an algorithm reference**. It is no longer released on tags; a manual workflow (`Legacy Python Build`) can still produce its exe. Use the Rust LabKit for desktop work.
 
 ## 📄 License & attribution
 

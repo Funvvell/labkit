@@ -1,7 +1,7 @@
 # 更新日志 · Changelog
 
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
-版本单一来源：`rust/Cargo.toml` 与 `rust/tauri.conf.json`（legacy Python 版独立版本号，不再发布）。
+版本单一来源：`rust/Cargo.toml` 与 `rust/tauri.conf.json`。
 
 ## [0.3.0] - 2026-11-19
 
@@ -26,6 +26,8 @@
 - **合规** 免责声明「仅供科研使用，不用于临床诊断」进入 README / 设置 / 全部工具来源行；
   NOTICE 明确 OpenEpi 为 MIT；SDPC 闭源 DLL 不再分发，缺件时裁剪页显示 pip 获取指引
 - **新增** README 重写（LabKit 为主角）+ README.en.md + CONTRIBUTING / SECURITY / CODE_OF_CONDUCT / issue 与 PR 模板
+- **移除** legacy Python/PySide6 实现（liver_portal_crop/、main.py、build.spec、pyproject、requirements、旧 Python 测试与打包工作流）、
+  旧版设计文档与过期截图、缓存/构建残留与遗留 worktree；仓库仅保留 LabKit 本体
 - **测试** 新增外壳单测 9 用例；JS 93/93、Rust 96/96、IPC 契约 3/3、浏览器断言全过
 
 ### 修复
@@ -39,6 +41,6 @@
 - 台账磁盘化（原子写 + 滚动备份 + 损坏自愈）、Dashboard 布局编辑器
 - 19 工具注册表按需注入；vendor 开源库集成与署名
 
-## [0.8.1] - legacy Python 版（liver_portal_crop/，仅参照）
+## [0.8.1] - legacy Python 版（已于 v0.3.0 从仓库移除，仅存历史）
 
-- PySide6 病理裁剪工具最后版本；不再随 tag 发布
+- PySide6 病理裁剪工具最后版本；代码与打包配置已删除，历史提交中仍可追溯

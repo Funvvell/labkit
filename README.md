@@ -119,7 +119,6 @@ frontend/            零构建前端（index.html 壳 + css/ + js/ 模块 + tool
 rust/                Tauri 2 + Rust：SDPC FFI 解码、TIFF 导出、qPCR 解析、台账磁盘化、77+ 单测
 tests/js/            node:test 对数测试（统计口径与 OpenEpi/scipy/tableone 对齐）+ 外壳单测
 rust/tests/          IPC 命名契约测试（保护前后端接口）
-liver_portal_crop/   Legacy Python/PySide6 实现（算法参照，见下）
 ```
 
 - Rust 算法层与 IPC 契约稳定，前端交互迭代不触碰（契约测试保护）
@@ -138,12 +137,6 @@ node tests/smoke_exe.mjs
 
 新增一个工具只需三步（注册表条目 + 脚本 + 对数测试），详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 交互范式参考 [IT-Tools](https://github.com/CorentinTh/it-tools)、[DevToys](https://github.com/DevToys-app/DevToys)、[Rubick](https://github.com/rubickCenter/rubick)（仅借鉴交互，未复制其代码）；病理工作区以 [QuPath](https://github.com/qupath/qupath) 为领域基准。
-
-## 📦 Legacy Python 版
-
-根目录 `liver_portal_crop/`（PySide6）是功能等价的旧实现，**仅作算法参照与备用版本保留**，
-不再随 tag 发布；如确需旧版 exe 可手动触发 `Legacy Python Build` 工作流。
-桌面版请以 `rust/` 的 LabKit 为准。
 
 ## 📄 许可与署名
 

@@ -1,4 +1,5 @@
-//! Constants mirrored from `liver_portal_crop/constants.py`.
+//! Constants originally mirrored from the legacy Python implementation
+//! (`liver_portal_crop/constants.py`, removed from the repo in v0.3.0).
 
 pub const TILE_SIZE: u32 = 1024;
 pub const MAX_TILE_CACHE: usize = 512;
