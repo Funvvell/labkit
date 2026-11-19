@@ -132,6 +132,8 @@ liver_portal_crop/   Legacy Python/PySide6 实现（算法参照，见下）
 cd rust && cargo test
 # 前端对数 / 外壳测试（Node 18+）
 node --test tests/js/*.test.mjs
+# 桌面 exe 冒烟（Node 21+；先带 --remote-debugging-port=9222 启动 exe，见脚本头注释）
+node tests/smoke_exe.mjs
 ```
 
 新增一个工具只需三步（注册表条目 + 脚本 + 对数测试），详见 [CONTRIBUTING.md](CONTRIBUTING.md)。

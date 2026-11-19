@@ -42,6 +42,7 @@ Thanks for helping! This doc covers setup, tests, and the standard flow for addi
 
 完成后自检：`node --test tests/js/*.test.mjs`、`cd rust && cargo test --test ipc_args`、
 浏览器打开工具页确认 壳层按钮 / 持久化 / 导出条 / 帮助抽屉 正常。
+桌面改动另跑 exe 冒烟：`node tests/smoke_exe.mjs`（CDP 直连 WebView2，真实 CSP 环境断言 IPC / 绘图 / 切片打开）。
 
 ## 发布流程 / Releasing
 

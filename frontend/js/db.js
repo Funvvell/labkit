@@ -133,6 +133,7 @@ async function loadDBFromDisk(){
   const src=disk||cache;
   if(src&&typeof src==='object')Object.keys(src).forEach(k=>{if(k in DB)DB[k]=src[k]});
   migrateDB();
+  if(disk){dbStatus='saved';}   // P5：磁盘读回成功即「已落盘」，不再停留在「读取中…」
   if(IN_TAURI&&!disk&&cache){
     // 老版本只存在浏览器里的数据，首次启动搬进磁盘，之后就再也不依赖浏览器
     await flushDB();
