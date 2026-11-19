@@ -17,6 +17,7 @@ pub mod decode;
 pub mod qpcr;
 pub mod render;
 pub mod store;
+pub mod imgbatch;
 
 /// Tauri command layer — bridges the reused core to the macOS-style web UI.
 pub mod commands;

@@ -48,6 +48,7 @@ fn run_tauri() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
             labkit::commands::init_engine,
@@ -82,6 +83,10 @@ fn run_tauri() {
             labkit::commands::db_export,
             labkit::commands::db_import,
             labkit::commands::db_reset,
+            labkit::imgbatch::img_probe,
+            labkit::imgbatch::img_encode,
+            labkit::imgbatch::img_batch,
+            labkit::imgbatch::img_rename_preview,
         ])
         .run(tauri::generate_context!())
         .expect("启动工具箱失败");

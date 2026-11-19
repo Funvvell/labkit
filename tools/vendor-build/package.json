@@ -1,0 +1,21 @@
+{
+  "name": "labkit-vendor-build",
+  "private": true,
+  "version": "1.0.0",
+  "description": "一次性把 ESM-only / 模块化库打成 UMD 产物到 frontend/vendor（非前端构建链）",
+  "type": "module",
+  "scripts": { "build": "node build.mjs" },
+  "dependencies": {
+    "@stdlib/stats-ttest2": "0.2.3",
+    "@stdlib/stats-ttest": "0.2.3",
+    "@stdlib/stats-chi2test": "0.2.2",
+    "@stdlib/stats-bartlett-test": "0.2.3",
+    "@stdlib/stats-wilcoxon": "0.2.3",
+    "@stdlib/stats-ranks": "0.2.3",
+    "@stdlib/stats-base-dists-normal-cdf": "0.3.1",
+    "@stdlib/stats-base-dists-t-cdf": "0.2.3",
+    "@stdlib/stats-base-dists-chisquare-cdf": "0.3.1",
+    "markdown-table": "3.1.0"
+  },
+  "devDependencies": { "esbuild": "0.28.2" }
+}
