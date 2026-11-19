@@ -10,9 +10,9 @@ const DB = {
      必须在种子里存在：loadDBFromDisk 只回填 DB 已有的键。 */
   _store:{},
   projects:[
-    {id:'p1',name:'PFKFB3 过表达与 MASH',code:'MASH-2026-03',owner:'VVEll',start:'2026-03',end:'2027-03',stage:'实验',progress:42,milestones:[['开题',1],['动物造模',1],['样本采集',1],['检测',0],['初稿',0],['投稿',0]],risk:'LC-MS 排期待定'},
-    {id:'p2',name:'胆汁酸代谢组学',code:'BA-LCMS-26',owner:'VVEll',start:'2026-06',end:'2026-12',stage:'数据分析',progress:65,milestones:[['开题',1],['样本采集',1],['检测',1],['数据分析',1],['初稿',0],['投稿',0]],risk:'样本余量不足'},
-    {id:'p3',name:'肝纤维化 qPCR 验证',code:'FIB-Q-26',owner:'VVEll',start:'2026-09',end:'2027-02',stage:'实验',progress:25,milestones:[['开题',1],['引物设计',1],['样本采集',0],['检测',0],['初稿',0],['投稿',0]],risk:'动物伦理 12 月到期'},
+    {id:'p1',name:'PFKFB3 过表达与 MASH',code:'MASH-2026-03',owner:'示例用户',start:'2026-03',end:'2027-03',stage:'实验',progress:42,milestones:[['开题',1],['动物造模',1],['样本采集',1],['检测',0],['初稿',0],['投稿',0]],risk:'LC-MS 排期待定'},
+    {id:'p2',name:'胆汁酸代谢组学',code:'BA-LCMS-26',owner:'示例用户',start:'2026-06',end:'2026-12',stage:'数据分析',progress:65,milestones:[['开题',1],['样本采集',1],['检测',1],['数据分析',1],['初稿',0],['投稿',0]],risk:'样本余量不足'},
+    {id:'p3',name:'肝纤维化 qPCR 验证',code:'FIB-Q-26',owner:'示例用户',start:'2026-09',end:'2027-02',stage:'实验',progress:25,milestones:[['开题',1],['引物设计',1],['样本采集',0],['检测',0],['初稿',0],['投稿',0]],risk:'动物伦理 12 月到期'},
   ],
   tasks:[
     {id:'t1',name:'MASH 小鼠灌胃第 4 周',pri:'urgent',proj:'p1',exp:'E-2026-114',due:'今天 18:00',tags:['动物'],done:false,state:'doing',key:true},
@@ -36,12 +36,12 @@ const DB = {
     {id:'f7',project:'胆汁酸代谢组学',type:'数据分析',minutes:75,at:daysAgoISO(5)+'T10:00'},
   ],
   experiments:[
-    {id:'E-2026-114',proj:'PFKFB3 过表达与 MASH',type:'动物',date:'11-17',who:'VVEll',status:'进行中',note:'第 4 周灌胃，体重记录正常'},
-    {id:'E-2026-113',proj:'肝纤维化 qPCR 验证',type:'qPCR',date:'11-16',who:'VVEll',status:'失败',note:'Ct 值漂移，疑似逆转录效率低，需重做'},
-    {id:'E-2026-112',proj:'胆汁酸代谢组学',type:'测序',date:'11-15',who:'VVEll',status:'完成',note:'LC-MS 上机完成，QC 通过'},
+    {id:'E-2026-114',proj:'PFKFB3 过表达与 MASH',type:'动物',date:'11-17',who:'示例用户',status:'进行中',note:'第 4 周灌胃，体重记录正常'},
+    {id:'E-2026-113',proj:'肝纤维化 qPCR 验证',type:'qPCR',date:'11-16',who:'示例用户',status:'失败',note:'Ct 值漂移，疑似逆转录效率低，需重做'},
+    {id:'E-2026-112',proj:'胆汁酸代谢组学',type:'测序',date:'11-15',who:'示例用户',status:'完成',note:'LC-MS 上机完成，QC 通过'},
     {id:'E-2026-111',proj:'PFKFB3 过表达与 MASH',type:'WB',date:'11-14',who:'师兄',status:'待重复',note:'条带空白，改用新膜重跑'},
-    {id:'E-2026-110',proj:'胆汁酸代谢组学',type:'细胞',date:'11-13',who:'VVEll',status:'完成',note:'HepG2 传代至第 8 代'},
-    {id:'E-2026-109',proj:'PFKFB3 过表达与 MASH',type:'统计分析',date:'11-12',who:'VVEll',status:'待开展',note:'待 LC-MS 数据导出'},
+    {id:'E-2026-110',proj:'胆汁酸代谢组学',type:'细胞',date:'11-13',who:'示例用户',status:'完成',note:'HepG2 传代至第 8 代'},
+    {id:'E-2026-109',proj:'PFKFB3 过表达与 MASH',type:'统计分析',date:'11-12',who:'示例用户',status:'待开展',note:'待 LC-MS 数据导出'},
   ],
   literatures:[
     {title:'PFKFB3 drives glycolysis in MASLD progression',meta:'Nat Metab · 2026',status:'待精读'},
@@ -76,7 +76,7 @@ const DB = {
   ],
   budgetTotal:30000,
   bookings:[
-    {id:'k1',inst:'荧光定量 PCR 仪',date:'2026-11-19',slot:'09:00-11:00',who:'VVEll',proj:'肝纤维化 qPCR 验证'},
+    {id:'k1',inst:'荧光定量 PCR 仪',date:'2026-11-19',slot:'09:00-11:00',who:'示例用户',proj:'肝纤维化 qPCR 验证'},
     {id:'k2',inst:'超高效液相色谱串联质谱',date:'2026-11-20',slot:'14:00-18:00',who:'师兄',proj:'胆汁酸代谢组学'},
   ],
   notes:[
@@ -128,6 +128,8 @@ async function loadDBFromDisk(){
     catch(e){dbError=String(e);dbStatus='error'}
   }
   const cache=readCache();
+  const firstRun=!disk&&!cache;
+  window.__labkitFirstRun=firstRun;   // P3：首启由欢迎遮罩决定示例/空白，不自动写种子
   const src=disk||cache;
   if(src&&typeof src==='object')Object.keys(src).forEach(k=>{if(k in DB)DB[k]=src[k]});
   migrateDB();
@@ -135,7 +137,7 @@ async function loadDBFromDisk(){
     // 老版本只存在浏览器里的数据，首次启动搬进磁盘，之后就再也不依赖浏览器
     await flushDB();
     dbStatus==='saved'&&toast('已把浏览器里的旧记录迁移到磁盘文件',4200);
-  }else if(IN_TAURI&&!disk){
+  }else if(IN_TAURI&&!disk&&!firstRun){
     await flushDB();
   }else if(!IN_TAURI){
     dbStatus='browser';
@@ -160,6 +162,7 @@ async function flushDB(){
   }catch(e){
     dbError=String(e);dbStatus='error';
     toast('保存到磁盘失败：'+dbError+'（记录已暂存浏览器，请勿清理浏览数据）',7000);
+    if(typeof notifyPush==='function')notifyPush('台账保存失败：'+dbError,'settings');
   }
   renderDbStatus();
 }

@@ -70,7 +70,7 @@ const ENT={
     fields:r=>[
       {k:'name',label:'项目名称',req:1,full:1,value:r?r.name:''},
       {k:'code',label:'项目编号',ph:'MASH-2026-04',value:r?r.code:''},
-      {k:'owner',label:'负责人',value:r?r.owner:'VVEll'},
+      {k:'owner',label:'负责人',value:r?r.owner:userName()},
       {k:'start',label:'开始（YYYY-MM）',value:r?r.start:todayStr().slice(0,7)},
       {k:'end',label:'结束（YYYY-MM）',value:r?r.end:''},
       {k:'stage',label:'阶段',type:'select',options:['开题','实验','数据分析','写作','投稿','结题'],value:r?r.stage:'实验'},
@@ -90,7 +90,7 @@ const ENT={
       {k:'type',label:'类型',type:'select',options:['动物','细胞','qPCR','WB','测序','统计分析','其他'],value:r?r.type:'qPCR'},
       {k:'date',label:'日期',value:r?r.date:todayStr().slice(5),ph:'MM-DD 或 YYYY-MM-DD'},
       {k:'status',label:'状态',type:'select',options:['待开展','进行中','完成','失败','待重复'],value:r?r.status:'进行中'},
-      {k:'who',label:'执行人',value:r?r.who:'VVEll'},
+      {k:'who',label:'执行人',value:r?r.who:userName()},
       {k:'note',label:'摘要 / 备注',type:'textarea',full:1,ph:'条件、现象、结论、下一步',value:r?r.note||'':''},
     ],
     apply:(v,r)=>Object.assign(r||{},{id:v.id,proj:v.proj,type:v.type,date:v.date,who:v.who,status:v.status,note:v.note}),
@@ -132,7 +132,7 @@ const ENT={
       {k:'inst',label:'仪器',type:'select',options:nameOpts(DB.instruments,'未登记仪器'),value:r?r.inst:undefined},
       {k:'date',label:'日期',type:'date',value:r?r.date:todayStr()},
       {k:'slot',label:'时段',ph:'09:00-11:00',value:r?r.slot:'09:00-11:00'},
-      {k:'who',label:'使用人',value:r?r.who:'VVEll'},
+      {k:'who',label:'使用人',value:r?r.who:userName()},
       {k:'proj',label:'用途 / 项目',type:'select',options:projOpts(),value:r?(r.proj||'未指定'):'未指定'},
     ],
     /* 机时冲突检测：编辑时要排除自己，否则改个使用人都会被判成冲突 */

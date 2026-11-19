@@ -60,7 +60,7 @@ async function renderTool(id){
   setText('toolTitle',meta.name);
   setText('toolSub',meta.desc);
   const src=document.getElementById('toolSource');
-  if(meta.source){src.innerHTML='<b>技术来源</b> · '+esc(meta.source);src.hidden=false;}
+  if(meta.source){src.innerHTML='<b>技术来源</b> · '+esc(meta.source)+' · <b>仅供科研使用，不用于临床诊断</b>';src.hidden=false;}
   else{src.hidden=true;src.textContent='';}
   Store.pushRecent(id);
   syncToolFav();
@@ -136,7 +136,7 @@ function setupToolChrome(meta,host){
   document.getElementById('toolExample').hidden=!meta.example;
   document.getElementById('toolExports').innerHTML=(meta.exports||[]).map((x,i)=>`<button class="tbtn sec" data-texport="${i}">${esc(x.label)}</button>`).join('');
   document.getElementById('toolHelp').hidden=true;
-  document.getElementById('toolHelpBody').innerHTML='<h3>'+esc(meta.name)+'</h3><p>'+esc(meta.help||meta.desc)+'</p>'+(meta.source?'<div class="tnote"><b>技术来源</b> · '+esc(meta.source)+'</div>':'');
+  document.getElementById('toolHelpBody').innerHTML='<h3>'+esc(meta.name)+'</h3><p>'+esc(meta.help||meta.desc)+'</p>'+(meta.source?'<div class="tnote"><b>技术来源</b> · '+esc(meta.source)+' · <b>仅供科研使用，不用于临床诊断</b></div>':'');
 }
 document.getElementById('toolExample').onclick=()=>{
   const f=_toolHostEl.__lkExample;
@@ -164,7 +164,7 @@ renderToolHub();
   const byId=Object.fromEntries((window.TOOL_META||[]).map(t=>[t.id,t]));
   [['cropSource','crop'],['qpcrSource','qpcr']].forEach(([el,id])=>{
     const n=document.getElementById(el),m=byId[id];
-    if(n&&m&&m.source)n.innerHTML='<b>技术来源</b> · '+esc(m.source);
+    if(n&&m&&m.source)n.innerHTML='<b>技术来源</b> · '+esc(m.source)+' · <b>仅供科研使用，不用于临床诊断</b>';
   });
 })();
 

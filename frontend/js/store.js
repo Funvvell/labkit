@@ -32,3 +32,5 @@ const Store = {
     return moved;
   },
 };
+/* P3：问候与新建记录默认负责人用的称呼（设置可改，未设置时为「研究者」） */
+function userName(){return ((Store.settings().name||'').trim())||'研究者';}

@@ -569,6 +569,7 @@ setInterval(async()=>{
         else if(f.failed&&!f.ok)toast('导出失败：'+(exportFirstErr||'共 '+f.failed+' 个区域失败'),6000);
         else if(f.failed)toast('导出完成：成功 '+f.ok+' · 失败 '+f.failed+'（'+exportFirstErr+'）',6000);
         else toast('导出完成：成功 '+f.ok+' 个 TIFF');
+        if(!f.cancelled&&typeof notifyPush==='function')notifyPush('裁剪导出完成：成功 '+f.ok+' 个 TIFF'+(f.failed?' · 失败 '+f.failed:''),null);
         exportFailed=0;exportFirstErr='';
       }else if(ev.kind==='error'){
         if(pendingOpen){pendingOpen=null;toast('打开失败：'+ev.err);}

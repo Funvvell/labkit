@@ -32,6 +32,7 @@ async function renderSettings(){
     ['备份份数',info?String(info.backups):'—'],
     ['记录总数',counts.map(([k,n])=>k+' '+n).join(' · ')],
     ['数据来源',DB.isDemo?'仍含首次启动的示例数据':'已全部是你自己的记录'],
+    ['使用范围','仅供科研使用，不用于临床诊断'],
   ];
   if(dbStatus==='error')kv.push(['错误',dbError]);
   box.innerHTML=kv.map(([k,v])=>`<div class="k">${esc(k)}</div><div class="v">${esc(v)}</div>`).join('');
@@ -99,3 +100,23 @@ document.querySelectorAll('#reportRange [data-range]').forEach(b=>b.onclick=()=>
 });
 document.getElementById('btnNewFocus').onclick=()=>entityModal('focus');
 document.getElementById('btnLabNew').onclick=()=>entityModal(labTab==='reagent'?'reagent':labTab==='instrument'?'instrument':'booking');
+
+/* ===================== P3：称呼与主题 ===================== */
+function applyTheme(){
+  const t=Store.settings().theme||'system';
+  const dark=t==='dark'||(t==='system'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme=dark?'dark':'light';
+  document.querySelectorAll('#themeSeg [data-theme]').forEach(b=>b.classList.toggle('active',b.dataset.theme===t));
+}
+document.querySelectorAll('#themeSeg [data-theme]').forEach(b=>b.onclick=()=>{
+  Store.setSetting('theme',b.dataset.theme);applyTheme();toast('主题：'+b.textContent);
+});
+if(window.matchMedia)matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{
+  if((Store.settings().theme||'system')==='system')applyTheme();
+});
+const setNameEl=document.getElementById('setName');
+if(setNameEl){
+  setNameEl.value=Store.settings().name||'';
+  setNameEl.onchange=()=>{Store.setSetting('name',setNameEl.value.trim());if(typeof setGreet==='function')setGreet();toast('称呼已更新');};
+}
+applyTheme();
