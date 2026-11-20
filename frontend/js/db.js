@@ -9,6 +9,8 @@ const DB = {
   /* P1：偏好/收藏/最近/工具状态的统一落盘袋（Store 门面读写，随台账原子写+备份）。
      必须在种子里存在：loadDBFromDisk 只回填 DB 已有的键。 */
   _store:{},
+  /* P1：磁盘修订号（Rust 每次成功写入 +1，前端只读不回写），用于窗口聚焦时兜底对账 */
+  _rev:0,
   projects:[
     {id:'p1',name:'PFKFB3 过表达与 MASH',code:'MASH-2026-03',owner:'示例用户',start:'2026-03',end:'2027-03',stage:'实验',progress:42,milestones:[['开题',1],['动物造模',1],['样本采集',1],['检测',0],['初稿',0],['投稿',0]],risk:'LC-MS 排期待定'},
     {id:'p2',name:'胆汁酸代谢组学',code:'BA-LCMS-26',owner:'示例用户',start:'2026-06',end:'2026-12',stage:'数据分析',progress:65,milestones:[['开题',1],['样本采集',1],['检测',1],['数据分析',1],['初稿',0],['投稿',0]],risk:'样本余量不足'},
@@ -144,11 +146,29 @@ async function loadDBFromDisk(){
     dbStatus='browser';
   }
   if(IN_TAURI)invoke('db_info').then(i=>{if(i&&i.path){dbPath=i.path;renderSettings()}}).catch(()=>{});
+  _dbBase=dbSnapshot();_dbRev=DB._rev||0;
 }
 
+/* ---- P1 多窗口同步：合并写 + db-changed 广播 ----
+   每窗口维护 _dbBase（加载/每次成功保存后的逐键快照），flushDB diff 出 changed 顶层键；
+   Rust 锁内读盘 → 仅覆盖 changed 键（_store 逐子键合并，null=删除墓碑）→ 原子写 → rev+1
+   → emit("db-changed")。不同窗口写各自 toolform:<id> / 实体键互不抹掉。
+   同一键并发编辑 = 后写覆盖（键级 LWW）；实体级三方合并为后续增强。 */
+let _dbBase=null,_dbRev=0,_dbDirty=false,_dbApplying=false,_dbViewPending=false,_dbMO=null,_dbCloseFlushed=false;
+let _dbFlushing=false,_dbPendingRemote=null,_dbWriteSeq=0;
+const _dbOrigin='w'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+function dbSnapshot(){const c={};Object.keys(DB).forEach(k=>{if(k!=='_rev')c[k]=DB[k]});return JSON.parse(JSON.stringify(c))}
+function dbChangedKeys(){
+  if(!_dbBase)return null;               // 无基线（首次写）→ 整库写，兼容旧契约
+  const out=[];
+  Object.keys(DB).forEach(k=>{if(k!=='_rev'&&JSON.stringify(DB[k])!==JSON.stringify(_dbBase[k]))out.push(k)});
+  Object.keys(_dbBase).forEach(k=>{if(!(k in DB))out.push(k)});
+  return out;
+}
 let _dbT=0;
 function saveDB(){
   writeCache();
+  _dbDirty=true;
   dbStatus='saving';renderDbStatus();
   clearTimeout(_dbT);
   _dbT=setTimeout(flushDB,400);
@@ -156,19 +176,152 @@ function saveDB(){
 async function flushDB(){
   clearTimeout(_dbT);_dbT=0;
   writeCache();
-  if(!IN_TAURI){dbStatus='browser';renderDbStatus();return}
+  if(!IN_TAURI){dbStatus='browser';_dbBase=dbSnapshot();_dbDirty=false;renderDbStatus();dbDrainPending();return}
+  const changed=dbChangedKeys();
+  if(changed&&changed.length===0){dbStatus='saved';_dbDirty=false;renderDbStatus();dbDrainPending();return dbPath}
+  _dbFlushing=true;
   try{
-    const p=await invoke('db_save',{data:DB});
+    const p=await invoke('db_save',{data:DB,changed:changed||undefined,origin:_dbOrigin});
     dbPath=p||dbPath;dbError='';dbStatus='saved';dbSavedAt=nowStamp().replace('T',' ');
+    _dbBase=dbSnapshot();_dbDirty=false;_dbWriteSeq++;
   }catch(e){
     dbError=String(e);dbStatus='error';
     toast('保存到磁盘失败：'+dbError+'（记录已暂存浏览器，请勿清理浏览数据）',7000);
     if(typeof notifyPush==='function')notifyPush('台账保存失败：'+dbError,'settings');
   }
+  _dbFlushing=false;
   renderDbStatus();
+  dbDrainPending();
+}
+/* 本窗口写盘在途时到达的远端事件被暂存（那时读盘会读到缺少本地改动的旧快照，
+   直接 adopt 会抹掉刚提交的数据）；写盘落地后补处理，读到的盘已含双方改动 */
+function dbDrainPending(){
+  if(_dbPendingRemote){const pl=_dbPendingRemote;_dbPendingRemote=null;dbOnRemote(pl)}
+}
+/* 远端变更：重载磁盘 → 更新基线 → 重渲染（避开正在输入的表单与打开的模态框） */
+function dbAdopt(src){
+  if(src&&typeof src==='object')Object.keys(src).forEach(k=>{if(k in DB)DB[k]=src[k]});
+  _dbRev=DB._rev||0;_dbBase=dbSnapshot();writeCache();
+}
+async function dbOnRemote(payload){
+  if(payload&&payload.origin===_dbOrigin){if(payload.rev)_dbRev=payload.rev;return}
+  if(payload&&payload.reset){try{localStorage.removeItem(DB_KEY)}catch(e){};location.reload();return}
+  /* 写盘在途 / 已有重载在途 → 排队（取最新一条），不能丢也不能立即读盘：
+     此刻读盘会读到缺少本地刚提交改动的旧快照，adopt 会把它抹掉（真机冒烟实测） */
+  if(_dbFlushing||_dbApplying){_dbPendingRemote=payload;return}
+  _dbApplying=true;
+  const seq0=_dbWriteSeq;
+  try{
+    const src=await invoke('db_load');
+    if(_dbFlushing||_dbWriteSeq!==seq0){
+      /* 读盘期间本地又落了新写 → 这份快照已过时，交给写盘落地后的 drain 重读 */
+      _dbPendingRemote=payload;
+    }else{
+      dbAdopt(src);
+      if(payload&&payload.rev)_dbRev=payload.rev;
+      dbRefreshViews();
+    }
+  }catch(e){}
+  _dbApplying=false;
+  if(_dbPendingRemote){const pl=_dbPendingRemote;_dbPendingRemote=null;dbOnRemote(pl)}
+}
+function dbRenderCurrentView(){
+  const n=_route.name;
+  if(n==='home'){if(typeof dashEdit!=='undefined'&&dashEdit)return;refreshHome();buildDash();}
+  else if(n==='tasks')renderTasks();
+  else if(n==='projects')renderProjects();
+  else if(n==='experiments')renderExperiments();
+  else if(n==='literature')renderLiterature();
+  else if(n==='labres')renderLab();
+  else if(n==='reports')renderReports();
+  else if(n==='focus')renderFocusPage();
+  else if(n==='toolhub')renderToolHub();
+  else if(n==='settings')renderSettings();
+  /* tool/crop/qpcr：不重渲染——保护正在输入的表单与画布状态；
+     工具输入由各自窗口按 toolform:<id> 键 LWW 保存，互不覆盖 */
+}
+function dbRefreshViews(){
+  if(typeof shellRenderPins==='function')shellRenderPins();
+  if(typeof syncPinButtons==='function')syncPinButtons();
+  if(typeof renderToolHub==='function')renderToolHub();
+  if(typeof notifyBadge==='function')notifyBadge();
+  if(typeof applyTheme==='function')applyTheme();
+  if(typeof applyDensity==='function')applyDensity();
+  if(typeof setGreet==='function')setGreet();
+  if(document.querySelector('.modal-mask')||(typeof dashEdit!=='undefined'&&dashEdit)){
+    _dbViewPending=true;dbWatchIdle();return;
+  }
+  dbRenderCurrentView();
+}
+/* 模态关闭 / 退出布局编辑后补刷新（观察 #win 子树，仅在有待刷新时挂载） */
+function dbWatchIdle(){
+  if(_dbMO)return;
+  _dbMO=new MutationObserver(()=>{
+    if(!_dbViewPending)return;
+    if(document.querySelector('.modal-mask')||(typeof dashEdit!=='undefined'&&dashEdit))return;
+    _dbMO.disconnect();_dbMO=null;_dbViewPending=false;
+    dbRenderCurrentView();
+  });
+  _dbMO.observe(document.getElementById('win'),{childList:true,subtree:true});
+}
+/* 事件丢失兜底：窗口聚焦时先补写本地改动，再对磁盘 rev，落后则重载 */
+async function dbFocusSync(){
+  if(!IN_TAURI||_dbApplying||_dbFlushing)return;
+  try{
+    if(_dbDirty)await flushDB();
+    const src=await invoke('db_load');
+    if(src&&(src._rev||0)>_dbRev){dbAdopt(src);dbRefreshViews();}
+  }catch(e){}
+}
+if(IN_TAURI){
+  try{window.__TAURI__.event.listen('db-changed',ev=>dbOnRemote(ev.payload)).catch(()=>{})}catch(e){}
+  window.addEventListener('focus',()=>{dbFocusSync()});
+  /* 关窗走 changed 合并路径：不丢最后一次编辑，也不抹掉别的窗口的改动。
+     preventDefault → 补写 → 再 close（第二次不再拦截），window-state 插件正常保存窗口位置 */
+  /* 仅工具窗口保留 JS 关窗守卫（逐个关闭时落盘）。
+     主窗口严禁注册：JS onCloseRequested 未 preventDefault 时会向同一通道发
+     "allow"，与 Rust 的 prevent_close 竞争并抢先放行，导致主窗在回执前被关闭、
+     退出握手永远等不到 main 的 ack。主窗退出由 Rust on_window_event 独占编排。 */
+  if(WINDOW_MODE){
+    try{
+      const W=lkWin().getCurrentWindow();
+      W.onCloseRequested(async e=>{
+        if(_dbCloseFlushed||!_dbDirty)return;
+        e.preventDefault();
+        try{await Promise.race([flushDB(),new Promise(r=>setTimeout(r,1500))])}catch(_){}
+        _dbCloseFlushed=true;
+        W.close().catch(()=>{});
+      }).catch(()=>{});
+    }catch(e){}
+  }
+
+  /* 多窗口退出握手：主窗 CloseRequested → Rust 广播 flush-now → 每窗立即落盘并回执。
+     _dbCloseFlushed / changed=[] 早退保证与 onCloseRequested 的 flush 不重复写盘。 */
+  window.__TAURI__.event.listen('flush-now',async ev=>{
+    const requestId=ev.payload&&ev.payload.requestId;
+    if(!requestId)return;
+    let ok=true;
+    if(!_dbCloseFlushed&&_dbDirty){
+      try{await Promise.race([flushDB(),new Promise(r=>setTimeout(r,1500))])}catch(_){}
+    }
+    ok=!_dbDirty&&!dbError&&dbStatus==='saved';
+    invoke('flush_ack',{requestId,ok,label:WIN_LABEL}).catch(()=>{});
+  }).catch(()=>{});
+
+  /* 落盘失败/超时：主窗弹窗让用户选「强制退出」或「取消退出」（Rust 保持窗口）。 */
+  if(!WINDOW_MODE){
+    window.__TAURI__.event.listen('flush-failed',ev=>{
+      const p=ev.payload||{},requestId=p.requestId,labels=(p.labels||[]).join('、');
+      if(typeof confirmModal!=='function')return;
+      confirmModal('退出前未能保存全部窗口',
+        '以下窗口的改动尚未写入磁盘：'+(labels||'未知窗口')+'。\n\n强制退出会丢失这些未落盘改动（内容仍暂存本地缓存，下次启动可尝试恢复）；取消则留在应用里稍后重试。',
+        ()=>{invoke('exit_decision',{requestId,force:true}).catch(()=>{})},'强制退出',
+        ()=>{invoke('exit_decision',{requestId,force:false}).catch(()=>{})},'取消退出');
+    }).catch(()=>{});
+  }
 }
 /* 关窗/切走前把最后 400ms 内的改动补写掉，避免丢最后一次编辑 */
-window.addEventListener('beforeunload',()=>{if(_dbT){clearTimeout(_dbT);_dbT=0;writeCache();if(IN_TAURI)invoke('db_save',{data:DB}).catch(()=>{})}});
+window.addEventListener('beforeunload',()=>{if(_dbT){clearTimeout(_dbT);_dbT=0;writeCache();if(IN_TAURI)invoke('db_save',{data:DB,changed:dbChangedKeys()||undefined,origin:_dbOrigin}).catch(()=>{})}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&_dbT)flushDB()});
 
 const STATUS_CLS = {'待开展':'status-wait','进行中':'status-run','完成':'status-ok','失败':'status-fail','待重复':'status-re'};

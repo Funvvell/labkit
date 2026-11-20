@@ -108,7 +108,10 @@ fn import_validates_before_touching_existing_data() {
     let good = d.path().join("good.json");
     std::fs::write(&good, r#"{"tasks":[{"id":"x"}]}"#).unwrap();
     store::import_at(&p, &good).unwrap();
-    assert_eq!(store::load_at(&p).unwrap().unwrap(), json!({"tasks":[{"id":"x"}]}));
+    let disk = store::load_at(&p).unwrap().unwrap();
+    assert_eq!(disk["tasks"], json!([{"id":"x"}]));
+    // P1：导入延续盘上 rev 序列（此前 save_at 无 _rev → 0，导入后 = 1）
+    assert_eq!(disk["_rev"], json!(1));
     // 导入前的旧数据进了 backups，可找回
     assert!(d.path().join("backups").read_dir().unwrap().count() >= 1);
 }

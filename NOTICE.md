@@ -37,12 +37,17 @@ LabKit（MIT）复用以下成熟开源项目。除注明外均以原样或最�
   纯数据模型移植：`frontend/tools/lib/plate-model.js`（Plate/Layer/Well/Area/Range/Definition），上游源码存 `tools/upstream/plateeditor/`。
 - **InvenTree** Copyright (c) InvenTree. https://github.com/inventree/InvenTree
   台账 schema 参照 + 可选 REST API 对接（`frontend/tools/inventory.js`），不内嵌其代码。
+- **gridstack.js** Copyright (c) 2019-2026 Alain Dumesny（v0.4.0 及更早 (c) 2014-2018 Pavel Reznikov, Dylan Weiss）. https://github.com/gridstack/gridstack.js
+  P2 Dashboard 自由拼接网格：`frontend/vendor/gridstack-all.js` + `gridstack.min.css`（v14.1.1，UMD 原样引入），许可文本 `frontend/vendor/gridstack-LICENSE.txt`。
 
 ## MIT / Apache-2.0 双许可（Rust crates）
 - **image** Copyright (c) PistonDevelopers. https://github.com/image-rs/image — D3 图片批处理编解码/缩放。
 - **rayon** Copyright (c) Niko Matsakis. https://github.com/rayon-rs/rayon — D3 并行批处理。
 - **tiff** Copyright (c) PistonDevelopers. https://github.com/image-rs/image-tiff — TIFF IFD/DPI 标签读写。
 - **tauri-plugin-notification** Copyright (c) Tauri Programme. https://github.com/tauri-apps/plugins-workspace — C6 效期系统通知。
+- **tauri-plugin-window-state** Copyright (c) Tauri Programme. https://github.com/tauri-apps/plugins-workspace — P1 工具窗口尺寸/位置记忆。
+- **reqwest** Copyright (c) Sean McArthur. https://github.com/seanmonstar/reqwest — P3 Zotero 本地 API / P4 插件市场的 Rust 侧 HTTP 客户端（rustls）。
+- **url** Copyright (c) Servo contributors. https://github.com/servo/rust-url — P3 附件 file:// 重定向解析。
 
 ## ISC License
 - **simple-statistics** Copyright (c) Tom MacWright. https://github.com/simple-statistics/simple-statistics

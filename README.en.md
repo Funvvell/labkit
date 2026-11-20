@@ -27,7 +27,7 @@
 ### Workbench (research notebook)
 
 - Eleven record types: tasks, projects, experiments, literature, instruments, reagents, bookings, budget, quick notes, reminders — board + table views
-- **Editable dashboard** (gridstack-style drag/resize), layout persisted with the notebook
+- **Editable dashboard**: 16 widgets, each declaring multiple size tiers (mini summary / small compact / medium standard / large full). Free-form gridstack grid: drag to place, drag the bottom-right corner to resize (snaps to the widget's declared tiers); ⇔⇕ quick cycle, ⚙ exact coordinates, arrow keys to move / Shift+arrows to resize. Layout v2 persisted with the notebook; legacy layouts migrate in order with sizes preserved
 - Focus timer with 7-day trends and completion reports
 - **Notification center**: task deadlines, reagent expiry, instrument calibration due, export completion
 - Disk-backed notebook at `~/.liver_portal_crop/labkit_db.json` with atomic writes, rolling backups and corruption self-healing; browser mode falls back to localStorage
@@ -42,14 +42,19 @@
 
 Every tool shares one chrome: **load example / reset / help & provenance drawer / export bar**. Inputs and configs **persist automatically** across page switches and restarts. **Cross-tool data flow**: cleaning → tests / plotter / Table 1; test results → APA strings (reloadable across restarts).
 
-### Interaction (patterns borrowed from IT-Tools / DevToys / Rubick)
+### Interaction (patterns borrowed from IT-Tools / DevToys / Rubick / Obsidian Bookmarks)
 
 - **Ctrl+K command palette** over tools, pages and global actions, with pinyin-initial fuzzy matching
-- **Persistent sidebar** (workbench / tool groups / favorites / settings) — every page reachable even if all home cards are removed
+- **Lean sidebar + custom pins**: home / tool library / settings stay resident; tasks, projects, experiments, literature, lab resources, reports and focus live behind a single **Workbench ▾** entry on the dashboard. Pin any frequent entry to the sidebar (header ☆ / menu ☆ / tool star / Alt+F), drag to reorder, right-click to rename (same pattern as Obsidian Bookmarks / Trigger.dev Favorites)
+- **Never stranded**: even with every home card removed, the Workbench ▾ menu, Ctrl+K and hash deep links still reach every page
+- **Independent tool windows**: on desktop every tool (including crop / qPCR) **opens in its own window by default**; reopening the same tool focuses its window; size & position are remembered (official window-state plugin). Enable "Open tools in page" in Settings to switch back; the card ↗ / Ctrl/⌘+click / middle-click always opens a new window. Closing the main window exits the app: a `flush-now` broadcast collects save acknowledgements from every window first; on failure/timeout a dialog lets you force-quit or cancel. The notebook syncs across windows with **merge writes + event broadcast** — disjoint keys never clobber each other (same-key concurrent edits: last write wins)
 - **Hash deep links** (`#/tool/tests`), refresh-restore, back/forward
-- Favorites & recents, global shortcut registry with `?` help overlay
+- Pins & recents, global shortcut registry with `?` help overlay
 - **Dark mode** (light / dark / system); charts and crop canvas stay paper-white for journal submission
 - First-run welcome: start blank or load sample data; customizable display name
+- **Zotero integration**: read-only sync from local Zotero 7+ (items / collections / saved searches), source filtering and one-click import in the literature page; Zotero 10+ can optionally mirror reading status as tags after authorization (the local notebook stays authoritative); optional Better BibTeX probing
+- **GitHub plugin marketplace**: Obsidian-style "index repo + Release assets" — browse/search, explicit install confirmation, disable/update/rollback/uninstall and local dev loading. Off by default, never auto-updates. Tools and widgets share public registries with `x-<pluginId>-` prefix isolation; see [`docs/PLUGIN_DEV.md`](docs/PLUGIN_DEV.md)
+- The design system no longer ships inside the app — see [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) (visual contract for new tools / plugins)
 
 ### Pathology workspace
 
@@ -100,7 +105,7 @@ The frontend is **zero-build**: plain HTML/CSS/JS (classic scripts, ordered load
 ## 🔒 Data & privacy
 
 - Notebook: `~/.liver_portal_crop/labkit_db.json` (path / backups / import / export / reset in Settings)
-- Tool input snapshots, favorites, recents, theme and display name persist with the notebook
+- Tool input snapshots, pinned entries, recents, theme and display name persist with the notebook
 - **No telemetry, no network calls** except DOI links you open and the optional InvenTree API integration
 - Web demo data stays in your browser's localStorage
 
@@ -108,7 +113,7 @@ The frontend is **zero-build**: plain HTML/CSS/JS (classic scripts, ordered load
 
 ```
 frontend/            zero-build UI (index.html shell + css/ + js/ modules + tools/ + vendor/)
-rust/                Tauri 2 + Rust: SDPC FFI decode, TIFF export, qPCR parsing, disk notebook, 96 tests
+rust/                Tauri 2 + Rust: SDPC FFI decode, TIFF export, qPCR parsing, disk notebook, 108 tests
 tests/js/            node:test parity tests (vs OpenEpi/scipy/tableone) + shell unit tests
 rust/tests/          IPC naming-contract tests
 ```

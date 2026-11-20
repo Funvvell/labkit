@@ -1,4 +1,5 @@
 // P1/P2 外壳单测：hash 路由解析/导航/返回、Store 门面与旧键迁移、命令面板索引与拼音匹配。
+// P0：设计规范视图已移出应用（#/ds 回退首页）；收藏语义并入固定（pins），门面不变。
 // DOM 以最小桩替代（classic script 顶层只绑定事件，不渲染）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,7 +13,7 @@ globalThis.window = globalThis;
 
 /* ---- 最小 DOM / BOM 桩 ---- */
 const el = () => ({ onclick: null, classList: { toggle() { }, add() { }, remove() { } }, style: {} });
-const elements = { cropBack: el(), qpcrBack: el(), dsBack: el(), toolBack: el() };
+const elements = { cropBack: el(), qpcrBack: el(), toolBack: el() };
 globalThis.document = {
   getElementById: id => elements[id] || (elements[id] = el()),
   querySelectorAll: () => [],
@@ -45,7 +46,7 @@ globalThis.TOOL_META = [
   { id: 'qpcr', name: 'qPCR 分析', group: '实验计算', desc: 'ΔΔCt', py: 'qpcr dct ddct', workspace: true },
 ];
 
-for (const f of ['frontend/js/store.js', 'frontend/js/router.js', 'frontend/js/palette.js']) {
+for (const f of ['frontend/js/store.js', 'frontend/js/router.js', 'frontend/js/shell.js', 'frontend/js/palette.js']) {
   vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f });
 }
 
@@ -56,6 +57,7 @@ test('parseHash：视图/工具深链/非法回落', () => {
   assert.deepEqual(parseHash('#/nope'), { name: 'home', arg: null });
   assert.deepEqual(parseHash(''), { name: 'home', arg: null });
   assert.deepEqual(parseHash('#/'), { name: 'home', arg: null });
+  assert.deepEqual(parseHash('#/ds'), { name: 'home', arg: null });   // P0：设计规范已移出，旧深链回退首页
 });
 test('routeHash 与 parseHash 往返一致', () => {
   for (const h of ['#/home', '#/toolhub', '#/crop', '#/tool/primer', '#/tool/data-wash']) {
@@ -120,14 +122,20 @@ test('palFilter：拼音首字母与名称匹配、排序', () => {
   assert.equal(name[0].id, 'primer');
   assert.equal(palFilter('zzzz不存在')[0].items.length, 0);
 });
-test('palFilter：空查询返回最近/收藏/页面/动作分区', () => {
+test('palFilter：空查询返回最近/固定/页面/动作分区', () => {
   Store.toggleFav('data-wash');
   Store.pushRecent('primer');
   const secs = palFilter('');
   const labels = secs.map(s => s.label);
   assert.ok(labels.includes('最近使用'));
-  assert.ok(labels.includes('收藏'));
+  assert.ok(labels.includes('固定'));
   assert.ok(labels.includes('页面'));
   assert.ok(labels.includes('动作'));
   assert.equal(secs.find(s => s.label === '最近使用').items[0].id, 'primer');
+});
+test('paletteIndex：页面索引来自 PAGE_META，ds 已移除、固定动作在列', () => {
+  const idx = paletteIndex();
+  assert.ok(!idx.some(x => x.kind === 'page' && x.id === 'ds'));
+  assert.ok(idx.some(x => x.kind === 'act' && x.id === 'pin-current'));
+  for (const p of WB_PAGES) assert.ok(idx.some(x => x.kind === 'page' && x.id === p), '页面 ' + p);
 });

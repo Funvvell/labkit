@@ -3,10 +3,11 @@
 const GLOBAL_KEYS = [
   ['Ctrl/⌘ + K', '打开 / 关闭命令面板'],
   ['Ctrl/⌘ + ,', '打开设置'],
+  ['Alt + F', '固定 / 取消固定当前页面或工具'],
   ['Alt + ← / →', '后退 / 前进（路由历史）'],
   ['Ctrl/⌘ + E', '编辑首页布局（首页）'],
   ['?', '打开 / 关闭本帮助'],
-  ['Esc', '关闭面板 / 帮助 / 退出布局编辑'],
+  ['Esc', '关闭面板 / 帮助 / 菜单 / 退出布局编辑'],
 ];
 const VIEW_KEYS = {
   crop: [
@@ -49,7 +50,9 @@ function keysInit() {
     if ((e.ctrlKey || e.metaKey) && e.key === ',') { e.preventDefault(); navigate('settings'); return; }
     if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); history.back(); return; }
     if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); history.forward(); return; }
+    if (e.altKey && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); togglePinCurrent(); return; }
     if (e.key === 'Escape') {
+      if (typeof pinCtxClose === 'function') pinCtxClose();
       if (paletteIsOpen()) { paletteClose(); return; }
       if (helpIsOpen()) { helpClose(); return; }
       return;

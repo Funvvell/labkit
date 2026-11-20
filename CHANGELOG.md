@@ -3,6 +3,25 @@
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 版本单一来源：`rust/Cargo.toml` 与 `rust/tauri.conf.json`。
 
+## [Unreleased] — 多窗口 / 尺寸化 Dashboard / Zotero / 插件市场
+
+### 交互
+- **变更** 侧栏「工作台」七个子页按钮收敛到首页「工作台 ▾」单一入口；设计规范移出应用，成为 `docs/DESIGN_SYSTEM.md`
+- **新增** 侧栏「固定」区：页头 ☆ / 工作台菜单 / 工具星标 / Ctrl+K / Alt+F 固定任意页面或工具，拖拽排序、右键重命名；老收藏保序迁移
+- **变更** 桌面版**所有工具（含裁剪 / qPCR）默认在新窗口打开**；设置项反转为「默认在页内打开」（默认关），`toolNewWindow` 旧值自动迁移为 `toolOpenInPage`
+- **修复** **打开多个窗口后无法退出**：关闭主窗口现在触发应用级退出——Rust `on_window_event` 独占编排（`prevent_close` → 广播 `flush-now` 收集各窗回执 → `app.exit(0)`）；工具窗口关闭仍只关自己；落盘失败/超时弹窗让用户选「强制退出 / 取消退出」
+- **修复** 工具窗口 `show()` 失败时自动 `destroy()`，杜绝 `visible:false` 幽灵窗残留阻止退出
+- **修复** 主窗口不再注册 JS `onCloseRequested`，避免其 "allow" 回执与 Rust `prevent_close` 竞争导致主窗提前关闭
+- **新增** 工具独立窗口（官方 `WebviewWindow` + window-state），跨窗口台账合并写 + `db-changed` 事件广播
+- **新增** Dashboard gridstack v14 真 2D 拖拽/缩放，卡片契约 v2 多尺寸形态，老布局自动迁移且保留顺序网格回退
+- **新增** Zotero 本地 API 对接（只读同步 / 导入 / 10+ 授权后状态镜像）+ 文献页来源筛选 + 设置页连接测试
+- **新增** GitHub 插件市场（Obsidian 式索引 + Release 分发）：显式安装确认、禁用/更新/回退/卸载、本地开发载入；默认关闭、不自动更新
+
+### 工程
+- **新增** `reqwest` / `tauri-plugin-window-state` 依赖与 `rust/src/zotero.rs` / `rust/src/plugins.rs`；插件资产走只读自定义协议 `labkit-plugin`
+- **新增** 测试：`pins` / `db-merge` / `dash-layout` / `shell-nav` / `zotero-map` / `plugin-manifest` / `store_merge` / `zotero_state` / `plugins_install`
+- **文档** `docs/DESIGN_SYSTEM.md`、`docs/PLUGIN_DEV.md`、`ecosystem/` 索引与模板仓库本地副本；NOTICE 补署名
+
 ## [0.3.0] - 2026-11-19
 
 ### 交互重构（参照 IT-Tools / DevToys / Rubick 范式，仅借鉴交互）

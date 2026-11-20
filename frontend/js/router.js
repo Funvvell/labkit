@@ -1,7 +1,7 @@
 // LabKit · router.js — hash 路由（P1 重写）
 // 深链（#/tool/epi2x2）、前进/后退、刷新恢复；openView 保留为兼容入口。
 /* ===================== 页面路由 ===================== */
-const VIEW_MAP = { home: 'view-home', tasks: 'view-tasks', focus: 'view-focus', projects: 'view-projects', experiments: 'view-experiments', literature: 'view-literature', labres: 'view-labres', reports: 'view-reports', settings: 'view-settings', ds: 'view-ds', crop: 'view-crop', qpcr: 'view-qpcr', toolhub: 'view-toolhub', tool: 'view-tool' };
+const VIEW_MAP = { home: 'view-home', tasks: 'view-tasks', focus: 'view-focus', projects: 'view-projects', experiments: 'view-experiments', literature: 'view-literature', labres: 'view-labres', reports: 'view-reports', settings: 'view-settings', crop: 'view-crop', qpcr: 'view-qpcr', toolhub: 'view-toolhub', plugins: 'view-plugins', tool: 'view-tool' };
 let _route = { name: 'home', arg: null };
 let _navDepth = 0;       // 本会话 push 过的次数：决定返回键能否 history.back()
 
@@ -18,7 +18,7 @@ function applyView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   (document.getElementById(VIEW_MAP[name]) || document.getElementById('view-home')).classList.add('active');
   // 工作区收起侧栏（顶部面包屑返回）；其余视图保持持久侧栏
-  const isWorkspace = (name === 'crop' || name === 'qpcr' || name === 'ds' || name === 'tool');
+  const isWorkspace = (name === 'crop' || name === 'qpcr' || name === 'tool');
   document.getElementById('sidebar').classList.toggle('hidden', isWorkspace);
   if (typeof shellSyncNav === 'function') shellSyncNav(name);
 }
@@ -29,6 +29,7 @@ function renderRoute(r) {
   _route = r;
   applyView(r.name);
   if (r.name === 'tool' && r.arg) renderTool(r.arg);   // toolhub.js：注入脚本并渲染，不再改路由
+  if (r.name === 'plugins' && typeof pluginFetchIndex === 'function') pluginFetchIndex();
 }
 function navigate(name, arg) {
   const r = (name === 'tool') ? { name: 'tool', arg } : parseHash('#/' + name);
@@ -48,7 +49,6 @@ window.addEventListener('hashchange', () => renderRoute(parseHash(location.hash)
 /* 工作区返回键：走真实历史（从工具库进就回工具库，从首页进就回首页） */
 document.getElementById('cropBack').onclick = () => routerBack('home');
 document.getElementById('qpcrBack').onclick = () => routerBack('home');
-document.getElementById('dsBack').onclick = () => routerBack('home');
 document.getElementById('toolBack').onclick = () => routerBack('toolhub');
 document.addEventListener('click', e => {
   const g = e.target.closest('[data-goto]');

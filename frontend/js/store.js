@@ -7,13 +7,38 @@ const Store = {
   set(k, v) { this.bag()[k] = v; saveDB(); },
   settings() { const s = this.get('settings', {}); return (s && typeof s === 'object') ? s : {}; },
   setSetting(k, v) { const s = { ...this.settings(), [k]: v }; this.set('settings', s); return s; },
-  favs() { const a = this.get('favs', []); return Array.isArray(a) ? a : []; },
-  isFav(id) { return this.favs().includes(id); },
-  toggleFav(id) {
-    const a = this.favs(); const i = a.indexOf(id);
-    if (i >= 0) a.splice(i, 1); else a.unshift(id);
-    this.set('favs', a); return i < 0;
+  /* ---- 固定入口（pins）：页面 + 工具统一模型，自定义排序/重命名 ----
+     条目 {kind:'page'|'tool', id, label?, at}；favs/isFav/toggleFav 保留为
+     kind:'tool' 的门面，工具星标等既有调用方零改动。 */
+  pins() { const a = this.get('pins', null); return Array.isArray(a) ? a.filter(p => p && (p.kind === 'page' || p.kind === 'tool') && p.id) : []; },
+  isPinned(kind, id) { return this.pins().some(p => p.kind === kind && p.id === id); },
+  pin(kind, id, label) {
+    const a = this.pins();
+    if (a.some(p => p.kind === kind && p.id === id)) return false;
+    a.unshift({ kind, id, label: String(label || '').trim(), at: Date.now() });
+    this.set('pins', a); return true;
   },
+  unpin(kind, id) {
+    const a = this.pins(); const i = a.findIndex(p => p.kind === kind && p.id === id);
+    if (i < 0) return false;
+    a.splice(i, 1); this.set('pins', a); return true;
+  },
+  togglePin(kind, id) { return this.isPinned(kind, id) ? (this.unpin(kind, id), false) : (this.pin(kind, id), true); },
+  movePin(from, to) {
+    const a = this.pins(); if (from < 0 || from >= a.length || from === to) return;
+    const [it] = a.splice(from, 1);
+    a.splice(Math.max(0, Math.min(a.length, to)), 0, it);
+    this.set('pins', a);
+  },
+  renamePin(kind, id, label) {
+    const a = this.pins(); const p = a.find(x => x.kind === kind && x.id === id);
+    if (!p) return false;
+    p.label = String(label || '').trim(); this.set('pins', a); return true;
+  },
+  /* ---- 收藏门面（兼容旧调用方；语义 = 固定工具） ---- */
+  favs() { return this.pins().filter(p => p.kind === 'tool').map(p => p.id); },
+  isFav(id) { return this.isPinned('tool', id); },
+  toggleFav(id) { return this.togglePin('tool', id); },
   recent() { const a = this.get('recent', []); return Array.isArray(a) ? a : []; },
   pushRecent(id) { const a = this.recent().filter(x => x !== id); a.unshift(id); this.set('recent', a.slice(0, 8)); },
   /* P2：把 P0 时代散落在 localStorage 的工具状态一次性搬进台账（搬完即删旧键）。
@@ -28,6 +53,31 @@ const Store = {
         put('tool:' + k.slice('labkit-'.length), localStorage.getItem(k)); localStorage.removeItem(k);
       }
     } catch (e) { /* 浏览器隐私模式等场景忽略 */ }
+    /* 收藏 → 固定：老 favs 数组一次性迁移为 pins（保序）；迁移成功才清旧键。
+       P1：置 null 而非 delete——多窗口合并写里 null 是删除墓碑，Rust 侧据此移除盘上旧键 */
+    try {
+      const oldFavs = this.get('favs', null);
+      if (Array.isArray(oldFavs) && this.get('pins', null) == null) {
+        this.bag().pins = oldFavs.filter(id => typeof id === 'string' && id)
+          .map(id => ({ kind: 'tool', id, label: '', at: Date.now() }));
+        this.bag().favs = null;
+        moved = true;
+      }
+    } catch (e) { /* 迁移失败保留旧 favs，不删键 */ }
+    /* 工具打开方式反转：旧 toolNewWindow=false（显式页内）→ 新 toolOpenInPage=true；
+       旧 true / 未设置无需迁移（新默认即新窗口）。旧键置 null 墓碑，随合并写清盘。 */
+    try {
+      const s = this.settings();
+      if (Object.prototype.hasOwnProperty.call(s, 'toolNewWindow')) {
+        if (s.toolNewWindow === false) {
+          const next = Object.assign({}, s, { toolOpenInPage: true, toolNewWindow: null });
+          this.set('settings', next); moved = true;
+        } else {
+          const next = Object.assign({}, s); delete next.toolNewWindow;
+          this.set('settings', next); moved = true;
+        }
+      }
+    } catch (e) { /* 迁移失败保留旧键，不影响新默认 */ }
     if (moved) saveDB();
     return moved;
   },

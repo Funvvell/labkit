@@ -14,11 +14,21 @@
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use serde_json::{json, Value};
 
 use crate::constants::{DB_FILE_NAME, SESSION_DIR_NAME};
 use crate::errors::{AppError, Result};
+
+/// P1 多窗口：读-改-写必须串行。Tauri 命令在线程池并发执行，两个工具窗口
+/// 同时 flush 时，不加锁的「读盘→合并→写盘」会互相抹掉对方的键。
+static DB_WRITE_LOCK: Mutex<()> = Mutex::new(());
+
+fn write_guard() -> std::sync::MutexGuard<'static, ()> {
+    // 中毒（某次写入 panic）不应让台账永久不可写：数据本身有原子写 + .bak 兜底。
+    DB_WRITE_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+}
 
 /// 台账库文件路径。`LABKIT_DB_DIR` 可覆盖目录，便于测试与便携模式。
 pub fn db_path() -> Result<PathBuf> {
@@ -112,8 +122,74 @@ fn recover_from_bak(path: &Path) -> Result<Option<Value>> {
 }
 
 pub fn save_at(path: &Path, data: &Value) -> Result<()> {
+    let _g = write_guard();
+    save_at_locked(path, data)
+}
+
+/// 调用方已持 DB_WRITE_LOCK 时的整库写（import 复用，避免 std::Mutex 不可重入死锁）。
+fn save_at_locked(path: &Path, data: &Value) -> Result<()> {
     validate(data)?;
     atomic_write(path, &serde_json::to_string_pretty(data)?)
+}
+
+/// P1 多窗口合并写：锁内读当前盘 → 仅覆盖 `changed` 顶层键 → 原子写 → rev+1。
+///
+/// * `changed = None`：整库写（旧契约兼容；仍保留盘上 `_rev` 并递增）。
+/// * `_store` 键做**二级合并**（逐子键覆盖），不同工具窗口写各自
+///   `toolform:<id>` / `pins` / `settings` 互不干扰；子键值为 `null` 视为
+///   删除墓碑（前端 `Store.set(k,null)` 与 favs→pins 迁移用它清旧键）。
+/// * 其余顶层键整键替换 = 键级 LWW（同键并发编辑后写覆盖，文档明示）。
+/// * `_rev` 由本函数独占管理，前端传入值一律忽略。
+///
+/// 返回写入后的修订号（供 `db-changed` 事件广播）。
+pub fn merge_save_at(path: &Path, data: &Value, changed: Option<&[String]>) -> Result<u64> {
+    validate(data)?;
+    let _g = write_guard();
+    let mut base = load_at(path)?.unwrap_or_else(|| json!({}));
+    if !base.is_object() {
+        base = json!({});
+    }
+    let old_rev = base.get("_rev").and_then(|v| v.as_u64()).unwrap_or(0);
+    match changed {
+        None => {
+            base = data.clone();
+        }
+        Some(keys) => {
+            let incoming = data.as_object().expect("validate 已保证对象");
+            let bo = base.as_object_mut().expect("base 已保证对象");
+            for k in keys {
+                if k == "_rev" {
+                    continue; // 修订号只由 Rust 管理
+                }
+                if k == "_store" {
+                    let cur = bo.entry("_store".to_string()).or_insert_with(|| json!({}));
+                    if !cur.is_object() {
+                        *cur = json!({});
+                    }
+                    let co = cur.as_object_mut().expect("刚保证对象");
+                    if let Some(Value::Object(inc)) = incoming.get("_store") {
+                        for (sk, sv) in inc {
+                            if sv.is_null() {
+                                co.remove(sk);
+                            } else {
+                                co.insert(sk.clone(), sv.clone());
+                            }
+                        }
+                    }
+                } else if let Some(v) = incoming.get(k) {
+                    bo.insert(k.clone(), v.clone());
+                } else {
+                    bo.remove(k); // 前端删了顶层键 → 盘上同步删除
+                }
+            }
+        }
+    }
+    let rev = old_rev + 1;
+    if let Some(o) = base.as_object_mut() {
+        o.insert("_rev".into(), json!(rev));
+    }
+    atomic_write(path, &serde_json::to_string_pretty(&base)?)?;
+    Ok(rev)
 }
 
 /// 手动备份到 `backups/labkit_db.<时间戳>.json`，返回备份文件路径。
@@ -139,6 +215,11 @@ pub fn save(data: &Value) -> Result<()> {
     save_at(&db_path()?, data)
 }
 
+/// P1：合并写（db_save 命令专用），返回新修订号。
+pub fn merge_save(data: &Value, changed: Option<&[String]>) -> Result<u64> {
+    merge_save_at(&db_path()?, data, changed)
+}
+
 pub fn backup() -> Result<PathBuf> {
     backup_at(&db_path()?)
 }
@@ -155,15 +236,24 @@ pub fn export_at(path: &Path, dest: &Path) -> Result<PathBuf> {
 }
 
 /// 从外部文件导入：先校验再落盘，导入前自动备份现有数据。
+/// P1：锁内进行；修订号延续盘上序列 +1（导入文件的 _rev 一律忽略），
+/// 保证其它窗口的聚焦对账与 db-changed 广播语义一致。
 pub fn import_at(path: &Path, src: &Path) -> Result<Value> {
     let text = fs::read_to_string(src)?;
-    let data = parse(&text)?;
+    let mut data = parse(&text)?;
+    let _g = write_guard();
     if path.exists() {
         if let Err(e) = backup_at(path) {
             tracing::warn!("导入前备份失败（继续导入）: {e}");
         }
     }
-    save_at(path, &data)?;
+    let old_rev = load_at(path)?
+        .and_then(|v| v.get("_rev").and_then(|r| r.as_u64()))
+        .unwrap_or(0);
+    if let Some(o) = data.as_object_mut() {
+        o.insert("_rev".into(), json!(old_rev + 1));
+    }
+    save_at_locked(path, &data)?;
     Ok(data)
 }
 
@@ -178,6 +268,7 @@ pub fn import_from(src: &Path) -> Result<Value> {
 /// 清空台账：先备份再删主文件与 `.bak`，返回备份路径供前端提示。
 pub fn reset() -> Result<Option<PathBuf>> {
     let path = db_path()?;
+    let _g = write_guard();
     let bak = backup_at(&path).ok();
     if path.exists() {
         fs::remove_file(&path)?;

@@ -207,6 +207,27 @@ fn export_rois_sends_required_keys() {
     }
 }
 
+/// P4 插件安装契约：Rust 命令必填参数与前端 invoke 顶层键一一对应。
+#[test]
+fn plugins_install_sends_contract_keys() {
+    let src = frontend_source();
+    let calls = invoke_calls(&src);
+    let installs: Vec<&Vec<String>> = calls
+        .iter()
+        .filter(|(c, _)| c == "plugins_install")
+        .map(|(_, k)| k)
+        .collect();
+    assert!(!installs.is_empty(), "前端没有调用 plugins_install");
+    for keys in installs {
+        for need in ["id", "repo", "version"] {
+            assert!(
+                keys.iter().any(|k| k == need),
+                "plugins_install 缺少参数 {need}，实际发送: {keys:?}"
+            );
+        }
+    }
+}
+
 #[test]
 fn scanner_finds_nested_data_keys_are_ignored() {
     // 自检：嵌套的 serde 字段不能被误判成命令参数。
@@ -215,4 +236,26 @@ fn scanner_finds_nested_data_keys_are_ignored() {
     assert_eq!(calls.len(), 1);
     assert_eq!(calls[0].0, "save_rois");
     assert_eq!(calls[0].1, vec!["rois".to_string(), "gen".to_string()]);
+}
+
+/// P1 合并写契约：前端每次 db_save 必须携带 data + changed + origin。
+/// changed 缺省会退化为整库写——多窗口下互相抹改动，正是要防住的回归。
+#[test]
+fn db_save_sends_merge_contract_keys() {
+    let src = frontend_source();
+    let calls = invoke_calls(&src);
+    let saves: Vec<&Vec<String>> = calls
+        .iter()
+        .filter(|(c, _)| c == "db_save")
+        .map(|(_, k)| k)
+        .collect();
+    assert!(!saves.is_empty(), "前端没有调用 db_save");
+    for keys in saves {
+        for need in ["data", "changed", "origin"] {
+            assert!(
+                keys.iter().any(|k| k == need),
+                "db_save 缺少参数 {need}（P1 合并写契约），实际发送: {keys:?}"
+            );
+        }
+    }
 }

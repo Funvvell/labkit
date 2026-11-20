@@ -29,7 +29,7 @@
 ### 工作台（科研台账）
 
 - **任务 / 项目 / 实验 / 文献 / 仪器 / 试剂 / 预约 / 经费 / 速记 / 提醒** 十一类记录，看板 + 表格双视图
-- **可编辑 Dashboard**：卡片自由增删拖拽（gridstack 思路），布局随台账保存
+- **可编辑 Dashboard**：16 张卡片各声明多档尺寸（mini 摘要 / small 精简 / medium 标准 / large 全量），gridstack 自由网格拖拽摆放、右下角拖拽改尺寸（自动吸附到卡片支持的档位）；⇔⇕ 快速切档、⚙ 精确坐标、键盘方向键移动 / Shift+方向键改尺寸；布局 v2 随台账保存，老布局自动迁移保序保尺寸
 - **专注计时**与近 7 天趋势、任务完成率报表
 - **通知中心**：任务截止、试剂效期、仪器校准到期、导出完成等汇总提醒（标题栏铃铛）
 - 数据磁盘化：`~/.liver_portal_crop/labkit_db.json`，原子写 + 滚动备份 + 损坏自愈；浏览器模式降级 localStorage
@@ -45,14 +45,19 @@
 每个工具统一壳层：**载入示例 / 重置 / 帮助与来源抽屉 / 导出条**；输入与配置**自动持久化**（切页、重启不丢）；
 **跨工具数据流**：数据清洗 → 检验 / 绘图 / Table 1，检验结果 → APA 报告串（跨重启可载入）。
 
-### 交互（参照 IT-Tools / DevToys / Rubick 的成熟范式）
+### 交互（参照 IT-Tools / DevToys / Rubick / Obsidian Bookmarks 的成熟范式）
 
 - **Ctrl+K 命令面板**：20 工具 + 全部页面 + 全局动作，支持**拼音首字母**模糊匹配（如 `yw`→引物、`sjqx`→数据清洗）
-- **持久侧栏**：工作台 / 工具库分组 / 收藏 / 设置，任何页面一键可达（首页卡片删光也不失联）
+- **精简侧栏 + 自定义固定**：侧栏常驻首页 / 工具库 / 设置；任务、项目、实验、文献、仪器试剂、报表、专注从首页 **「工作台 ▾」** 一个入口进入，常用入口可**固定到侧栏**（页头 ☆ / 菜单 ☆ / 工具星标 / Alt+F），支持拖拽排序、右键重命名（范式同 Obsidian Bookmarks / Trigger.dev Favorites）
+- **不失联保障**：首页卡片删光后，「工作台 ▾」菜单 + Ctrl+K + hash 深链仍可到达每个页面
+- **工具独立多窗口**：桌面版所有工具（含裁剪 / qPCR）**默认在独立窗口打开**，同工具再开即聚焦，窗口尺寸位置自动记忆（官方 window-state 插件）；设置里可勾选「默认在页内打开」切回页内，工具卡「↗」/ Ctrl/⌘+点击 / 中键随时可临时开新窗口。关闭主窗口即退出整个应用：退出前广播 `flush-now` 收集各窗口落盘回执，失败/超时弹窗让用户选「强制退出」或「取消退出」。多窗口台账**合并写 + 事件广播**同步：各窗口写各自的键互不覆盖，改动实时互见（同键并发编辑为后写覆盖）
 - **hash 路由深链**：`#/tool/tests` 可分享、刷新恢复、前进后退可用
-- **收藏与最近使用**、全局快捷键注册表 + `?` 帮助浮层
+- **固定与最近使用**、全局快捷键注册表 + `?` 帮助浮层
 - **暗色模式**（浅色 / 深色 / 跟随系统）；图表与裁图画布保持纸面白色，符合期刊投稿要求
 - 首启欢迎：空白开始 / 载入示例二选一；称呼可自定义
+- **Zotero 对接**：本机 Zotero 7+ 只读同步（条目 / 分类 / 保存搜索）、文献页来源筛选与一键导入；Zotero 10+ 授权后可把阅读状态镜像为 tag（本地台账始终为准）；Better BibTeX 可选探测
+- **GitHub 插件市场**：仿 Obsidian「索引仓库 + Release 附件」机制，浏览/搜索/显式确认安装/禁用/更新/回退/卸载与本地开发载入；默认关闭、不自动更新。工具与卡片统一注册表开放给社区（`x-<插件id>-` 前缀隔离），开发见 [`docs/PLUGIN_DEV.md`](docs/PLUGIN_DEV.md)
+- 设计规范不再内置于软件，见 [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md)（新增工具 / 插件的视觉契约）
 
 ### 病理图像工作区
 
@@ -100,15 +105,16 @@ cargo tauri build                  # 出安装包
 | --- | --- |
 | `Ctrl+K` | 命令面板（工具 / 页面 / 动作，拼音首字母可搜） |
 | `Ctrl+,` | 设置 |
+| `Alt+F` | 固定 / 取消固定当前页面或工具到侧栏 |
 | `Alt+←` / `Alt+→` | 后退 / 前进 |
 | `?` | 快捷键帮助浮层 |
-| `Esc` | 关闭面板 / 抽屉 |
+| `Esc` | 关闭面板 / 菜单 / 抽屉 |
 | 裁剪工作区 | 滚轮缩放、拖拽平移、ROI 手柄调整（见 `?` 浮层视图段） |
 
 ## 🔒 数据与隐私
 
 - 台账：`~/.liver_portal_crop/labkit_db.json`（设置页可查看路径 / 备份 / 导入导出 / 重置）
-- 工具输入快照、收藏、最近使用、主题与称呼同随台账落盘
+- 工具输入快照、固定入口、最近使用、主题与称呼同随台账落盘
 - **无遥测、无网络请求**（除你主动打开的文献 DOI 链接与可选 InvenTree API 对接）
 - 浏览器演示模式数据仅存本机 localStorage
 
@@ -122,7 +128,7 @@ rust/tests/          IPC 命名契约测试（保护前后端接口）
 ```
 
 - Rust 算法层与 IPC 契约稳定，前端交互迭代不触碰（契约测试保护）
-- 统计实现均与上游对数：`tests/js/stats.test.mjs` 等 93 个 node 用例 + 96 个 cargo 用例
+- 统计实现均与上游对数：`tests/js/stats.test.mjs` 等 135 个 node 用例 + 108 个 cargo 用例
 
 ## 🛠️ 开发指南
 
@@ -135,8 +141,8 @@ node --test tests/js/*.test.mjs
 node tests/smoke_exe.mjs
 ```
 
-新增一个工具只需三步（注册表条目 + 脚本 + 对数测试），详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
-交互范式参考 [IT-Tools](https://github.com/CorentinTh/it-tools)、[DevToys](https://github.com/DevToys-app/DevToys)、[Rubick](https://github.com/rubickCenter/rubick)（仅借鉴交互，未复制其代码）；病理工作区以 [QuPath](https://github.com/qupath/qupath) 为领域基准。
+新增一个工具只需三步（注册表条目 + 脚本 + 对数测试），详见 [CONTRIBUTING.md](CONTRIBUTING.md)；视觉契约见 [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)。
+交互范式参考 [IT-Tools](https://github.com/CorentinTh/it-tools)、[DevToys](https://github.com/DevToys-app/DevToys)、[Rubick](https://github.com/rubickCenter/rubick)、[Obsidian Bookmarks](https://obsidian.md/help/plugins/bookmarks)（仅借鉴交互，未复制其代码）；病理工作区以 [QuPath](https://github.com/qupath/qupath) 为领域基准。
 
 ## 📄 许可与署名
 

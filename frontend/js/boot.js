@@ -33,9 +33,24 @@ function showWelcome(){
   Store.migrateLegacy();   // P2：旧 localStorage 工具状态搬进台账
   applyTheme();            // P3：主题（浅色/深色/跟随系统）
   setGreet();              // 磁盘读回后用真实称呼重设问候
+  /* P4：先注入已启用插件（注册工具/卡片），再渲染侧栏与 Dashboard；
+     单个插件失败隔离，不拖垮主程序。浏览器模式无桌面插件，直接跳过。 */
+  if(typeof pluginBoot==='function'){try{await pluginBoot()}catch(e){console.warn('插件加载失败：',e)}}
+  if(WINDOW_MODE){
+    /* P1 工具窗口模式：只保留目标视图所需初始化——跳过欢迎遮罩 / 首页 Dashboard /
+       子页渲染 / 通知轮询（这些只属于主窗口）。路由随后直达 #/tool/<id>。 */
+    document.body.classList.add('win-mode');
+    applyDensity();
+    return;
+  }
   if(window.__labkitFirstRun)showWelcome();
   if(typeof notifyBadge==='function')notifyBadge();
-  if(typeof shellRenderFavs==='function')shellRenderFavs();   // 磁盘读回后刷新收藏侧栏
+  if(typeof shellRenderPins==='function')shellRenderPins();   // 磁盘读回后刷新侧栏固定区
+  if(typeof shellRenderCats==='function')shellRenderCats();   // 插件工具注册后刷新工具分组
+  if(typeof renderToolHub==='function')renderToolHub();       // 工具库卡片同步插件工具
+  if(typeof renderZoteroBar==='function')renderZoteroBar();   // P3：文献页连接状态条
+  if(typeof zoteroProbe==='function'&&zoteroCfg().enabled)zoteroProbe();  // 开启对接时后台探测
+  if(typeof pluginFetchIndex==='function'&&_route.name==='plugins')pluginFetchIndex();  // 深链直达市场时磁盘已就绪
   applyDensity();
   buildDash(true);
   refreshHome();
@@ -43,9 +58,9 @@ function showWelcome(){
 })();
 invoke('init_engine').catch(()=>{});
 invoke('app_info').then(info=>{if(info&&info.version)document.querySelector('.side-foot').textContent='v'+info.version+' · Rust + Tauri'}).catch(()=>{});
-ensureRoiDb();
+if(!WINDOW_MODE||WIN_LABEL==='tool-crop')ensureRoiDb();
 /* Restore the last qPCR run (wells + design) from the independent session file. */
-if(IN_TAURI){
+if(IN_TAURI&&(!WINDOW_MODE||WIN_LABEL==='tool-qpcr')){
   invoke('qpcr_load_session').then(run=>{
     if(!run||!run.wells||!run.wells.length)return;
     afterWells(run.wells);
@@ -66,3 +81,25 @@ shellInit();
 paletteInit();
 keysInit();
 routerInit();
+/* P1 工具窗口收尾：标题栏显示工具名、隐藏返回键（窗口内无首页可回）、
+   内容就绪后 show()（创建时 visible:false，window-state 已先恢复尺寸/位置，防闪烁）。 */
+if(WINDOW_MODE){
+  const r=parseHash(location.hash);
+  const meta=r.name==='tool'?(window.TOOL_META||[]).find(t=>t.id===r.arg):null;
+  const title=(meta&&meta.name)||(PAGE_META[r.name]&&PAGE_META[r.name].name)||'工具';
+  const wt=document.querySelector('.win-title');
+  if(wt&&wt.lastChild&&wt.lastChild.nodeType===3)wt.lastChild.textContent=' '+title+' · LabKit';
+  ['toolBack','cropBack','qpcrBack'].forEach(id=>{const b=document.getElementById(id);if(b)b.hidden=true});
+  const W=lkWin().getCurrentWindow();
+  W.setTitle(title+' · 科研工具箱 LabKit').catch(()=>{});
+  /* show 失败就销毁窗口：visible:false 的失败窗会一直留在进程里，
+     导致「关不掉/退不出」。destroy 不发 CloseRequested，不触发握手。 */
+  const showWin=()=>{W.show().catch(()=>{W.destroy().catch(()=>{})})};
+  if(r.name==='tool'){
+    /* 等工具脚本注入并渲染出首个非占位节点再显示；2.5s 兜底防卡白窗 */
+    const host=document.getElementById('toolHost');
+    const mo=new MutationObserver(()=>{if(host.querySelector(':not(.tnote)')){mo.disconnect();showWin()}});
+    mo.observe(host,{childList:true});
+    setTimeout(()=>{mo.disconnect();showWin()},2500);
+  }else setTimeout(showWin,80);
+}

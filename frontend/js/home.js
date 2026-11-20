@@ -109,7 +109,7 @@ function boardCard(t){
   const i=DB.tasks.indexOf(t);
   return `<div class="board-card" draggable="true" data-tcard="${t.id}">
     <div class="n">${esc(t.name)}</div>
-    <div class="task-meta"><span class="badge ${PRI_CLS[t.pri][1]}">${PRI_CLS[t.pri][0]}</span><span>${esc(t.due)}</span>${t.key?'<span class="badge important">重点</span>':''}</div>
+    <div class="task-meta"><span class="badge ${(PRI_CLS[t.pri]||PRI_CLS.normal)[1]}">${(PRI_CLS[t.pri]||PRI_CLS.normal)[0]}</span><span>${esc(t.due)}</span>${t.key?'<span class="badge important">重点</span>':''}</div>
     <div class="row-acts">
       ${TSTATE.filter(([s])=>s!==t.state).map(([s,l])=>`<button class="mini-act" data-tstate="${t.id}|${s}">${l}</button>`).join('')}
       <button class="mini-act" data-edit="task|${i}">编辑</button>
@@ -141,7 +141,7 @@ function renderTaskCal(){
     const dt=new Date(d+'T00:00');
     const items=DB.tasks.filter(t=>taskOnDay(t,d));
     return `<div class="cal-col"><h3>${d===todayStr()?'今天':d.slice(5)} · 周${'日一二三四五六'[dt.getDay()]}<span class="cnt">${items.length}</span></h3>
-      ${items.map(t=>`<div class="cal-item${t.done?' done':''}"><label><input type="checkbox" data-check="${t.id}"${t.done?' checked':''}><span>${esc(t.name)}</span></label><div class="task-meta"><span class="badge ${PRI_CLS[t.pri][1]}">${PRI_CLS[t.pri][0]}</span>${isRecurring(t)?'<span class="badge normal">重复</span>':''}</div></div>`).join('')||'<div class="sub">无安排</div>'}</div>`;
+      ${items.map(t=>`<div class="cal-item${t.done?' done':''}"><label><input type="checkbox" data-check="${t.id}"${t.done?' checked':''}><span>${esc(t.name)}</span></label><div class="task-meta"><span class="badge ${(PRI_CLS[t.pri]||PRI_CLS.normal)[1]}">${(PRI_CLS[t.pri]||PRI_CLS.normal)[0]}</span>${isRecurring(t)?'<span class="badge normal">重复</span>':''}</div></div>`).join('')||'<div class="sub">无安排</div>'}</div>`;
   }).join('')}</div>`;
 }
 function bindBoardDnD(){
@@ -264,13 +264,22 @@ function renderExpTable(){
   document.getElementById('expTable').innerHTML=`<table class="tbl"><thead><tr><th>实验 ID</th><th>归属项目</th><th>类型</th><th>日期</th><th>状态</th><th>摘要 / 备注</th><th>操作</th></tr></thead><tbody>${rows.map(({e,i})=>`<tr><td class="name">${esc(e.id)}</td><td>${esc(e.proj)}</td><td>${esc(e.type)}</td><td>${esc(e.date)}</td><td><span class="status-badge ${STATUS_CLS[e.status]}">${esc(e.status)}</span></td><td style="white-space:normal;max-width:280px">${esc(e.note)}</td><td>${rowActs('exp',i)}</td></tr>`).join('')||'<tr><td colspan="7" class="sub">无匹配记录</td></tr>'}</tbody></table>`;
   bindRowActs();
 }
+let litSource='all';
 function renderLiterature(){
-  document.getElementById('litTable').innerHTML=`<table class="tbl"><thead><tr><th>标题</th><th>来源</th><th>状态</th><th>笔记</th><th>操作</th></tr></thead><tbody>${DB.literatures.map((l,i)=>`<tr><td class="name" style="white-space:normal;max-width:340px">${esc(l.title)}</td><td>${esc(l.meta)}</td><td><span class="badge ${l.status==='待精读'?'important':l.status==='笔记待整理'?'urgent':'normal'}">${esc(l.status)}</span></td><td style="white-space:normal;max-width:220px;color:var(--muted)">${esc((l.note||'').slice(0,60))||'—'}</td><td>${rowActs('lit',i,l.doi?`<button class="mini-act" data-doi="${i}">原文</button>`:'')}</td></tr>`).join('')||'<tr><td colspan="5" class="sub">文献库为空，点右上角添加</td></tr>'}</tbody></table>`;
+  if(typeof renderZoteroBar==='function')renderZoteroBar();
+  document.querySelectorAll('[data-litsrc]').forEach(b=>b.classList.toggle('active',b.dataset.litsrc===litSource));
+  const rows=DB.literatures.map((l,i)=>({l,i})).filter(({l})=>
+    litSource==='all'||(litSource==='zotero'?!!l.zoteroKey:!l.zoteroKey));
+  document.getElementById('litTable').innerHTML=`<table class="tbl"><thead><tr><th>标题</th><th>来源</th><th>状态</th><th>笔记</th><th>操作</th></tr></thead><tbody>${rows.map(({l,i})=>`<tr><td class="name" style="white-space:normal;max-width:340px">${esc(l.title)}${l.zoteroKey?' <span class="z-tag">Zotero</span>':''}</td><td>${esc(l.meta)}</td><td><span class="badge ${l.status==='待精读'?'important':l.status==='笔记待整理'?'urgent':'normal'}">${esc(l.status)}</span></td><td style="white-space:normal;max-width:220px;color:var(--muted)">${esc((l.note||'').slice(0,60))||'—'}</td><td>${rowActs('lit',i,[l.doi?`<button class="mini-act" data-doi="${i}">原文</button>`:'',l.zoteroKey?`<button class="mini-act" data-zot="${i}">Zotero</button>`:''].join(''))}</td></tr>`).join('')||'<tr><td colspan="5" class="sub">'+(litSource==='zotero'?'还没有从 Zotero 导入的文献 · 点上方「从 Zotero 导入」':'文献库为空，点右上角添加')+'</td></tr>'}</tbody></table>`;
   bindRowActs();
+  document.querySelectorAll('[data-litsrc]').forEach(b=>b.onclick=()=>{litSource=b.dataset.litsrc;renderLiterature()});
   document.querySelectorAll('[data-doi]').forEach(el=>el.onclick=()=>{
     const l=DB.literatures[+el.dataset.doi];if(!l||!l.doi)return;
     const u=/^https?:/.test(l.doi)?l.doi:'https://doi.org/'+l.doi.replace(/^doi:/i,'');
     if(IN_TAURI)invoke('plugin:opener|open_url',{url:u}).catch(e=>toast('打开失败，链接：'+u,7000));else window.open(u,'_blank');
+  });
+  document.querySelectorAll('[data-zot]').forEach(el=>el.onclick=()=>{
+    const l=DB.literatures[+el.dataset.zot];if(l&&l.zoteroKey&&typeof zoteroOpen==='function')zoteroOpen(l.zoteroKey,false);
   });
 }
 let labTab='reagent';

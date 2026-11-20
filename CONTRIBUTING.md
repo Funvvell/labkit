@@ -24,7 +24,7 @@ Thanks for helping! This doc covers setup, tests, and the standard flow for addi
 
 ## 新增一个工具 / Adding a tool（三步）
 
-参照 IT-Tools 的脚手架思路，但保持零构建：
+参照 IT-Tools 的脚手架思路，但保持零构建；视觉契约（色彩 / 字体 / 按钮 / 间距 token 与交互惯例）见 [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)，新增工具一律使用 CSS 变量，不写死色值：
 
 1. **注册表条目** `frontend/tools/registry.js`：
    ```js
@@ -43,6 +43,17 @@ Thanks for helping! This doc covers setup, tests, and the standard flow for addi
 完成后自检：`node --test tests/js/*.test.mjs`、`cd rust && cargo test --test ipc_args`、
 浏览器打开工具页确认 壳层按钮 / 持久化 / 导出条 / 帮助抽屉 正常。
 桌面改动另跑 exe 冒烟：`node tests/smoke_exe.mjs`（CDP 直连 WebView2，真实 CSP 环境断言 IPC / 绘图 / 切片打开）。
+
+## 社区插件 / Community plugins
+
+插件走**独立仓库 + Release 分发**，不在本仓库新增工具脚本。完整契约、manifest 字段、审核标准见
+[docs/PLUGIN_DEV.md](docs/PLUGIN_DEV.md)；视觉契约沿用 [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)。
+本地脚手架副本在 `ecosystem/labkit-plugin-template/`，索引副本在 `ecosystem/labkit-plugins/`。
+插件 api 为 `LabKit.registerTool(meta, fn)` 与 `LabKit.registerWidget(def)`，id 自动加 `x-<pluginId>-` 前缀；
+仅 classic script，零构建；禁止复制 GPLv3 代码，插件安全模型为「受信 JS、无硬沙箱」需在描述中明示。
+
+插件相关改动（新增 IPC 命令、URI scheme、CSP）同样受硬性约定 1 约束：同步更新
+`rust/tests/ipc_args.rs` 与 `tests/js/plugin-manifest.test.mjs`，并跑 `cargo test`。
 
 ## 发布流程 / Releasing
 

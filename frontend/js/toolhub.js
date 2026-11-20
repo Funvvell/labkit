@@ -41,16 +41,56 @@ function renderToolHub(){
   const groups={};
   (window.TOOL_META||[]).forEach(t=>{(groups[t.group]=groups[t.group]||[]).push(t)});
   const host=document.getElementById('toolhubGrid');
-  host.innerHTML=Object.entries(groups).map(([g,ts])=>`<div class="toolhub-group"><h3>${esc(g)}</h3><div class="toolhub-grid">${ts.map(t=>`<button class="tool-card" data-tool-id="${t.id}" style="--tc:${TOOL_GROUP_COLOR[g]||'#007AFF'}"><span class="tc-ico">${toolIcon(t.id)}</span><span class="tc-body"><span class="tc-name">${esc(t.name)}</span><span class="tc-desc">${esc(t.desc)}</span></span><span class="tc-fav${Store.isFav(t.id)?' on':''}" data-fav-toggle="${t.id}" role="button" aria-label="收藏 ${esc(t.name)}" title="收藏 / 取消收藏">${Store.isFav(t.id)?'★':'☆'}</span></button>`).join('')}</div></div>`).join('');
+  host.innerHTML=Object.entries(groups).map(([g,ts])=>`<div class="toolhub-group"><h3>${esc(g)}</h3><div class="toolhub-grid">${ts.map(t=>`<button class="tool-card" data-tool-id="${t.id}" style="--tc:${TOOL_GROUP_COLOR[g]||'#007AFF'}"><span class="tc-ico">${toolIcon(t.id)}</span><span class="tc-body"><span class="tc-name">${esc(t.name)}</span><span class="tc-desc">${esc(t.desc)}</span></span>${IN_TAURI?`<span class="tc-win" data-tool-window="${t.id}" role="button" aria-label="在新窗口打开 ${esc(t.name)}" title="在新窗口打开（也可 Ctrl/⌘+点击或中键）">↗</span>`:''}<span class="tc-fav${Store.isFav(t.id)?' on':''}" data-fav-toggle="${t.id}" role="button" aria-label="固定 ${esc(t.name)}" title="固定 / 取消固定">${Store.isFav(t.id)?'★':'☆'}</span></button>`).join('')}</div></div>`).join('');
   /* 点击统一由 shell.js 委托处理（含卡内星标，避免嵌套 button 与双触发） */
 }
-/* P1：openTool 只改路由；渲染由 renderRoute → renderTool 完成（深链/刷新/前进后退同路径） */
+/* P1：openTool 只改路由；渲染由 renderRoute → renderTool 完成（深链/刷新/前进后退同路径）。
+   设置「工具默认在新窗口打开」或工具窗口内再开工具 → 走独立窗口（保持窗口身份稳定）。 */
 function openTool(id){
   const meta=(window.TOOL_META||[]).find(t=>t.id===id);
   if(!meta){toast('工具不存在');return}
+  /* 桌面版默认所有工具开独立窗口；设置 toolOpenInPage=true 才回退页内。
+     工具窗口内再开工具恒新窗；浏览器模式无 Tauri 仍走页内（file:// 可演示）。 */
+  if(IN_TAURI&&(WINDOW_MODE||!Store.settings().toolOpenInPage)){openToolWindow(id);return}
   /* 内置工作区（图像裁剪 / qPCR）：直接打开对应视图，返回键走真实历史 */
   if(meta.workspace){navigate(meta.id);return}
   navigate('tool',id);
+}
+/* P1：工具独立窗口（Tauri 2 WebviewWindow，官方多窗口能力，零构建可用）。
+   同 id 已存在 → 聚焦不新建；创建失败 → toast + 回退页内打开（浏览器模式永远页内）。
+   visible:false 防闪烁：window-state 插件先恢复尺寸/位置，boot 渲染就绪后 show()。 */
+async function openToolWindow(id){
+  if(!IN_TAURI){openTool(id);return}
+  const meta=(window.TOOL_META||[]).find(t=>t.id===id);
+  if(!meta){toast('工具不存在');return}
+  /* 先转义 _ 为 __ 再替换其它非法字符，避免 a_b 与 a-b 撞名；截断防超长 label。
+     内置 crop/qpcr 不含下划线，boot.js 的 WIN_LABEL==='tool-crop' 判断不受影响。 */
+  const label='tool-'+String(id).replace(/_/g,'__').replace(/[^a-zA-Z0-9_-]/g,'-').slice(0,48);
+  const url='index.html#/'+(meta.workspace?meta.id:'tool/'+id);
+  const WW=window.__TAURI__.webviewWindow;
+  /* 回退必须直接页内导航：openTool 在窗口模式/默认新窗口设置下会再调 openToolWindow，形成递归 */
+  const fallback=()=>{toast('新窗口打开失败，已在页内打开');meta.workspace?navigate(meta.id):navigate('tool',id)};
+  const focusExisting=async()=>{
+    const w=await WW.WebviewWindow.getByLabel(label);
+    if(w){try{await w.setFocus();return true}catch(e){}}
+    return false;
+  };
+  try{
+    if(await focusExisting())return;
+    const win=new WW.WebviewWindow(label,{
+      url,title:meta.name+' · 科研工具箱 LabKit',
+      width:1100,height:760,minWidth:860,minHeight:560,
+      visible:false,center:true,decorations:false,dragDropEnabled:false,shadow:true,
+    });
+    win.once('tauri://error',async e=>{
+      /* label 竞态（双击连开）：第二次创建报已存在 → 聚焦既有窗口 */
+      if(await focusExisting())return;
+      fallback();
+    });
+  }catch(e){
+    if(await focusExisting())return;
+    fallback();
+  }
 }
 let _renderSeq=0;
 async function renderTool(id){
@@ -86,14 +126,20 @@ function syncToolFav(){
   const b=document.getElementById('toolFav');if(!b)return;
   const on=!!(_route.arg&&Store.isFav(_route.arg));
   b.classList.toggle('on',on);
-  b.textContent=on?'★ 已收藏':'☆ 收藏';
+  b.textContent=on?'★ 已固定':'☆ 固定';
 }
 document.getElementById('toolFav').onclick=()=>{
   if(!_route.arg)return;
   const on=Store.toggleFav(_route.arg);
-  shellRenderFavs();renderToolHub();syncToolFav();
-  toast(on?'已加入收藏（侧栏可见）':'已取消收藏');
+  shellRenderPins();renderToolHub();syncToolFav();
+  toast(on?'已固定到侧栏':'已取消固定');
 };
+/* P1：工具页头「↗ 新窗口」；浏览器模式与工具窗口内隐藏（窗口身份保持稳定） */
+(function(){
+  const b=document.getElementById('toolNewWin');if(!b)return;
+  b.hidden=!IN_TAURI||WINDOW_MODE;
+  b.onclick=()=>{if(_route.arg)openToolWindow(_route.arg)};
+})();
 /* ---- P2：统一壳控件与表单持久化 ----
    表单快照按 id/name/序号 键控；恢复时派发 input/change 让工具自行重算。
    动态行类工具（figure/plate/checklists/plotter/timer/imgbatch/inventory）在 registry 声明 persist:false，

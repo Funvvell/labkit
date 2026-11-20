@@ -104,6 +104,7 @@ const ENT={
       {k:'note',label:'读书笔记',type:'textarea',full:1,value:r?r.note||'':''},
     ],
     apply:(v,r)=>Object.assign(r||{id:uid('l')},{title:v.title,meta:v.meta||'—',status:v.status,doi:v.doi||'',note:v.note||''}),
+    post:(o)=>{if(typeof zoteroMirrorStatus==='function')zoteroMirrorStatus(o)},
     refresh:()=>{refreshHome();renderLiterature()}},
   reagent:{name:'试剂',arr:()=>DB.reagents,head:0,label:r=>r.name,
     fields:r=>[
@@ -197,15 +198,15 @@ function entityDelete(kind,i){
     arr.splice(i,1);saveDB();e.refresh();queueResize();toast('已删除'+e.name);
   },'删除');
 }
-function confirmModal(title,msg,onOK,okLabel){
+function confirmModal(title,msg,onOK,okLabel,onCancel,cancelLabel){
   const mask=document.createElement('div');mask.className='modal-mask';
   const box=document.createElement('div');box.className='roi-modal';
   box.innerHTML=`<h4>${esc(title)}</h4><div class="sub" style="margin:8px 0 16px;line-height:1.75">${esc(msg)}</div>
-    <div class="btn-row"><button class="btn danger" id="cf_ok">${esc(okLabel||'确定')}</button><button class="btn sec" id="cf_no">取消</button></div>`;
+    <div class="btn-row"><button class="btn danger" id="cf_ok">${esc(okLabel||'确定')}</button><button class="btn sec" id="cf_no">${esc(cancelLabel||'取消')}</button></div>`;
   mask.appendChild(box);document.getElementById('win').appendChild(mask);
   const close=()=>mask.remove();
   mask.onclick=ev=>{if(ev.target===mask)close()};
-  box.querySelector('#cf_no').onclick=close;
+  box.querySelector('#cf_no').onclick=()=>{close();if(typeof onCancel==='function')onCancel()};
   box.querySelector('#cf_ok').onclick=()=>{close();onOK()};
 }
 /* 兼容旧调用名：首页卡片和子页按钮都还在用这些名字 */

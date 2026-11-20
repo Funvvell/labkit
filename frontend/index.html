@@ -7,6 +7,9 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="tools/tools.css">
+<!-- P2：gridstack.js v14（MIT，Homarr 同款 2D 网格引擎）——UMD 单文件，零构建 classic script -->
+<link rel="stylesheet" href="vendor/gridstack.min.css">
+<script src="vendor/gridstack-all.js"></script>
 <script src="tools/registry.js"></script>
 </head>
 <body>
@@ -35,19 +38,13 @@
       <button class="side-search" id="sideSearch"><svg viewBox="0 0 24 24" fill="none"><circle cx="10.8" cy="10.8" r="6.2" stroke="currentColor" stroke-width="2"/><path d="M15.4 15.4L20 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>搜索工具 / 页面…</span><kbd>Ctrl K</kbd></button>
       <div class="side-group">工作台</div>
       <button class="nav-item" data-nav="home"><svg viewBox="0 0 24 24" fill="none"><path d="M4 11L12 4L20 11M6 9.5V19C6 19.6 6.4 20 7 20H17C17.6 20 18 19.6 18 19V9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 20V14H14V20" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span class="label">首页</span></button>
-      <button class="nav-item" data-nav="tasks"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 12L11 14.5L15.5 9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="label">任务</span></button>
-      <button class="nav-item" data-nav="projects"><svg viewBox="0 0 24 24" fill="none"><path d="M3.5 7C3.5 5.9 4.4 5 5.5 5H9L11 7.5H18.5C19.6 7.5 20.5 8.4 20.5 9.5V17C20.5 18.1 19.6 19 18.5 19H5.5C4.4 19 3.5 18.1 3.5 17V7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span class="label">项目</span></button>
-      <button class="nav-item" data-nav="experiments"><svg viewBox="0 0 24 24" fill="none"><path d="M9.5 3.5H14.5M10.5 3.5V9L5.4 18.2C4.8 19.3 5.6 20.5 6.8 20.5H17.2C18.4 20.5 19.2 19.3 18.6 18.2L13.5 9V3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 15H16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="label">实验</span></button>
-      <button class="nav-item" data-nav="literature"><svg viewBox="0 0 24 24" fill="none"><path d="M5 4.5C5 3.9 5.4 3.5 6 3.5H19V18.5H6.5C5.7 18.5 5 19.2 5 20V4.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M5 20C5 19.2 5.7 18.5 6.5 18.5H19V20.5H6.5C5.7 20.5 5 20.8 5 20Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 8H15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="label">文献</span></button>
-      <button class="nav-item" data-nav="labres"><svg viewBox="0 0 24 24" fill="none"><path d="M21 8L12 3L3 8V16L12 21L21 16V8Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 8L12 13L21 8M12 13V21" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span class="label">仪器 / 试剂</span></button>
-      <button class="nav-item" data-nav="reports"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20H20M7 20V12M12 20V6M17 20V10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="label">报表</span></button>
       <div class="side-group">工具库</div>
       <button class="nav-item" data-nav="toolhub"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="18.5" cy="17" r="2.6" stroke="currentColor" stroke-width="1.6"/></svg><span class="label">全部工具</span></button>
+      <button class="nav-item" data-nav="plugins"><svg viewBox="0 0 24 24" fill="none"><path d="M9.5 3.5h5l.7 3.2 2.5 1.5 3-1.3 2.3 4-2.5 2v3l2.5 2-2.3 4-3-1.3-2.5 1.5-.7 3.2h-5l-.7-3.2-2.5-1.5-3 1.3-2.3-4 2.5-2v-3l-2.5-2 2.3-4 3 1.3 2.5-1.5.7-3.2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.5"/></svg><span class="label">插件市场</span></button>
       <div id="sideFavs"></div>
       <div id="sideCats"></div>
       <div class="side-spacer"></div>
       <button class="nav-item" data-nav="settings"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M12 3V5.5M12 18.5V21M3 12H5.5M18.5 12H21M5.6 5.6L7.4 7.4M16.6 16.6L18.4 18.4M18.4 5.6L16.6 7.4M7.4 16.6L5.6 18.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="label">设置</span></button>
-      <button class="nav-item" data-nav="ds"><svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8" stroke="currentColor" stroke-width="1.9"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8" stroke="currentColor" stroke-width="1.9"/><path d="M13.5 7H17C18.1 7 19 7.9 19 9V13M7 13.5V17C7 18.1 7.9 19 9 19H10.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span class="label">设计规范</span></button>
       <div class="side-foot">v0.2.0 · Rust + Tauri</div>
     </aside>
 
@@ -63,6 +60,7 @@
           <div class="dash-toolbar">
             <div class="dash-hint" id="dashHint">卡片右上角可直接新建任务 / 记录 · 点「编辑布局」调整卡片</div>
             <div class="tools" id="dashTools">
+              <button class="btn sec" id="btnWorkbench" title="工作台子页总入口：任务 / 项目 / 实验 / 文献 / 仪器试剂 / 报表 / 专注">工作台 ▾</button>
               <button class="btn sec" id="btnDashEdit">编辑布局</button>
             </div>
             <div class="tools edit-tools" id="dashEditTools" style="display:none">
@@ -81,6 +79,7 @@
       <section class="view" id="view-tasks">
         <div class="content-head">
           <button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="pin-btn" data-pin-toggle="tasks" data-pin-toggle-kind="page" title="固定到侧栏" aria-label="固定到侧栏">☆</button>
           <div><h1>任务中心</h1><div class="sub">日 / 周 / 清单 / 看板四种视图 · 支持重复任务与批量操作</div></div>
           <button class="btn-primary" id="btnNewTask"><svg viewBox="0 0 24 24" fill="none"><path d="M12 5V19M5 12H19" stroke="white" stroke-width="2.2" stroke-linecap="round"/></svg>新建任务</button>
         </div>
@@ -96,7 +95,7 @@
 
       <!-- VIEW: 专注记录 -->
       <section class="view" id="view-focus">
-        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>专注记录</h1><div class="sub">计时自动写入，无需手动填周报 · 可导出 CSV</div></div><button class="btn sec" id="btnNewFocus">手动补记</button><button class="btn-primary" id="btnFocusExport">导出 CSV</button></div>
+        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="pin-btn" data-pin-toggle="focus" data-pin-toggle-kind="page" title="固定到侧栏" aria-label="固定到侧栏">☆</button><div><h1>专注记录</h1><div class="sub">计时自动写入，无需手动填周报 · 可导出 CSV</div></div><button class="btn sec" id="btnNewFocus">手动补记</button><button class="btn-primary" id="btnFocusExport">导出 CSV</button></div>
         <div class="scroll">
           <div class="dash-grid-3">
             <div class="dash-card"><div class="card-head"><h2>按任务类型占比</h2></div><div id="focusPie" class="pie-center"></div></div>
@@ -109,13 +108,13 @@
 
       <!-- VIEW: 项目管理 -->
       <section class="view" id="view-projects">
-        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>项目管理</h1><div class="sub">课题 · 阶段 · 里程碑 · 风险备注</div></div><button class="btn-primary" id="btnNewProject">新建项目</button></div>
+        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="pin-btn" data-pin-toggle="projects" data-pin-toggle-kind="page" title="固定到侧栏" aria-label="固定到侧栏">☆</button><div><h1>项目管理</h1><div class="sub">课题 · 阶段 · 里程碑 · 风险备注</div></div><button class="btn-primary" id="btnNewProject">新建项目</button></div>
         <div class="scroll"><div class="proj-grid" id="projGrid"></div></div>
       </section>
 
       <!-- VIEW: 实验台账 -->
       <section class="view" id="view-experiments">
-        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>实验台账</h1><div class="sub">模板复用 · 失败复盘 · 一键生成组会记录</div></div><button class="btn-primary" id="btnNewExp">新建实验</button></div>
+        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="pin-btn" data-pin-toggle="experiments" data-pin-toggle-kind="page" title="固定到侧栏" aria-label="固定到侧栏">☆</button><div><h1>实验台账</h1><div class="sub">模板复用 · 失败复盘 · 一键生成组会记录</div></div><button class="btn-primary" id="btnNewExp">新建实验</button></div>
         <div class="scroll">
           <div class="filter-row">
             <select class="native-select" id="expFilterProj"></select>
@@ -128,13 +127,17 @@
 
       <!-- VIEW: 文献库 -->
       <section class="view" id="view-literature">
-        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>文献库</h1><div class="sub">轻量管理 · 不替代 Zotero · 可选 WebDAV 对接</div></div><button class="btn-primary" id="btnNewLit">添加文献</button></div>
-        <div class="scroll"><div class="dash-card full"><div id="litTable"></div></div></div>
+        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="pin-btn" data-pin-toggle="literature" data-pin-toggle-kind="page" title="固定到侧栏" aria-label="固定到侧栏">☆</button><div><h1>文献库</h1><div class="sub">轻量管理 · 不替代 Zotero · 可选 WebDAV 对接</div></div><button class="btn-primary" id="btnNewLit">添加文献</button></div>
+        <div class="scroll">
+          <div class="zotero-bar" id="zoteroBar"></div>
+          <div class="seg-ctl" style="max-width:420px;margin-bottom:10px"><button class="active" data-litsrc="all">全部</button><button data-litsrc="local">本地</button><button data-litsrc="zotero">Zotero</button></div>
+          <div class="dash-card full"><div id="litTable"></div></div>
+        </div>
       </section>
 
       <!-- VIEW: 仪器/试剂 -->
       <section class="view" id="view-labres">
-        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>仪器 / 试剂</h1><div class="sub">有效期 · 余量 · 校准提醒 · 机时预约</div></div><button class="btn-primary" id="btnLabNew">新增试剂</button></div>
+        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="pin-btn" data-pin-toggle="labres" data-pin-toggle-kind="page" title="固定到侧栏" aria-label="固定到侧栏">☆</button><div><h1>仪器 / 试剂</h1><div class="sub">有效期 · 余量 · 校准提醒 · 机时预约</div></div><button class="btn-primary" id="btnLabNew">新增试剂</button></div>
         <div class="scroll">
           <div class="seg-ctl" style="max-width:420px"><button class="active" data-labtab="reagent">试剂</button><button data-labtab="instrument">仪器</button><button data-labtab="booking">机时预约</button></div>
           <div class="dash-card full"><div id="labTable"></div></div>
@@ -143,7 +146,7 @@
 
       <!-- VIEW: 统计报表 -->
       <section class="view" id="view-reports">
-        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>统计报表</h1><div class="sub">工作量一目了然 · 支持导出</div></div><button class="btn-primary" id="btnReportExport">导出报表</button></div>
+        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="pin-btn" data-pin-toggle="reports" data-pin-toggle-kind="page" title="固定到侧栏" aria-label="固定到侧栏">☆</button><div><h1>统计报表</h1><div class="sub">工作量一目了然 · 支持导出</div></div><button class="btn-primary" id="btnReportExport">导出报表</button></div>
         <div class="scroll">
           <div class="kpi-row" id="reportKpi"></div>
           <div class="dash-card full"><div class="card-head"><h2>专注趋势</h2><div class="seg wide" id="reportRange"><button class="active" data-range="14">14 天</button><button data-range="30">30 天</button><button data-range="90">90 天</button></div></div><div id="reportChart"></div><div class="sub" id="reportChartNote"></div></div>
@@ -158,6 +161,24 @@
         </div>
       </section>
 
+      <!-- VIEW: 插件市场（P4，Obsidian 式索引 + GitHub Release 分发） -->
+      <section class="view" id="view-plugins">
+        <div class="content-head">
+          <button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <div><h1>插件市场</h1><div class="sub">社区工具与卡片 · 索引审核 · GitHub Release 分发 · 不自动更新</div></div>
+          <button class="btn sec" id="btnPluginRefresh">刷新索引</button>
+          <button class="btn sec" id="btnPluginLocal">载入本地插件</button>
+        </div>
+        <div class="scroll">
+          <div class="plugin-status" id="pluginMarketStatus"></div>
+          <div class="filter-row">
+            <input type="text" id="pluginSearch" class="native-select" style="flex:1;min-width:220px" placeholder="搜索插件（名称 / 作者 / 描述，支持拼音）…" autocomplete="off">
+            <div class="seg wide" id="pluginTabs"><button class="active" data-ptab="market">市场</button><button data-ptab="installed">已安装</button><button data-ptab="dev">开发</button></div>
+          </div>
+          <div id="pluginList" class="plugin-grid"></div>
+        </div>
+      </section>
+
       <!-- VIEW: 设置 -->
       <section class="view" id="view-settings">
         <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>设置</h1><div class="sub">密度 · 数据与备份 · 关于</div></div></div>
@@ -167,6 +188,7 @@
             <div class="trow" style="margin-top:6px">
               <label class="tfield">问候称呼<input type="text" id="setName" style="width:160px" placeholder="研究者"></label>
               <label class="tfield">主题<div class="seg" id="themeSeg" style="display:inline-flex"><button data-theme="light">浅色</button><button data-theme="dark">深色</button><button data-theme="system">跟随系统</button></div></label>
+              <label class="tfield" style="justify-content:flex-end"><span style="font-size:11.5px;color:var(--muted);font-weight:500">工具窗口</span><label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="setToolOpenInPage"> 默认在页内打开</label></label>
             </div>
             <div class="sub" style="margin-top:8px">称呼用于首页问候与新建记录的默认负责人；主题立即生效并随台账保存。图表与裁图画布保持纸面白色，符合期刊投稿要求。</div>
           </div>
@@ -189,6 +211,23 @@
             <div class="btn-row" style="margin-top:10px;flex-wrap:wrap">
               <button class="btn sec" id="btnDbClearDemo">清空示例数据</button>
               <button class="btn danger" id="btnDbReset">重置全部台账</button>
+            </div>
+            <div class="divider" style="margin:14px 0"></div>
+            <div class="card-head"><h2>Zotero 对接</h2><span class="db-pill" id="zoteroStatus">点「测试连接」探测 Zotero 本地 API</span></div>
+            <div class="sub" style="margin-top:6px">只有开启对接才会连接本机 Zotero。阅读状态与笔记始终保存在 LabKit 本地；Zotero 10+ 可在授权后把状态镜像为 tag。需先在 Zotero「设置 → 高级 → 允许本机其他应用与 Zotero 通信」中开启本地 API。</div>
+            <div class="trow" style="margin-top:10px;flex-wrap:wrap">
+              <label style="display:inline-flex;align-items:center;gap:7px;font-size:13px;cursor:pointer"><input type="checkbox" id="setZoteroEnabled"> 启用 Zotero 对接</label>
+              <label class="tfield">端口<input type="number" id="setZoteroPort" min="1" max="65535" value="23119" style="width:110px"></label>
+              <button class="btn sec" id="btnZoteroTest">测试连接</button>
+              <label id="zoteroWriteWrap" style="display:none;align-items:center;gap:7px;font-size:13px;cursor:pointer"><input type="checkbox" id="setZoteroWrite"> 回写状态到 Zotero tag（10+）</label>
+            </div>
+            <div class="divider" style="margin:14px 0"></div>
+            <div class="card-head"><h2>插件市场</h2><span class="db-pill" id="pluginStatus">未开启</span></div>
+            <div class="sub" style="margin-top:6px">社区插件与内置工具同权限，默认关闭。开启后从市场页浏览、安装 GitHub 发布的插件；不会自动更新。已安装插件的启用/更新/卸载在市场页管理。</div>
+            <div class="trow" style="margin-top:10px;flex-wrap:wrap">
+              <label style="display:inline-flex;align-items:center;gap:7px;font-size:13px;cursor:pointer"><input type="checkbox" id="setCommunityPlugins"> 允许社区插件</label>
+              <button class="btn sec" data-nav="plugins">打开插件市场</button>
+              <button class="btn sec" id="btnPluginSource">管理索引源</button>
             </div>
             <div class="divider" style="margin:14px 0"></div>
             <div class="card-head"><h2>关于</h2></div>
@@ -382,7 +421,8 @@
           <div style="display:flex;align-items:center;gap:12px">
             <button class="btn sec" id="toolBack">← 工具库</button>
             <div><h1 id="toolTitle">工具</h1><div class="sub" id="toolSub"></div></div>
-            <button class="btn sec" id="toolFav" title="收藏后在侧栏直达">☆ 收藏</button>
+            <button class="btn sec" id="toolFav" title="固定后在侧栏直达">☆ 固定</button>
+            <button class="btn sec" id="toolNewWin" title="把此工具放到独立窗口，边看数据边操作">↗ 新窗口</button>
           </div>
         </div>
         <!-- P2：工具统一壳（示例 / 重置 / 导出指向 / 帮助与来源） -->
@@ -395,30 +435,6 @@
         <div class="tool-help" id="toolHelp" hidden><div class="th-in" id="toolHelpBody"></div></div>
         <div class="scroll"><div class="tool-wrap"><div class="tech-source" id="toolSource" hidden></div><div id="toolHost"></div></div></div>
       </section>
-
-      <section class="view" id="view-ds">
-        <div class="ws-top">
-          <button class="back" id="dsBack"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-          <div class="ws-tool"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="#007AFF" stroke-width="1.8"/><path d="M12 3V5.5M12 18.5V21M3 12H5.5M18.5 12H21" stroke="#007AFF" stroke-width="1.8" stroke-linecap="round"/></svg>设计规范</div>
-          <div class="ws-file">全局设计 token · 新增工具时对照使用</div>
-        </div>
-        <div class="ds-scroll">
-          <div class="ds-head"><div class="kicker">DESIGN SYSTEM · v0.1</div><h1>LabKit 设计规范</h1><p>所有工具共享这套 token —— 新增功能时直接复用，保证全局一致</p></div>
-          <div class="ds-row">
-            <div class="ds-card"><h3>品牌主色</h3><div class="swatches"><div class="sw" style="background:#007AFF;color:#fff">#007AFF</div><div class="sw" style="background:#0062CC;color:#fff">#0062CC</div><div class="sw" style="background:#E8F1FF;color:#007AFF">#E8F1FF</div></div><div class="sw-note">仅用于激活态、主按钮与关键强调</div></div>
-            <div class="ds-card"><h3>中性色阶</h3><div class="swatches" style="gap:6px"><div class="sw" style="background:#1D1D1F"></div><div class="sw" style="background:#3A3A3C"></div><div class="sw" style="background:#8E8E93"></div><div class="sw" style="background:#AEAEB2"></div><div class="sw" style="background:#E5E5EA"></div><div class="sw" style="background:#F5F5F7;border:1px solid #E5E5EA"></div></div><div class="sw-note">#1D1D1F → #3A3A3C → #8E8E93 → #AEAEB2 → #E5E5EA → #F5F5F7</div></div>
-            <div class="ds-card"><h3>语义色</h3><div class="swatches"><div class="sw" style="background:#30D158;color:#fff">成功</div><div class="sw" style="background:#FF9F0A;color:#fff">警告</div><div class="sw" style="background:#FF453A;color:#fff">危险</div></div><div class="sw-note">成功 #30D158 · 警告 #FF9F0A · 危险 #FF453A</div></div>
-          </div>
-          <div class="ds-row two">
-            <div class="ds-card"><h3>字体层级</h3><div class="type-row"><b style="font-size:22px">页面标题</b><span class="spec">22 / Bold</span></div><div class="type-row"><b style="font-size:15px">分区标题</b><span class="spec">15 / Bold</span></div><div class="type-row"><span style="font-size:13px;color:var(--ink-2)">正文内容 13 / Regular</span><span class="spec">13 / Regular</span></div><div class="type-row"><span style="font-size:11px;color:var(--muted)">辅助信息 11 / Regular</span><span class="spec">11 / Regular</span></div><div class="type-row"><span style="font-family:var(--mono);font-size:13px">1234567890</span><span class="spec">Inter / 数字等宽</span></div></div>
-            <div class="ds-card"><h3>按钮 & 状态</h3><div class="btn-demo"><button class="btn pri">主按钮</button><button class="btn sec">次按钮</button><button class="btn dan">删除</button><button class="btn dis">禁用</button></div><div class="input" style="flex:none;max-width:100%"><span style="font-size:12px;color:var(--disabled)">输入框占位文字</span></div><div class="btn-demo"><span class="tag" style="background:rgba(0,122,255,.12);color:var(--accent)">进行中</span><span class="tag" style="background:rgba(48,209,88,.13);color:#248A3D">已完成</span></div></div>
-          </div>
-          <div class="ds-row two">
-            <div class="ds-card"><h3>间距 · 圆角 · 阴影</h3><div style="display:flex;gap:8px;align-items:flex-end;height:44px"><div style="width:4px;height:12px;background:var(--accent);border-radius:2px"></div><div style="width:8px;height:18px;background:var(--accent);border-radius:2px"></div><div style="width:12px;height:24px;background:var(--accent);border-radius:2px"></div><div style="width:16px;height:30px;background:var(--accent);border-radius:2px"></div><div style="width:24px;height:38px;background:var(--accent);border-radius:2px"></div></div><div class="radius-row"><div class="rb" style="border-radius:8px"></div><div class="rb" style="border-radius:12px"></div><div class="rb" style="border-radius:16px"></div><span style="font-size:10px;color:var(--muted)">按钮 8 · 控件 12 · 卡片 16</span></div><div style="height:36px;border-radius:10px;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.10);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--muted)">卡片阴影 0 4px 12px rgba(0,0,0,.10)</div></div>
-            <div class="ds-card" style="background:linear-gradient(135deg,#f5f7ff,#eef2ff);border-color:rgba(0,122,255,.12)"><h3>新增工具清单</h3><ul class="checklist"><li>分类图标沿用侧栏线性风格（1.7–2px 描边）</li><li>工具卡统一 16px 圆角 + 柔和阴影</li><li>图标底色用低饱和色，避免与主色冲突</li><li>工作区沿用「左参数 / 中画布 / 右列表」三栏</li></ul></div>
-          </div>
-        </div>
-      </section>
     </main>
   </div>
   <!-- P1：命令面板（Ctrl+K） -->
@@ -426,7 +442,7 @@
     <div class="pal" role="dialog" aria-modal="true" aria-label="命令面板">
       <div class="pal-in"><svg viewBox="0 0 24 24" fill="none"><circle cx="10.8" cy="10.8" r="6.2" stroke="currentColor" stroke-width="1.9"/><path d="M15.4 15.4L20 20" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg><input id="palInput" placeholder="搜索工具、页面、动作…（支持拼音首字母）" autocomplete="off" spellcheck="false"><kbd>Esc</kbd></div>
       <div class="pal-list" id="palList" role="listbox"></div>
-      <div class="pal-foot">↑↓ 选择 · Enter 打开 · Esc 关闭 · 空查询显示最近与收藏</div>
+      <div class="pal-foot">↑↓ 选择 · Enter 打开 · Esc 关闭 · 空查询显示最近与固定</div>
     </div>
   </div>
   <!-- P1：快捷键帮助（?） -->
@@ -479,6 +495,9 @@
 <script src="js/entities.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/settings.js"></script>
+<script src="js/zotero.js"></script>
+<script src="js/plugin-contract.js"></script>
+<script src="js/plugins.js"></script>
 <script src="js/boot.js"></script>
 </body>
 </html>

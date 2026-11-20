@@ -1,6 +1,12 @@
 // LabKit · bridge.js — P0 由 index.html 机械拆分，保持原顺序与语义（classic script，零构建）
 /* ===================== Bridge to Tauri core ===================== */
 const IN_TAURI = !!(window.__TAURI_INTERNALS__ || window.__TAURI__);
+/* P1 多窗口：当前窗口标签与「工具窗口模式」。
+   工具窗口复用同一 index.html，URL 带 #/tool/<id>（工作区为 #/crop、#/qpcr）；
+   label !== 'main' 即窗口模式：精简初始化、隐藏返回键、标题栏显示工具名。 */
+const WIN_LABEL = IN_TAURI ? (window.__TAURI__.window.getCurrentWindow().label) : 'main';
+const WINDOW_MODE = IN_TAURI && WIN_LABEL !== 'main';
+function lkWin() { return window.__TAURI__ && window.__TAURI__.window; }
 async function invoke(cmd, args = {}) {
   if (IN_TAURI) {
     if (window.__TAURI__ && window.__TAURI__.invoke) return window.__TAURI__.invoke(cmd, args);

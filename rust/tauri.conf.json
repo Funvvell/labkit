@@ -24,7 +24,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data: blob:; connect-src 'self' ipc: http://ipc.localhost; worker-src 'self' blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval' http://labkit-plugin.localhost labkit-plugin:; style-src 'self' 'unsafe-inline' http://labkit-plugin.localhost labkit-plugin:; img-src 'self' asset: http://asset.localhost http://labkit-plugin.localhost data: blob:; connect-src 'self' ipc: http://ipc.localhost; worker-src 'self' blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'"
     },
     "withGlobalTauri": true
   },

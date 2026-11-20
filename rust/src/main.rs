@@ -11,6 +11,8 @@
 
 use std::path::PathBuf;
 
+use tauri::Manager;
+
 use labkit::commands::AppState;
 use labkit::sdpc::SlideReader;
 
@@ -49,7 +51,35 @@ fn run_tauri() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        // P1 多窗口：只记忆尺寸/位置（VISIBLE 不记忆——工具窗口创建时 visible:false，
+        // 由前端渲染就绪后 show()，避免恢复出白窗/闪烁）。main 与 tool-* 同样生效。
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::SIZE
+                        | tauri_plugin_window_state::StateFlags::POSITION,
+                )
+                .build(),
+        )
         .manage(AppState::new())
+        /* 退出编排：仅 main 窗口的 CloseRequested 触发全局退出握手。
+           工具窗口（tool-*）放行，只关自己。握手期间 main 的每次关闭请求都
+           prevent_close——既防 db.js 二次 close 提前关窗，也保证失败弹窗有宿主。 */
+        .on_window_event(|window, event| {
+            if window.label() != "main" {
+                return;
+            }
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let app = window.app_handle().clone();
+                let state = app.state::<AppState>();
+                if !state.exiting.swap(true, std::sync::atomic::Ordering::SeqCst) {
+                    tauri::async_runtime::spawn_blocking(move || {
+                        labkit::commands::run_exit_handshake(app);
+                    });
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             labkit::commands::init_engine,
             labkit::commands::read_file_as_data_url,
@@ -83,11 +113,54 @@ fn run_tauri() {
             labkit::commands::db_export,
             labkit::commands::db_import,
             labkit::commands::db_reset,
+            labkit::commands::flush_ack,
+            labkit::commands::exit_decision,
             labkit::imgbatch::img_probe,
             labkit::imgbatch::img_encode,
             labkit::imgbatch::img_batch,
             labkit::imgbatch::img_rename_preview,
+            labkit::zotero::zotero_probe,
+            labkit::zotero::zotero_list,
+            labkit::zotero::zotero_open,
+            labkit::zotero::zotero_tag,
+            labkit::zotero::zotero_bbt,
+            labkit::plugins::plugins_index,
+            labkit::plugins::plugins_resolve,
+            labkit::plugins::plugins_install,
+            labkit::plugins::plugins_install_local,
+            labkit::plugins::plugins_uninstall,
+            labkit::plugins::plugins_rollback_available,
+            labkit::plugins::plugins_read_asset,
         ])
+        /* P4：插件资产经只读自定义协议注入（Windows 为 http://labkit-plugin.localhost/…），
+           路径严格限定 ~/.liver_portal_crop/plugins/<id>/<version>/ 下的白名单文件。 */
+        .register_uri_scheme_protocol("labkit-plugin", |_ctx, req| {
+            use tauri::http::{Response, StatusCode};
+            let path = req.uri().path().trim_start_matches('/');
+            let seg: Vec<&str> = path.split('/').collect();
+            let result = if seg.len() == 3 {
+                labkit::plugins::data_base()
+                    .map_err(|e| e)
+                    .and_then(|base| labkit::plugins::read_asset_at(&base, seg[0], seg[1], seg[2]))
+            } else {
+                Err(format!("非法插件资产路径：{path}"))
+            };
+            match result {
+                Ok(bytes) => {
+                    let mime = if path.ends_with(".css") { "text/css" } else { "text/javascript" };
+                    Response::builder()
+                        .status(StatusCode::OK)
+                        .header("Content-Type", format!("{mime}; charset=utf-8"))
+                        .body(bytes)
+                        .unwrap_or_else(|e| Response::builder().status(500).body(e.to_string().into_bytes()).unwrap())
+                }
+                Err(e) => Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .header("Content-Type", "text/plain; charset=utf-8")
+                    .body(e.into_bytes())
+                    .unwrap(),
+            }
+        })
         .run(tauri::generate_context!())
         .expect("启动工具箱失败");
 }

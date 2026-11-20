@@ -1,0 +1,11 @@
+[
+  {
+    "id": "starter",
+    "name": "入门示例插件",
+    "author": "Funvvell",
+    "description": "一个示例工具 + 一个多尺寸仪表盘卡片，演示 LabKit 插件契约",
+    "repo": "Funvvell/labkit-plugin-template",
+    "kind": "both",
+    "minAppVersion": "0.3.0"
+  }
+]

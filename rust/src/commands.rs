@@ -5,11 +5,14 @@
 //! No algorithm is reimplemented — this file only adapts signatures to values
 //! the WebView can serialize (paths as strings, images as PNG data URLs).
 
+use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 
 use base64::Engine;
 use serde::{Deserialize, Serialize};
+use tauri::{Emitter, Manager};
 
 use crate::decode::{DecodeHandle, Response as DecodeResponse, TileKey};
 use crate::errors::AppError;
@@ -26,6 +29,19 @@ pub struct AppState {
     pub generation: Mutex<u64>,
     /// Cancel flag of the most recently submitted export job.
     pub export_cancel: Mutex<Option<std::sync::Arc<std::sync::atomic::AtomicBool>>>,
+    /* ---- 多窗口退出握手（主窗 CloseRequested 触发） ---- */
+    /// 幂等门：一次退出流程只允许一个握手；失败等待用户决策期间保持 true。
+    pub exiting: AtomicBool,
+    /// 当前握手的唯一 id，旧回执一律丢弃（防 reload / 重复关闭串台）。
+    pub exit_request_id: Mutex<Option<String>>,
+    /// 尚未回执的窗口 label 集合。
+    pub pending_acks: Mutex<HashSet<String>>,
+    /// 回执为失败或超时未回的窗口 label。
+    pub exit_failed: Mutex<Vec<String>>,
+    /// 每次握手递增，生成 exit-N。
+    pub exit_seq: AtomicU64,
+    /// 握手等待用的唤醒通道（前端回执时通知，避免轮询 tokio sleep）。
+    pub exit_wake: Mutex<Option<std::sync::mpsc::Sender<()>>>,
 }
 
 impl AppState {
@@ -34,6 +50,12 @@ impl AppState {
             decode: Mutex::new(None),
             generation: Mutex::new(0),
             export_cancel: Mutex::new(None),
+            exiting: AtomicBool::new(false),
+            exit_request_id: Mutex::new(None),
+            pending_acks: Mutex::new(HashSet::new()),
+            exit_failed: Mutex::new(Vec::new()),
+            exit_seq: AtomicU64::new(0),
+            exit_wake: Mutex::new(None),
         }
     }
 
@@ -406,12 +428,29 @@ pub fn db_load() -> Result<Option<serde_json::Value>, String> {
     crate::store::load().map_err(|e| e.to_string())
 }
 
+/// P1 多窗口合并写：`changed` 为前端 diff 出的顶层键（缺省 = 整库写，旧契约兼容）；
+/// `origin` 为发起窗口标识，随 `db-changed` 广播，其它窗口据此重载重渲染。
+/// 锁内「读盘 → 仅覆盖 changed 键（_store 二级合并）→ 原子写 → rev+1」见 store::merge_save_at。
 #[tauri::command]
-pub fn db_save(data: serde_json::Value) -> Result<String, String> {
-    crate::store::save(&data).map_err(|e| e.to_string())?;
-    crate::store::db_path()
+pub fn db_save(
+    app: tauri::AppHandle,
+    data: serde_json::Value,
+    changed: Option<Vec<String>>,
+    origin: Option<String>,
+) -> Result<String, String> {
+    let rev = crate::store::merge_save(&data, changed.as_deref()).map_err(|e| e.to_string())?;
+    let path = crate::store::db_path()
         .map(|p| p.to_string_lossy().into_owned())
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    let _ = app.emit(
+        "db-changed",
+        serde_json::json!({
+            "rev": rev,
+            "keys": changed.unwrap_or_default(),
+            "origin": origin.unwrap_or_default(),
+        }),
+    );
+    Ok(path)
 }
 
 #[tauri::command]
@@ -434,13 +473,112 @@ pub fn db_export(dest: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn db_import(src: String) -> Result<serde_json::Value, String> {
-    crate::store::import_from(std::path::Path::new(&src)).map_err(|e| e.to_string())
+pub fn db_import(app: tauri::AppHandle, src: String) -> Result<serde_json::Value, String> {
+    let data = crate::store::import_from(std::path::Path::new(&src)).map_err(|e| e.to_string())?;
+    // 整库替换：keys 为空 = 通知其它窗口全量重载
+    let rev = data.get("_rev").and_then(|v| v.as_u64()).unwrap_or(0);
+    let _ = app.emit("db-changed", serde_json::json!({"rev": rev, "keys": [], "origin": ""}));
+    Ok(data)
 }
 
 #[tauri::command]
-pub fn db_reset() -> Result<Option<String>, String> {
-    crate::store::reset()
+pub fn db_reset(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    let out = crate::store::reset()
         .map(|p| p.map(|p| p.to_string_lossy().into_owned()))
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    // reset:true → 其它窗口清缓存并重启回首次启动态
+    let _ = app.emit("db-changed", serde_json::json!({"rev": 0, "keys": [], "origin": "", "reset": true}));
+    Ok(out)
+}
+
+/* ===================== 多窗口退出握手 =====================
+   仅主窗 CloseRequested 触发。Rust 不持有 JS 内存态台账，落盘只能由各窗口
+   监听 flush-now 后调用 flushDB() 完成；Rust 只负责收集回执并决定何时 exit。
+   用 mpsc::recv_timeout 等待而非 tokio::time::sleep（tauri 未启用 tokio/time）。 */
+
+/// 前端每个窗口落盘后回执：仅接受当前 request_id，旧回执丢弃。
+#[tauri::command]
+pub fn flush_ack(app: tauri::AppHandle, request_id: String, ok: bool, label: String) {
+    let st = app.state::<AppState>();
+    if st.exit_request_id.lock().unwrap().as_deref() != Some(request_id.as_str()) {
+        return;
+    }
+    if !ok {
+        let mut failed = st.exit_failed.lock().unwrap();
+        if !failed.contains(&label) {
+            failed.push(label.clone());
+        }
+    }
+    st.pending_acks.lock().unwrap().remove(&label);
+    // 唤醒等待中的握手线程重新检查（无新依赖、无轮询 sleep）。
+    // 先把 Sender 克隆出来，避免 MutexGuard 临时值活过 st。
+    let wake = st.exit_wake.lock().unwrap().clone();
+    if let Some(tx) = wake {
+        let _ = tx.send(());
+    }
+}
+
+/// 用户在失败弹窗中的决策：force=true 强制退出；false 取消并复位状态。
+#[tauri::command]
+pub fn exit_decision(app: tauri::AppHandle, request_id: String, force: bool) {
+    let st = app.state::<AppState>();
+    if st.exit_request_id.lock().unwrap().as_deref() != Some(request_id.as_str()) {
+        return;
+    }
+    if force {
+        app.exit(0);
+        return;
+    }
+    st.exiting.store(false, Ordering::SeqCst);
+    *st.exit_request_id.lock().unwrap() = None;
+    st.pending_acks.lock().unwrap().clear();
+    st.exit_failed.lock().unwrap().clear();
+    *st.exit_wake.lock().unwrap() = None;
+}
+
+/// 在 spawn_blocking 内运行：广播 flush-now → 等各窗回执（3s 上限）→
+/// 全成功则 app.exit(0)；失败/超时则 emit flush-failed，保持窗口等用户决策。
+pub fn run_exit_handshake(app: tauri::AppHandle) {
+    let st = app.state::<AppState>();
+    let request_id = format!("exit-{}", st.exit_seq.fetch_add(1, Ordering::SeqCst));
+    *st.exit_request_id.lock().unwrap() = Some(request_id.clone());
+    st.exit_failed.lock().unwrap().clear();
+
+    let labels: HashSet<String> = app.webview_windows().keys().cloned().collect();
+    *st.pending_acks.lock().unwrap() = labels;
+
+    let (tx, rx) = std::sync::mpsc::channel::<()>();
+    *st.exit_wake.lock().unwrap() = Some(tx);
+    let _ = app.emit("flush-now", serde_json::json!({"requestId": request_id.clone()}));
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    loop {
+        if st.pending_acks.lock().unwrap().is_empty() || std::time::Instant::now() >= deadline {
+            break;
+        }
+        let _ = rx.recv_timeout(std::time::Duration::from_millis(200));
+    }
+    *st.exit_wake.lock().unwrap() = None;
+
+    let pending: Vec<String> = {
+        let p = st.pending_acks.lock().unwrap();
+        p.iter().cloned().collect()
+    };
+    let failed: Vec<String> = {
+        let mut f = st.exit_failed.lock().unwrap().clone();
+        for l in pending {
+            if !f.contains(&l) {
+                f.push(l);
+            }
+        }
+        f
+    };
+    if failed.is_empty() {
+        app.exit(0);
+    } else {
+        let _ = app.emit(
+            "flush-failed",
+            serde_json::json!({"requestId": request_id, "labels": failed}),
+        );
+    }
 }
