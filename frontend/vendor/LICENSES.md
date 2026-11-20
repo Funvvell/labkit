@@ -3,7 +3,7 @@
 | 文件 | 组件 | 版本 | 许可 |
 |---|---|---|---|
 | papaparse.min.js | PapaParse | 5.4.1 | MIT |
-| xlsx.full.min.js | SheetJS | 0.18.5 | Apache-2.0 |
+| xlsx.full.min.js | SheetJS | 0.20.3 | Apache-2.0 |
 | tabulator.min.js / tabulator.min.css | Tabulator | 6.3.0 | MIT |
 | markdown-it.min.js | markdown-it | 14.1.0 | MIT |
 | easytimer.min.js | easytimer.js | 4.6.0 | MIT |
