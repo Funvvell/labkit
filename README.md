@@ -8,10 +8,10 @@
 
 台账工作台 · 20 个科研工具 · SDPC 全切片浏览与 ROI 裁剪 · qPCR ΔΔCt 分析
 
-[![Release](https://img.shields.io/github/v/release/Funvvell/pathology-crop-tool?style=flat-square&label=Latest)](https://github.com/Funvvell/pathology-crop-tool/releases)
+[![Release](https://img.shields.io/github/v/release/Funvvell/labkit?style=flat-square&label=Latest)](https://github.com/Funvvell/labkit/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D4?style=flat-square&logo=windows)](#-快速开始)
-[![Web Demo](https://img.shields.io/badge/Web%20Demo-GitHub%20Pages-2ea44f?style=flat-square)](https://funvvell.github.io/pathology-crop-tool/)
+[![Web Demo](https://img.shields.io/badge/Web%20Demo-GitHub%20Pages-2ea44f?style=flat-square)](https://funvvell.github.io/labkit/)
 
 [快速开始](#-快速开始) · [功能特性](#-功能特性) · [快捷键](#-快捷键) · [开发指南](#-开发指南) · [English](README.en.md)
 
@@ -80,7 +80,7 @@
 
 ### 方式一：下载安装包（推荐）
 
-[Releases](https://github.com/Funvvell/pathology-crop-tool/releases) 下载 `LabKit_*.exe`（NSIS 安装包）或 `LabKit-portable-win-x64.zip`（免安装）。
+[Releases](https://github.com/Funvvell/labkit/releases) 下载 `LabKit_*.exe`（NSIS 安装包）或 `LabKit-portable-win-x64.zip`（免安装）。
 
 **SDPC 解码组件（可选）**：出于许可考虑，安装包**不含**厂商闭源 `DecodeSdpcDll.dll`。
 需要浏览 `.sdpc` 切片时执行：
@@ -94,14 +94,14 @@ pip install sdpc-for-python
 
 ### 方式二：Web 演示（零安装）
 
-<https://funvvell.github.io/pathology-crop-tool/> —— 浏览器降级模式：台账存 localStorage，
+<https://funvvell.github.io/labkit/> —— 浏览器降级模式：台账存 localStorage，
 统计/绘图/写作类工具完整可用；SDPC 解码与磁盘备份需桌面版。
 
 ### 方式三：源码运行
 
 ```bash
-git clone https://github.com/Funvvell/pathology-crop-tool.git
-cd pathology-crop-tool/rust
+git clone https://github.com/Funvvell/labkit.git
+cd labkit/rust
 cargo install tauri-cli --locked   # 首次
 cargo tauri dev                    # 开发运行
 cargo tauri build                  # 出安装包

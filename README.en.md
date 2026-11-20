@@ -6,10 +6,10 @@
 
 **A local-first research workbench** — lab notebook, 20 research tools, SDPC whole-slide browsing & ROI cropping, qPCR ΔΔCt analysis.
 
-[![Release](https://img.shields.io/github/v/release/Funvvell/pathology-crop-tool?style=flat-square&label=Latest)](https://github.com/Funvvell/pathology-crop-tool/releases)
+[![Release](https://img.shields.io/github/v/release/Funvvell/labkit?style=flat-square&label=Latest)](https://github.com/Funvvell/labkit/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D4?style=flat-square&logo=windows)](#-quick-start)
-[![Web Demo](https://img.shields.io/badge/Web%20Demo-GitHub%20Pages-2ea44f?style=flat-square)](https://funvvell.github.io/pathology-crop-tool/)
+[![Web Demo](https://img.shields.io/badge/Web%20Demo-GitHub%20Pages-2ea44f?style=flat-square)](https://funvvell.github.io/labkit/)
 
 [Quick start](#-quick-start) · [Features](#-features) · [Shortcuts](#-shortcuts) · [Development](#-development) · [中文](README.md)
 
@@ -73,7 +73,7 @@ Every tool shares one chrome: **load example / reset / help & provenance drawer 
 
 ### 1. Installer (recommended)
 
-Download `LabKit_*.exe` (NSIS) or `LabKit-portable-win-x64.zip` from [Releases](https://github.com/Funvvell/pathology-crop-tool/releases).
+Download `LabKit_*.exe` (NSIS) or `LabKit-portable-win-x64.zip` from [Releases](https://github.com/Funvvell/labkit/releases).
 
 **Optional SDPC decoder**: for licensing reasons the installer does **not** bundle the vendor's closed-source `DecodeSdpcDll.dll`. To browse `.sdpc` slides:
 
@@ -85,13 +85,13 @@ The app auto-detects the decoder directory (bundled dir → `SDPC_DLL_DIR` env v
 
 ### 2. Web demo (zero install)
 
-<https://funvvell.github.io/pathology-crop-tool/> — browser fallback mode: notebook in localStorage, all statistics/plotting/writing tools fully functional; SDPC decoding and disk backups require the desktop app.
+<https://funvvell.github.io/labkit/> — browser fallback mode: notebook in localStorage, all statistics/plotting/writing tools fully functional; SDPC decoding and disk backups require the desktop app.
 
 ### 3. From source
 
 ```bash
-git clone https://github.com/Funvvell/pathology-crop-tool.git
-cd pathology-crop-tool/rust
+git clone https://github.com/Funvvell/labkit.git
+cd labkit/rust
 cargo install tauri-cli --locked   # first time only
 cargo tauri dev
 cargo tauri build
