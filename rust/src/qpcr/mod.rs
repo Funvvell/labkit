@@ -42,15 +42,27 @@ pub fn analyze(run: &QpcrRun) -> Result<QpcrAnalysis> {
     } else {
         Vec::new()
     };
+    // 完整 geNorm：逐步剔除重算 M + 配对变异 Vn/n+1 + 推荐内参数。
+    let genorm = if run.design.reference_targets.len() > 1 {
+        Some(refgene::genorm_stepwise(
+            &wells,
+            &run.design.reference_targets,
+            &run.design.efficiency,
+            &mut warnings,
+        ))
+    } else {
+        None
+    };
     let ref_used = match run.design.ref_strategy {
-        // geNorm: `ref_stability` is ascending in M (smaller = more stable),
-        // so stepwise exclusion drops the LAST entry (largest M), keeping the
-        // most stable `len - 1` references.
-        RefStrategy::Genorm if ref_stability.len() > 2 => ref_stability
-            .iter()
-            .take(ref_stability.len() - 1)
-            .map(|(name, _)| name.clone())
-            .collect(),
+        // geNorm：按稳定度排名取前 n。n 取 V 值推荐数与 len-1 的较小者——
+        // 尊重「V<0.15 即足够」的推荐，同时绝不保留最差内参。
+        RefStrategy::Genorm => match &genorm {
+            Some(g) if g.ranked.len() > 2 => {
+                let n = g.recommended_n.min(g.ranked.len() - 1).max(2);
+                g.ranked[..n].to_vec()
+            }
+            _ => run.design.reference_targets.clone(),
+        },
         _ => run.design.reference_targets.clone(),
     };
 
@@ -62,6 +74,7 @@ pub fn analyze(run: &QpcrRun) -> Result<QpcrAnalysis> {
         ref_used,
         warnings,
         stats,
+        genorm,
     })
 }
 

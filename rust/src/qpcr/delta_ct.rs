@@ -135,6 +135,7 @@ pub fn analyze_wells(
     }
 
     let mut results = Vec::new();
+    let mut missing_ref_eff = false;
     for sample in &samples {
         let s_ref = ref_mean(sample);
         for target in &targets {
@@ -175,15 +176,31 @@ pub fn analyze_wells(
                     ddct = Some(d);
                     fc = Some(match run.design.efficiency.get(target) {
                         Some(&e) if (e - 1.0).abs() > 1e-9 => {
-                            let e_ref = run
-                                .design
-                                .efficiency
-                                .get(ref_used.first().map(String::as_str).unwrap_or(""))
-                                .copied()
-                                .unwrap_or(1.0);
-                            // Pfaffl exponents are per-gene ΔCt(calibrator − sample):
-                            // target uses cal_t − t_mean, reference uses cal_r − r_mean.
-                            pfaffl_ratio(1.0 + e, cal_t - t_mean, 1.0 + e_ref, cal_r - r_mean)
+                            // 多参照 Pfaffl：分母 = 各内参「自身效率」项的几何均值，
+                            // 不再套用首个内参的效率。缺效率按理想 E=2 计并统一警告。
+                            let mut log_den = 0.0;
+                            let mut m = 0usize;
+                            for rt in ref_used {
+                                if let (Some(&(cal_rj, _, _)), Some(&(rj, _, _))) = (
+                                    means.get(&(cal.to_string(), rt.clone())),
+                                    means.get(&(sample.clone(), rt.clone())),
+                                ) {
+                                    let ej = match run.design.efficiency.get(rt) {
+                                        Some(&v) => v,
+                                        None => {
+                                            missing_ref_eff = true;
+                                            1.0
+                                        }
+                                    };
+                                    log_den += (cal_rj - rj) * (1.0 + ej).ln();
+                                    m += 1;
+                                }
+                            }
+                            if m > 0 {
+                                (1.0 + e).powf(cal_t - t_mean) / (log_den / m as f64).exp()
+                            } else {
+                                fold_change(d)
+                            }
                         }
                         _ => fold_change(d),
                     });
@@ -208,6 +225,9 @@ pub fn analyze_wells(
                 ),
             });
         }
+    }
+    if missing_ref_eff {
+        warnings.push("Pfaffl 计算中有内参未声明效率，已按理想扩增效率 E=2 计；请补标准曲线效率".into());
     }
     results
 }

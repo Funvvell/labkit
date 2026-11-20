@@ -179,6 +179,9 @@ pub struct QpcrAnalysis {
     pub warnings: Vec<String>,
     #[serde(default)]
     pub stats: Vec<GroupStat>,
+    /// geNorm 逐步剔除 + 配对变异 V + 推荐内参数（多内参时才有）。
+    #[serde(default)]
+    pub genorm: Option<crate::qpcr::refgene::GenormDetail>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

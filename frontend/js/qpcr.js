@@ -291,7 +291,9 @@ function renderQpcr(analysis,nwells){
     <div class="stat"><div class="k">排除孔</div><div class="v">${nex}</div></div>`;
   const rs=document.getElementById('qpcrRefStab');
   const stab=analysis.ref_stability||[];
-  rs.innerHTML=stab.length?stab.map(([t,m])=>`<div class="warn" style="background:${m<0.5?'rgba(48,209,88,.08)':m<1?'rgba(255,159,10,.08)':'rgba(255,69,58,.08)'};color:var(--ink-2)"><b>${esc(t)}</b> · M=${Number(m).toFixed(3)}${m<0.5?'（稳定）':m<1?'（可接受）':'（偏不稳定）'}</div>`).join(''):'<span style="font-size:11px;color:var(--muted)">需≥2 个内参基因</span>';
+  const gn=analysis.genorm;
+  const gnTxt=gn?`<div class="warn" style="background:rgba(0,122,255,.06);color:var(--ink-2)">geNorm 逐步剔除：${esc((gn.exclusion_order||[]).join(' → ')||'无')} · 推荐内参数 <b>${gn.recommended_n}</b><br>配对变异 ${(gn.pairwise_v||[]).map(([n,v])=>'V'+n+'/'+(n+1)+'='+Number(v).toFixed(3)).join('，')||'—'}（&lt;0.15 表示 n 个内参已足够）</div>`:'';
+  rs.innerHTML=(stab.length?stab.map(([t,m])=>`<div class="warn" style="background:${m<0.5?'rgba(48,209,88,.08)':m<1?'rgba(255,159,10,.08)':'rgba(255,69,58,.08)'};color:var(--ink-2)"><b>${esc(t)}</b> · M=${Number(m).toFixed(3)}${m<0.5?'（稳定）':m<1?'（可接受）':'（偏不稳定）'}</div>`).join(''):'<span style="font-size:11px;color:var(--muted)">需≥2 个内参基因</span>')+gnTxt;
   const warns=document.getElementById('qpcrWarns');
   const w=analysis.warnings||[];
   warns.innerHTML=w.length?w.map(x=>`<div class="warn">${esc(x)}</div>`).join(''):'<span style="font-size:11px;color:var(--muted)">全部通过质控</span>';
