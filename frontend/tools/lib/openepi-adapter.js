@@ -49,5 +49,37 @@
     return outTable.s;
   }
 
-  W.OpenEpiAdapter = { run2x2: run2x2, runModule: runModule };
+  /**
+   * 把用户-facing 输入补齐成上游真正读取的单元格。纯函数（就地补 fields 并返回），node 可测。
+   * 上游各模块读的单元格与 UI 想让用户填的量并不一一对应，缺一个就整片 NaN。
+   */
+  function deriveFields(name, fields) {
+    if (name === 'SSCC') {
+      const p0 = fields.E3D0 / 100, p1 = fields.E6D0 / 100;
+      fields.E5D0 = (p1 / (1 - p1)) / (p0 / (1 - p0)); // OR
+    }
+    if (name === 'SSCohort') {
+      // 上游读 E3D0=非暴露结局率、E6D0=暴露结局率；E5D0(OR)/E7D0(RR)/E8D0(率差) 仅用于回显，
+      // 且 OR 非 0 时会用它反推暴露率，故三者必须与 p0×RR 自洽，否则回显与计算口径不一致。
+      const p0 = fields.E3D0, rr = fields.E7D0, p1 = p0 * rr;
+      if (!(p0 > 0 && p0 < 100)) throw new Error('非暴露结局率需大于 0 且小于 100%');
+      if (!(rr > 0)) throw new Error('假设 RR 需大于 0');
+      if (rr === 1) throw new Error('RR = 1 表示两组无效应差异，样本量无定义');
+      if (!(p1 < 100)) throw new Error('暴露结局率 = 非暴露结局率 × RR = ' + p1.toFixed(2) + '%，需小于 100%');
+      fields.E6D0 = p1;
+      fields.E5D0 = (p1 / (100 - p1)) / (p0 / (100 - p0));
+      fields.E8D0 = p1 - p0;
+    }
+    if (name === 'SSMean') {
+      fields.E4D0 = 0; fields.E4D2 = 0;
+      fields.E6D0 = fields.E5D0 * fields.E5D0; fields.E6D2 = fields.E5D2 * fields.E5D2;
+    }
+    if (name === 'PowerMean') {
+      fields.E2D5 = fields.E2D0 - fields.E2D2;
+      fields.E5D0 = fields.E4D0 * fields.E4D0; fields.E5D2 = fields.E4D2 * fields.E4D2;
+    }
+    return fields;
+  }
+
+  W.OpenEpiAdapter = { run2x2: run2x2, runModule: runModule, deriveFields: deriveFields };
 })();

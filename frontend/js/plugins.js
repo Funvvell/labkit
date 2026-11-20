@@ -634,8 +634,9 @@ function renderPluginSettings() {
       }
     });
   }
-  const src = document.getElementById('btnPluginSource');
-  if (src) src.onclick = pluginSourceModal;
+  // 扩展管理页与设置页各有一个「管理索引源」入口，两个都要绑（曾因 id 重复只绑到第一个）。
+  document.querySelectorAll('#btnPluginSource,#btnPluginSourceSettings')
+    .forEach(el => { el.onclick = pluginSourceModal; });
   const en = document.getElementById('setCommunityPlugins');
   if (en) en.onchange = () => {
     pluginSetCfg({ enabled: en.checked });

@@ -17,7 +17,7 @@
       { k: 'E0D0', label: '置信水平 %', def: 95 },
       { k: 'E1D0', label: '功效 %', def: 80 },
       { k: 'E2D0', label: '非暴露:暴露 比', def: 1, step: 0.1 },
-      { k: 'E5D0', label: '非暴露结局率 %', def: 10 },
+      { k: 'E3D0', label: '非暴露结局率 %', def: 10 },
       { k: 'E7D0', label: '假设 RR', def: 2, step: 0.1 }] },
     SSMean: { name: '两均数比较样本量', fields: [
       { k: 'E0D2', label: '置信水平 %', def: 95 },
@@ -73,21 +73,10 @@
       const name = $('ss-mod').value;
       const fields = {};
       host.querySelectorAll('#ss-fields input').forEach(inp => { fields[inp.dataset.k] = parseFloat(inp.value); });
-      // 派生字段
-      if (name === 'SSCC') {
-        const p0 = fields.E3D0 / 100, p1 = fields.E6D0 / 100;
-        fields.E5D0 = (p1 / (1 - p1)) / (p0 / (1 - p0)); // OR
-      }
-      if (name === 'SSMean') {
-        fields.E4D0 = 0; fields.E4D2 = 0;
-        fields.E6D0 = fields.E5D0 * fields.E5D0; fields.E6D2 = fields.E5D2 * fields.E5D2;
-      }
-      if (name === 'PowerMean') {
-        fields.E2D5 = fields.E2D0 - fields.E2D2;
-        fields.E5D0 = fields.E4D0 * fields.E4D0; fields.E5D2 = fields.E4D2 * fields.E4D2;
-      }
       $('ss-warn').innerHTML = '';
+      $('ss-out').innerHTML = '';
       try {
+        OpenEpiAdapter.deriveFields(name, fields);
         $('ss-out').innerHTML = OpenEpiAdapter.runModule(name, fields);
         const alerts = window.__oeLastAlerts || [];
         if (alerts.length) $('ss-warn').innerHTML = alerts.map(a => '<div class="twarn">' + esc(a) + '</div>').join('');

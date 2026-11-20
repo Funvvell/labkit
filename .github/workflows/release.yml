@@ -13,7 +13,11 @@ permissions:
   contents: write
 
 jobs:
+  tests:
+    uses: ./.github/workflows/ci.yml
+
   release-windows:
+    needs: tests
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +43,7 @@ jobs:
           projectPath: rust
           tagName: v__VERSION__
           releaseName: "LabKit v__VERSION__"
-          releaseBody: "更新内容见 CHANGELOG.md。安装包不含闭源 SDPC 解码组件：安装后执行 pip install sdpc-for-python，应用会自动探测解码目录；其余 18 个工具与台账功能不受影响。"
+          releaseBody: "更新内容见 CHANGELOG.md。安装包不含闭源 SDPC 解码组件：安装后执行 pip install sdpc-for-python，应用会自动探测解码目录；其余 19 个工具与台账功能不受影响。"
           releaseDraft: false
           prerelease: false
           args: --bundles nsis

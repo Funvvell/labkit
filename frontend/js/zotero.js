@@ -133,7 +133,7 @@ function zoteroMirrorStatus(l){
   if(!cfg.writeBack||!l||!l.zoteroKey)return;
   if(!Zotero.probe||Zotero.probe.state!=='writable')return;
   // 镜像失败只提示，不影响本地状态（本地为准）
-  invoke('zotero_tag',{port:cfg.port,key:l.zoteroKey,tag:'labkit/'+l.status})
+  invoke('zotero_tag',{port:cfg.port,key:l.zoteroKey,tagName:'labkit/'+l.status})
     .catch(e=>toast('Zotero 状态镜像失败（本地已保存）：'+e,5200));
 }
 

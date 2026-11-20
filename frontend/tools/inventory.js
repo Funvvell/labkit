@@ -74,7 +74,7 @@
           const d = days(r.exp);
           return `<tr><td><b>${esc(r.name)}</b>${r.spec ? `<div class="tnote">${esc(r.spec)}</div>` : ''}</td>
             <td class="tmono">${esc(r.no || '—')}</td><td class="tmono">${esc(r.lot || '—')}</td><td>${esc(r.category || '—')}</td>
-            <td>${esc(r.loc || '—')}</td><td>${r.quantity != null ? esc(String(r.quantity)) + (r.unit || '') : esc(r.left || '—')}</td>
+            <td>${esc(r.loc || '—')}</td><td>${r.quantity != null ? esc(String(r.quantity)) + esc(r.unit || '') : esc(r.left || '—')}</td>
             <td>${r.min_stock != null ? esc(String(r.min_stock)) : '—'}</td>
             <td>${esc(r.exp || '—')}${d !== null ? `<div class="tnote">${d < 0 ? '已过期' : d + ' 天'}</div>` : ''}</td>
             <td style="color:${s.c}">${s.t}</td>
@@ -211,11 +211,21 @@
       Store.set('tool:inv-api', JSON.stringify(cfg));
       return cfg;
     }
+    /* 桌面 CSP 的 connect-src 只放行 'self' 与 ipc:，前端直接 fetch 外部服务器会被拦死，
+       所以桌面走 Rust 只读 IPC（inventree_get）；浏览器演示无此限制，仍用 fetch。 */
+    async function invApiGet(cfg, path) {
+      if (IN_TAURI) {
+        const r = await invoke('inventree_get', { base: cfg.url, path, token: cfg.token });
+        return { ok: r.status >= 200 && r.status < 300, status: r.status, json: () => JSON.parse(r.body) };
+      }
+      const r = await fetch(cfg.url + path, { headers: { Authorization: 'Token ' + cfg.token } });
+      return { ok: r.ok, status: r.status, json: () => r.json() };
+    }
     $('ivApiTest').onclick = async () => {
       const cfg = apiCfg();
       if (!cfg.url) { toast('填写服务器地址'); return; }
       try {
-        const r = await fetch(cfg.url + '/api/', { headers: { Authorization: 'Token ' + cfg.token } });
+        const r = await invApiGet(cfg, '/api/');
         toast(r.ok ? '连接成功（InvenTree API 可达）' : '连接失败：HTTP ' + r.status);
       } catch (e) { toast('连接失败：' + e.message); }
     };
@@ -223,7 +233,7 @@
       const cfg = apiCfg();
       if (!cfg.url || !cfg.token) { toast('填写地址与 Token'); return; }
       try {
-        const r = await fetch(cfg.url + '/api/part/?limit=500', { headers: { Authorization: 'Token ' + cfg.token } });
+        const r = await invApiGet(cfg, '/api/part/?limit=500');
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const data = await r.json();
         const parts = data.results || data || [];

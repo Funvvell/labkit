@@ -115,6 +115,7 @@
             <tr class="num"><td>${d.n}</td><td>${fmt(d.mean)}</td><td>${fmt(d.sd)}</td><td>${fmt(d.se)}</td><td>${fmt(d.median)}</td><td>${fmt(d.q1)}</td><td>${fmt(d.q3)}</td><td>${fmt(d.min)}</td><td>${fmt(d.max)}</td></tr></table>`;
         }
         let html = `<div><b>${esc(r.test)}</b></div>`;
+        if (r.dropped > 0) html += `<div class="twarn">已按成对完整病例剔除 ${r.dropped} 行（任一侧缺失即整行排除），实际纳入 n = ${r.n}。</div>`;
         if (r.p != null) {
           html += `<table class="ttable"><tr><th>统计量</th><th>p</th>${r.df != null ? '<th>df</th>' : ''}${r.method ? '<th>方法</th>' : ''}${r.z != null ? '<th>z</th>' : ''}</tr>
             <tr class="num"><td>${fmt(r.statistic)}</td><td>${fmt(r.p, 6)}</td>${r.df != null ? `<td>${fmt(r.df, 2)}</td>` : ''}${r.method ? `<td>${r.method}</td>` : ''}${r.z != null ? `<td>${fmt(r.z)}</td>` : ''}</tr></table>`;

@@ -17,8 +17,7 @@
 
 > **Disclaimer**: all computations and image outputs are **for research use only, not for clinical diagnostic use**.
 > **Privacy**: everything runs locally. No telemetry, no accounts, no uploads — your notebook lives on your own machine.
-
-![LabKit home](docs/readme-home.png)
+> The repository contains no real study, specimen, or slide data; the first-run sample data is entirely fictional.
 
 ---
 

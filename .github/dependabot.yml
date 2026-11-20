@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # GitHub Actions：保持 tag 跟进上游安全修复（进一步加固可改为 SHA 钉扎，dependabot 同样支持）
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "ci"]
+
+  # Rust 依赖（tauri / reqwest / image 等）
+  - package-ecosystem: cargo
+    directory: "/rust"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "rust"]

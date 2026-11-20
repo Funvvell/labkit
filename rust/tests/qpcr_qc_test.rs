@@ -49,9 +49,11 @@ fn iqr_flags_extreme_well() {
     for w in &mut wells {
         w.replicate_group = "S|T|".into();
     }
-    let mut design = Design::default();
-    design.cv_threshold = 0.9; // disable CV so IQR is the only trigger
-    design.sd_threshold = None;
+    let design = Design {
+        cv_threshold: 0.9, // disable CV so IQR is the only trigger
+        sd_threshold: None,
+        ..Default::default()
+    };
     let mut warnings = Vec::new();
     apply_all(&mut wells, &design, &mut warnings);
     assert!(wells[5].flags.contains(&"Outlier".to_string()));

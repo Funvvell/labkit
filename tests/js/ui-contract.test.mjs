@@ -90,3 +90,23 @@ test('扩展管理：工具与卡片分成两个市场入口', () => {
   assert.ok(!/id="view-plugins"[\s\S]{0,600}?id="pluginSearch"/.test(html), '扩展管理页不再内置搜索（市场视图已下沉）');
   assert.ok(html.includes('id="btnPluginLocal"') && html.includes('id="btnPluginSource"'), '开发载入与索引源入口仍可用');
 });
+
+test('index.html 无重复 id（重复 id 会让 getElementById 只绑到第一个，另一个成死按钮）', () => {
+  const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]);
+  const seen = new Set(), dup = new Set();
+  for (const id of ids) { if (seen.has(id)) dup.add(id); seen.add(id); }
+  assert.deepEqual([...dup], [], '重复 id：' + [...dup].join(', '));
+});
+
+test('扩展管理页与设置页的「管理索引源」两个入口都被绑定', () => {
+  assert.ok(html.includes('id="btnPluginSourceSettings"'), '设置页入口需独立 id');
+  assert.ok(allJs.includes('#btnPluginSource,#btnPluginSourceSettings'), '两个入口都要绑 onclick');
+});
+
+test('分类自定义入口可发现：按钮语义化 + 页头文案指向 + Ctrl+K 可搜', () => {
+  assert.ok(html.includes('>整理分组</button>'), '入口按钮需说明是「整理分组」而非含糊的「整理」');
+  assert.ok(html.includes('分组可自定义'), '页头文案需明说分组可自定义并指向该按钮');
+  assert.ok(toolhubJs.includes("'完成整理':'整理分组'"), 'JS 切换标签不得退回含糊的「整理」');
+  const pal = read('frontend/js/palette.js');
+  assert.ok(pal.includes("'toolbox-edit'") && pal.includes('自定义工具分组'), 'Ctrl+K 必须能搜到分组自定义');
+});

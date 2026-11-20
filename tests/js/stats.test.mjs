@@ -70,6 +70,68 @@ test('配对 t 与单样本 t', () => {
   const o = E.ttestOne([1, 2, 3], 2);
   assert.equal(o.p, 1);
 });
+
+/* ---- 成对完整病例：配对结构必须按行剔除，各列独立 filter 会错配捏造统计量 ---- */
+test('配对 t：缺失按行成对剔除，结果等于手工构造的完整病例差值', () => {
+  const r = E.ttestPaired([1, 2, NaN, 4, 5], [2, 4, 3, 5, 7]);
+  // 完整病例 (1,2),(2,4),(4,5),(5,7) → d=[-1,-2,-1,-2]
+  const ref = E.ttestOne([-1, -2, -1, -2], 0);
+  assert.equal(r.n, 4);
+  assert.equal(r.dropped, 1);
+  assert.equal(r.df, 3);
+  near(r.meanDiff, -1.5, 1e-12, 'meanDiff');
+  near(r.statistic, ref.statistic, 1e-12, 't 与手工完整病例一致');
+  near(r.p, ref.p, 1e-12, 'p 与手工完整病例一致');
+});
+test('配对 t：错配后差值恒为 0 必须报错，不得产出 NaN 或伪 p 值', () => {
+  // 各列独立剔除会得 x=[1,3,4] y=[1,2,4] → d=[0,1,0] → 伪 p≈0.4226
+  assert.throws(() => E.ttestPaired([1, NaN, 3, 4], [1, 2, NaN, 4]), /恒为 0/);
+});
+test('配对 t：差值恒为非 0 常数是正确极限（t=∞, p→0），不该被拦', () => {
+  const r = E.ttestPaired([5, 6, 7, 8], [4, 5, 6, 7]);
+  near(r.meanDiff, 1, 1e-12, 'meanDiff');
+  assert.ok(r.p < 0.01);
+});
+test('相关：缺失按行成对剔除，n 与 r 都取完整病例', () => {
+  const r = E.correlation([1, 2, NaN, 4, 5], [1, NaN, 3, 4, 5]);
+  // 完整病例 (1,1),(4,4),(5,5) → r=1, n=3；错配会得 r≈0.9621, n=4
+  assert.equal(r.n, 3);
+  assert.equal(r.dropped, 2);
+  assert.ok(r.statistic > 0.999, 'r 应≈1，实际 ' + r.statistic);
+  assert.ok(Number.isFinite(r.p), 'p 不得为 NaN');
+});
+test('相关：Spearman 同样按行成对剔除', () => {
+  const r = E.correlation([1, 2, NaN, 4, 5], [1, NaN, 3, 4, 5], 'spearman');
+  assert.equal(r.n, 3);
+  assert.equal(r.dropped, 2);
+});
+test('Wilcoxon 符号秩（配对）：按行成对剔除', () => {
+  const r = E.wilcoxon([1, 2, NaN, 4, 5], [2, 4, 3, 5, 7]);
+  assert.equal(r.n, 4);
+  assert.equal(r.dropped, 1);
+});
+test('空串 / null / undefined 是缺失，不是 0', () => {
+  const d = E.descriptive(['', null, undefined, 5, 7]);
+  assert.equal(d.n, 2);
+  near(d.mean, 6, 1e-12, 'mean 不得被空格子当成 0 拉低');
+  const r = E.correlation([1, 2, '', null, 5], [2, 4, 5, 4, 5]);
+  assert.equal(r.n, 3);
+  assert.equal(r.dropped, 2);
+});
+test('独立样本检验仍按列各自剔除（语义不受成对修复影响）', () => {
+  const r = E.ttestInd([1, 2, NaN, 4], [5, 6, 7]);
+  assert.equal(r.n1, 3);
+  assert.equal(r.n2, 3);
+  const m = E.mwu([1, 2, NaN, 4], [5, 6, 7]);
+  assert.equal(m.n1, 3);
+  assert.equal(m.n2, 3);
+});
+test('χ² 拟合优度：给定 expected 时按类别成对剔除', () => {
+  const r = E.chi2GOF([10, NaN, 30], [10, 20, 30]);
+  assert.equal(r.df, 1);
+  assert.equal(r.dropped, 1);
+  near(r.statistic, 0, 1e-12, '剩下两类别观测=期望 → χ²=0');
+});
 test('χ² 独立性：[[10,20],[30,40]] χ²=0.4464286 p=0.5040359', () => {
   const r = E.chi2Indep([[10, 20], [30, 40]]);
   near(r.statistic, 0.4464285714285714, 1e-9, 'chi2');

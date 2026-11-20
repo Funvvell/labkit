@@ -21,6 +21,8 @@ const files = [
 ];
 for (const f of files) vm.runInThisContext(readFileSync(f, 'utf8'), { filename: f });
 const A = globalThis.OpenEpiAdapter;
+// 上游输出是 HTML 表格；断言数值前先归一化成纯文本，避免正则被标签/空格切碎。
+const text = h => h.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 
 test('SSPropor：50%±5%，95%CI，大人群 → 384（上游 Demo 基准）', () => {
   const html = A.runModule('SSPropor', { E0D0: 1000000, E1D0: 50, E2D0: 5, E3D0: 1 });
@@ -66,9 +68,42 @@ test('SSMean：两均数差值法输出样本量', () => {
   assert.match(html, /Sample size/i);
 });
 
-test('SSCohort：p0=10% RR=2 95/80 → 含样本量', () => {
-  const html = A.runModule('SSCohort', { E0D0: 95, E1D0: 80, E2D0: 1, E5D0: 10, E7D0: 2 });
-  assert.match(html, /Sample Size/i);
+test('SSCohort：p0=10% RR=2 95/80 → Kelsey 201 / Fleiss 199 / Fleiss-CC 219（总 402/398/438）', () => {
+  const t = text(A.runModule('SSCohort', A.deriveFields('SSCohort', { E0D0: 95, E1D0: 80, E2D0: 1, E3D0: 10, E7D0: 2 })));
+  assert.doesNotMatch(t, /NaN/, '不得输出 NaN');
+  assert.doesNotMatch(t, /\?/, '回显行不得为未知值');
+  assert.match(t, /Percent of Unexposed with Outcome: 10/);
+  assert.match(t, /Percent of Exposed with Outcome: 20/);
+  assert.match(t, /Risk\/Prevalence Ratio: 2/);
+  assert.match(t, /Risk\/Prevalence difference: 10/);
+  assert.match(t, /Sample Size - Exposed 201 199 219/);
+  assert.match(t, /Total sample size: 402 398 438/);
+});
+
+test('SSCohort 与 SSCC 交叉一致：同一 p0/p1 与 1:1 比必须给出相同样本量', () => {
+  const cohort = text(A.runModule('SSCohort', A.deriveFields('SSCohort', { E0D0: 95, E1D0: 80, E2D0: 1, E3D0: 10, E7D0: 2 })));
+  const cc = text(A.runModule('SSCC', A.deriveFields('SSCC', { E0D0: 95, E1D0: 80, E2D0: 1, E3D0: 10, E6D0: 20 })));
+  const nums = s => (s.match(/Sample Size - (?:Exposed|Cases) (\d+) (\d+) (\d+)/) || []).slice(1);
+  assert.deepEqual(nums(cohort), ['201', '199', '219']);
+  assert.deepEqual(nums(cohort), nums(cc), '两模块在等价输入下必须一致');
+});
+
+test('SSCohort 非法输入必须报错，而不是产出 NaN/Infinity', () => {
+  const base = { E0D0: 95, E1D0: 80, E2D0: 1, E3D0: 10, E7D0: 2 };
+  assert.throws(() => A.deriveFields('SSCohort', { ...base, E7D0: 1 }), /RR = 1/);
+  assert.throws(() => A.deriveFields('SSCohort', { ...base, E3D0: 60 }), /需小于 100%/);
+  assert.throws(() => A.deriveFields('SSCohort', { ...base, E3D0: 0 }), /非暴露结局率/);
+  assert.throws(() => A.deriveFields('SSCohort', { ...base, E3D0: NaN }), /非暴露结局率/);
+});
+
+test('SSCohort UI 字段必须接到上游真正读取的单元格（防回归）', () => {
+  const src = readFileSync(path.join(root, 'frontend/tools/samplesize.js'), 'utf8');
+  const block = src.slice(src.indexOf('SSCohort: {'), src.indexOf('SSMean: {'));
+  const keys = [...block.matchAll(/k: '(E\dD\d)'/g)].map(m => m[1]);
+  assert.ok(keys.includes('E3D0'), 'UI 必须提供 E3D0=非暴露结局率');
+  assert.ok(keys.includes('E7D0'), 'UI 必须提供 E7D0=假设 RR');
+  assert.ok(!keys.includes('E5D0'), 'E5D0 是上游的 OR 单元格，不能拿来当结局率');
+  assert.ok(!keys.includes('E6D0'), 'E6D0 由 deriveFields 派生，不该让用户直接填');
 });
 
 test('PowerMean：n=30/30 差值5 SD10 → 输出 power', () => {

@@ -19,6 +19,7 @@ pub mod render;
 pub mod store;
 pub mod imgbatch;
 pub mod zotero;
+pub mod inventree;
 pub mod plugins;
 
 /// Tauri command layer — bridges the reused core to the macOS-style web UI.

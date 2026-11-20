@@ -21,7 +21,18 @@ function fmtRecAt(r){
   return rel+(t?' '+t+(end?'-'+end:''):'');
 }
 
-function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+/* 颜色值直接进 style 属性，只转义不够：攻击者仍可写 background:url(...) 把数据外传。
+   故只放行十六进制、rgb()/hsl()、var(--token) 与纯字母命名色，其余回落。
+   var(--…) 必须放行：提醒等处的颜色本就是语义 token（entities.js 的紧急度映射）。 */
+function cssColor(v,fallback){
+  const s=String(v==null?'':v).trim();
+  if(/^#[0-9a-fA-F]{3,8}$/.test(s))return s;
+  if(/^(rgb|rgba|hsl|hsla)\([0-9a-zA-Z%,.\s+-]+\)$/.test(s))return s;
+  if(/^var\(--[a-zA-Z0-9-]+\)$/.test(s))return s;
+  if(/^[a-zA-Z]{3,20}$/.test(s))return s;
+  return fallback||'currentColor';
+}
 /* Dashboard 卡片可被用户移除，对应的 DOM 就不存在了。
    所有写入首页卡片的渲染都走这里，卡片不在时安静跳过，不再抛 null 异常。 */
 function setHTML(id,html){const el=document.getElementById(id);if(el)el.innerHTML=html;return el}

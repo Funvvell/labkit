@@ -363,7 +363,7 @@ function syncToolboxEditBar(){
   const st=document.getElementById('toolboxEditState');
   if(st&&toolboxEdit){const d=toolboxDirtyNow();st.textContent=d?'有未保存改动':'整理中';st.classList.toggle('dirty',d)}
   const btn=document.getElementById('btnToolboxEdit');
-  if(btn){btn.textContent=toolboxEdit?'完成整理':'整理';btn.classList.toggle('pri',toolboxEdit)}
+  if(btn){btn.textContent=toolboxEdit?'完成整理':'整理分组';btn.classList.toggle('pri',toolboxEdit)}
   const tabs=document.getElementById('toolhubTabs');if(tabs)tabs.hidden=toolboxEdit;
 }
 /** 草稿上的一次改动：只重绘，不落盘。 */

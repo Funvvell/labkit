@@ -251,13 +251,13 @@ function projNoteModal(i){
 }
 function renderLitRemind(){
   setHTML('litList',DB.literatures.slice(0,3).map(l=>`<div class="lit-item"><div class="t">${esc(l.title)}</div><span class="badge ${l.status==='待精读'?'important':l.status==='笔记待整理'?'urgent':'normal'}">${esc(l.status)}</span></div>`).join('')||'<div class="sub">文献库为空</div>');
-  setHTML('reminderList',DB.reminders.map(r=>`<div class="remind-item"><span class="dot-r" style="background:${r.color}"></span><div class="t">${esc(r.text)}</div><div class="m">${esc(r.date)}</div></div>`).join('')||'<div class="sub">暂无提醒</div>');
+  setHTML('reminderList',DB.reminders.map(r=>`<div class="remind-item"><span class="dot-r" style="background:${cssColor(r.color,'#8e8e93')}"></span><div class="t">${esc(r.text)}</div><div class="m">${esc(r.date)}</div></div>`).join('')||'<div class="sub">暂无提醒</div>');
 }
 function renderExperiments(){
   setHTML('expRecent',DB.experiments.slice(0,4).map(e=>`
     <div class="exp-row"><span class="exp-id">${esc(e.id)}</span><span class="exp-name">${esc(e.note)}</span><span class="exp-meta">${esc(e.proj)} · ${esc(e.type)} · ${esc(e.date)}</span><span class="status-badge ${STATUS_CLS[e.status]}">${esc(e.status)}</span></div>`).join('')||'<div class="sub">还没有实验记录</div>');
   const projSel=document.getElementById('expFilterProj'),keep=projSel.value;
-  projSel.innerHTML='<option>全部项目</option>'+DB.projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  projSel.innerHTML='<option>全部项目</option>'+DB.projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
   if(keep&&[...projSel.options].some(o=>o.value===keep))projSel.value=keep;
   renderExpTable();
 }

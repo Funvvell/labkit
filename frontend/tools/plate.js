@@ -202,8 +202,8 @@
       $('plAreaList').innerHTML = l.Areas.length ? l.Areas.map(a =>
         `<div class="trow" style="margin:2px 0;align-items:center">
           <input type="radio" name="plAreaSel" value="${esc(a.Name)}" ${selectedArea === a.Name ? 'checked' : ''}>
-          <span style="display:inline-block;width:12px;height:12px;background:${a.Color};border-radius:3px"></span>
-          <span style="flex:1">${esc(a.Name)} <span class="tnote">${a.Type}${a.Definition ? '·定义' : ''}</span></span>
+          <span style="display:inline-block;width:12px;height:12px;background:${cssColor(a.Color,'#8e8e93')};border-radius:3px"></span>
+          <span style="flex:1">${esc(a.Name)} <span class="tnote">${esc(a.Type)}${a.Definition ? '·定义' : ''}</span></span>
           <button class="tbtn sec" data-delarea="${esc(a.Name)}" style="padding:1px 6px">×</button>
         </div>`).join('') : '<div class="tnote">暂无区域，先新建。</div>';
       host.querySelectorAll('[name=plAreaSel]').forEach(r => r.addEventListener('change', () => { selectedArea = r.value; }));

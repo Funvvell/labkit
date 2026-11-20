@@ -82,12 +82,70 @@ fn is_ident_char(c: char) -> bool {
 }
 
 /// 取对象字面量最外层的键名。
+/// 必须同时认 `key: value`、ES6 简写 `{key}` 与引号键 `{'key': v}`——
+/// 前端大量用简写（如 `{requestId,ok,label:WIN_LABEL}`），只认冒号会把它们整片漏掉，
+/// 既造成「缺必填参数」假阳性，也让 snake_case 简写键逃过 camelCase 检查。
+/// 用「键位置」状态机而非逐字符找冒号，避免把值里的标识符（三元分支等）误当成键。
 fn top_level_keys(s: &[char], start: usize, end: usize) -> Vec<String> {
     let mut keys = Vec::new();
-    let mut depth = 0usize;
-    let mut i = start;
+    let mut i = start + 1;
+    let mut depth = 0i32; // 相对对象内部：0 = 顶层
+    let mut expect_key = true;
     while i < end {
         let c = s[i];
+        if depth == 0 && expect_key {
+            if c.is_whitespace() {
+                i += 1;
+                continue;
+            }
+            // 展开语法：键集不可静态得知，标记后由调用方放宽必填校验。
+            if c == '.' && i + 2 < end && s[i + 1] == '.' && s[i + 2] == '.' {
+                keys.push("...".to_string());
+                expect_key = false;
+                i += 3;
+                continue;
+            }
+            if c == '\'' || c == '"' || c == '`' {
+                let q = c;
+                let ks = i + 1;
+                let mut j = ks;
+                while j < end {
+                    if s[j] == '\\' {
+                        j += 2;
+                        continue;
+                    }
+                    if s[j] == q {
+                        break;
+                    }
+                    j += 1;
+                }
+                keys.push(s[ks..j.min(end)].iter().collect());
+                expect_key = false;
+                i = j + 1;
+                continue;
+            }
+            if is_ident_start(c) {
+                let mut j = i + 1;
+                while j < end && is_ident_char(s[j]) {
+                    j += 1;
+                }
+                let word: String = s[i..j].iter().collect();
+                let mut k = j;
+                while k < end && s[k].is_whitespace() {
+                    k += 1;
+                }
+                // ':' → 普通键；',' / '}' / 结尾 → 简写键。
+                if k >= end || s[k] == ':' || s[k] == ',' || s[k] == '}' {
+                    keys.push(word);
+                }
+                expect_key = false;
+                i = j;
+                continue;
+            }
+            expect_key = false;
+            i += 1;
+            continue;
+        }
         if c == '\'' || c == '"' || c == '`' {
             let quote = c;
             i += 1;
@@ -101,25 +159,15 @@ fn top_level_keys(s: &[char], start: usize, end: usize) -> Vec<String> {
                 }
                 i += 1;
             }
-        } else if c == '{' || c == '[' || c == '(' {
+            i += 1;
+            continue;
+        }
+        if c == '{' || c == '[' || c == '(' {
             depth += 1;
         } else if c == '}' || c == ']' || c == ')' {
-            depth = depth.saturating_sub(1);
-        } else if depth == 1 && is_ident_start(c) {
-            let mut j = i + 1;
-            while j < end && is_ident_char(s[j]) {
-                j += 1;
-            }
-            let word: String = s[i..j].iter().collect();
-            let mut k = j;
-            while k < end && s[k].is_whitespace() {
-                k += 1;
-            }
-            if k < end && s[k] == ':' {
-                keys.push(word);
-            }
-            i = j;
-            continue;
+            depth -= 1;
+        } else if depth == 0 && c == ',' {
+            expect_key = true;
         }
         i += 1;
     }
@@ -154,6 +202,9 @@ fn invoke_calls(src: &str) -> Vec<(String, Vec<String>)> {
                         out.push((name, top_level_keys(&chars, j, end)));
                     }
                 }
+            } else if j < chars.len() && chars[j] == ')' {
+                // 无 payload 调用：记为空键集，才能校验「该命令是否有必填参数」。
+                out.push((name, Vec::new()));
             }
             i = j;
             continue;
@@ -293,4 +344,240 @@ fn db_save_sends_merge_contract_keys() {
             );
         }
     }
+}
+/* ---------------- 通用契约：invoke 键名必须与 Rust 形参一一对应 ----------------
+   背景：zotero_tag 的 Rust 形参是 tag_name（Tauri 默认 camelCase → tagName），前端却发 tag。
+   运行时精确匹配取不到键，功能上线即失效，还被 .catch 吞成 toast。
+   上面的 camelCase 检查与逐命令硬编码断言都抓不到这种「键名合法但不是那个参数」的错配。 */
+
+fn rust_source_files() -> Vec<PathBuf> {
+    fn walk(d: &std::path::Path, out: &mut Vec<PathBuf>) {
+        let Ok(rd) = fs::read_dir(d) else { return };
+        let mut entries: Vec<PathBuf> = rd.filter_map(|e| e.ok().map(|e| e.path())).collect();
+        entries.sort();
+        for p in entries {
+            if p.is_dir() {
+                walk(&p, out);
+            } else if p.extension().map(|x| x == "rs").unwrap_or(false) {
+                out.push(p);
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src"),
+        &mut out,
+    );
+    out
+}
+
+/// snake_case → camelCase（Tauri v2 命令宏默认 rename_all = "camelCase"）。
+fn camel(s: &str) -> String {
+    let mut it = s.split('_');
+    let mut out = String::from(it.next().unwrap_or(""));
+    for p in it {
+        let mut c = p.chars();
+        if let Some(f) = c.next() {
+            out.extend(f.to_uppercase());
+            out.push_str(c.as_str());
+        }
+    }
+    out
+}
+
+/// 按顶层逗号切分形参，尊重 <> () [] 嵌套（lifetime 的 '_' 不当字符串处理）。
+fn split_top_level(s: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut depth = 0i32;
+    let mut cur = String::new();
+    for c in s.chars() {
+        match c {
+            '<' | '(' | '[' => {
+                depth += 1;
+                cur.push(c);
+            }
+            '>' | ')' | ']' => {
+                depth -= 1;
+                cur.push(c);
+            }
+            ',' if depth == 0 => {
+                out.push(cur.trim().to_string());
+                cur.clear();
+            }
+            _ => cur.push(c),
+        }
+    }
+    if !cur.trim().is_empty() {
+        out.push(cur.trim().to_string());
+    }
+    out
+}
+
+fn paren_end(chars: &[char], start: usize) -> Option<usize> {
+    let mut depth = 0i32;
+    for (i, c) in chars.iter().enumerate().skip(start) {
+        match c {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// 命令名 → [(camelCase 形参名, 是否必填)]；tauri:: 注入型参数（State / AppHandle）不算。
+fn rust_commands() -> Vec<(String, Vec<(String, bool)>)> {
+    let mut out = Vec::new();
+    for p in rust_source_files() {
+        let Ok(src) = fs::read_to_string(&p) else { continue };
+        let chars: Vec<char> = src.chars().collect();
+        let needle: Vec<char> = "#[tauri::command".chars().collect();
+        let mut i = 0usize;
+        while i + needle.len() < chars.len() {
+            if chars[i..i + needle.len()] != needle[..] {
+                i += 1;
+                continue;
+            }
+            let rest: String = chars[i..].iter().collect();
+            let Some(fpos) = rest.find("fn ") else { break };
+            let after = &rest[fpos + 3..];
+            let name: String = after
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect();
+            let ach: Vec<char> = after.chars().collect();
+            let Some(open) = after.find('(') else { break };
+            let Some(close) = paren_end(&ach, open) else { break };
+            let inner: String = ach[open + 1..close].iter().collect();
+            let mut params = Vec::new();
+            for prm in split_top_level(&inner) {
+                let Some(colon) = prm.find(':') else { continue };
+                let pname = prm[..colon].trim();
+                let ptype = prm[colon + 1..].trim();
+                if pname.is_empty() || ptype.starts_with("tauri::") {
+                    continue;
+                }
+                params.push((camel(pname), !ptype.starts_with("Option<")));
+            }
+            if !name.is_empty() {
+                out.push((name, params));
+            }
+            i += fpos + 3;
+        }
+    }
+    out
+}
+
+#[test]
+fn command_parser_reads_camel_case_params() {
+    let cmds = rust_commands();
+    let tag = cmds
+        .iter()
+        .find(|(n, _)| n == "zotero_tag")
+        .expect("应解析到 zotero_tag");
+    assert!(
+        tag.1.iter().any(|(p, req)| p == "tagName" && *req),
+        "tag_name 应转成必填 tagName，实际 {:?}",
+        tag.1
+    );
+    assert!(
+        tag.1.iter().any(|(p, req)| p == "port" && !*req),
+        "Option<u16> 应为选填"
+    );
+    let open = cmds
+        .iter()
+        .find(|(n, _)| n == "zotero_open")
+        .expect("应解析到 zotero_open");
+    assert!(
+        !open.1.iter().any(|(p, _)| p == "app"),
+        "注入型 AppHandle 不该被当成前端参数"
+    );
+}
+
+#[test]
+fn invoke_keys_match_rust_command_params() {
+    let cmds = rust_commands();
+    assert!(
+        cmds.len() > 40,
+        "只解析到 {} 个命令，扫描逻辑可能失效",
+        cmds.len()
+    );
+    let map: std::collections::HashMap<&str, &Vec<(String, bool)>> =
+        cmds.iter().map(|(n, p)| (n.as_str(), p)).collect();
+    let calls = invoke_calls(&frontend_source());
+    let mut bad = Vec::new();
+    for (cmd, keys) in &calls {
+        // 官方插件命令（dialog / notification / opener / window-state）不在本 crate。
+        if cmd.starts_with("plugin:") {
+            continue;
+        }
+        let Some(params) = map.get(cmd.as_str()) else {
+            bad.push(format!("{cmd}：Rust 侧未定义该命令"));
+            continue;
+        };
+        for k in keys {
+            if k == "..." {
+                continue; // 展开语法：键集不可静态得知
+            }
+            if !params.iter().any(|(p, _)| p == k) {
+                let want: Vec<&str> = params.iter().map(|(p, _)| p.as_str()).collect();
+                bad.push(format!("{cmd}({k})：不是该命令的参数，可选 {want:?}"));
+            }
+        }
+        if keys.iter().any(|k| k == "...") {
+            continue;
+        }
+        for (p, required) in params.iter() {
+            if *required && !keys.iter().any(|k| k == p) {
+                bad.push(format!("{cmd}：缺必填参数 {p}，实际发送 {keys:?}"));
+            }
+        }
+    }
+    assert!(
+        bad.is_empty(),
+        "IPC 键名契约不符：\n{}",
+        bad.join("\n")
+    );
+}
+
+/// 前端调用的命令必须真的注册进 generate_handler，否则运行时必然失败。
+/// 只查「被调用的」：error_probe 这类故意保留的错误路径探针不注册也不调用，属正常。
+#[test]
+fn invoked_commands_are_registered() {
+    let main = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("src")
+            .join("main.rs"),
+    )
+    .expect("读取 main.rs 失败");
+    let mut missing: Vec<String> = invoke_calls(&frontend_source())
+        .into_iter()
+        .map(|(n, _)| n)
+        .filter(|n| !n.starts_with("plugin:"))
+        .filter(|n| !main.contains(&format!("::{n},")))
+        .collect();
+    missing.sort();
+    missing.dedup();
+    assert!(
+        missing.is_empty(),
+        "前端调用了这些命令，但 main.rs 的 generate_handler 里没有：{missing:?}"
+    );
+}
+
+#[test]
+fn scanner_reads_shorthand_and_quoted_keys() {
+    let calls = invoke_calls("invoke('flush_ack',{requestId,ok,label:WIN_LABEL})");
+    assert_eq!(calls[0].1, vec!["requestId", "ok", "label"]);
+    let q = invoke_calls("invoke('x',{'a_b':1,c:2})");
+    assert_eq!(q[0].1, vec!["a_b", "c"]);
+    let spread = invoke_calls("invoke('x',{...base,extra:1})");
+    assert_eq!(spread[0].1, vec!["...", "extra"]);
+    // 值位置的标识符（三元分支）不能被误当成键
+    let tern = invoke_calls("invoke('x',{a:f?g:h,b:2})");
+    assert_eq!(tern[0].1, vec!["a", "b"]);
 }

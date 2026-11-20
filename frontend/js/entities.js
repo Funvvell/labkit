@@ -60,13 +60,13 @@ function slotOverlap(a,b){
 const ENT={
   task:{name:'任务',arr:()=>DB.tasks,head:0,label:r=>r.name,
     fields:r=>[
-      {k:'name',label:'任务名称',req:1,full:1,ph:'例如：MASH 小鼠灌胃第 5 周',value:r?r.name:''},
+      {k:'name',label:'任务名称',req:1,full:1,ph:'例如：第 5 周给药与体重记录',value:r?r.name:''},
       {k:'pri',label:'优先级',type:'select',options:['普通','重要','紧急'],value:r?PRI_CN[r.pri]||'普通':'普通'},
       {k:'state',label:'状态',type:'select',options:['待办','进行中','完成'],value:r?ST_CN[r.state||(r.done?'done':'todo')]:'待办'},
       {k:'due',label:'截止（可写文字）',value:r?r.due:'今天',ph:'今天 / 明天 / 周五 / 每周五'},
       {k:'dueDate',label:'具体日期（可留空）',type:'date',value:r?r.dueDate||'':''},
       {k:'proj',label:'归属项目',type:'select',options:projOpts(),value:r?projName(r.proj):'未指定'},
-      {k:'exp',label:'关联实验 ID',value:r?r.exp||'':'',ph:'E-2026-114'},
+      {k:'exp',label:'关联实验 ID',value:r?r.exp||'':'',ph:'EXP-DEMO-01'},
       {k:'tags',label:'标签（逗号分隔）',ph:'动物, WB',value:r?(r.tags||[]).join(', '):''},
       {k:'key',label:'今日重点',type:'select',options:['否','是'],value:r&&r.key?'是':'否'},
     ],
@@ -82,7 +82,7 @@ const ENT={
   project:{name:'项目',arr:()=>DB.projects,label:r=>r.name,
     fields:r=>[
       {k:'name',label:'项目名称',req:1,full:1,value:r?r.name:''},
-      {k:'code',label:'项目编号',ph:'MASH-2026-04',value:r?r.code:''},
+      {k:'code',label:'项目编号',ph:'DEMO-04',value:r?r.code:''},
       {k:'owner',label:'负责人',value:r?r.owner:userName()},
       {k:'start',label:'开始（YYYY-MM）',value:r?r.start:todayStr().slice(0,7)},
       {k:'end',label:'结束（YYYY-MM）',value:r?r.end:''},

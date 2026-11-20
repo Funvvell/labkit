@@ -314,7 +314,7 @@
                 <div class="trow settings-trow">
                   <label class="settings-toggle"><input type="checkbox" id="setCommunityPlugins"><span>允许社区扩展</span></label>
                   <button class="btn sec" data-nav="plugins">打开扩展管理</button>
-                  <button class="btn sec" id="btnPluginSource">管理索引源</button>
+                  <button class="btn sec" id="btnPluginSourceSettings">管理索引源</button>
                 </div>
                 <div class="divider"></div>
                 <div class="card-head"><h2>关于</h2></div>
@@ -497,12 +497,12 @@
       <!-- VIEW: 科研小工具库 -->
       <section class="view" id="view-toolhub">
         <div class="content-head">
-          <div><h1>科研工具库</h1><div class="sub"><span id="toolhubCount">20</span> 个工具 · 可分组 / 隐藏 / 拖拽排序 / 换图标与配色</div></div>
+          <div><h1>科研工具库</h1><div class="sub"><span id="toolhubCount">20</span> 个工具 · 分组可自定义：点「整理分组」新建 / 重命名 / 改色改图标 / 拖拽排序 / 隐藏</div></div>
           <div class="seg wide" id="toolhubTabs">
             <button class="active" type="button" data-thtab="tools">我的工具</button>
             <button type="button" data-thtab="market">获取更多工具</button>
           </div>
-          <button class="btn sec" id="btnToolboxEdit" type="button">整理</button>
+          <button class="btn sec" id="btnToolboxEdit" type="button" title="自定义分组：新建 / 重命名 / 改色改图标 / 删除 / 拖拽排序，工具可跨组移动与隐藏（Ctrl+K 搜「分组」也可进入）">整理分组</button>
         </div>
         <div class="tb-editbar" id="toolboxEditBar" hidden>
           <span class="tb-state" id="toolboxEditState">整理中</span>

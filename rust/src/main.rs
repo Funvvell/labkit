@@ -124,6 +124,7 @@ fn run_tauri() {
             labkit::zotero::zotero_open,
             labkit::zotero::zotero_tag,
             labkit::zotero::zotero_bbt,
+            labkit::inventree::inventree_get,
             labkit::plugins::plugins_index,
             labkit::plugins::plugins_resolve,
             labkit::plugins::plugins_install,
@@ -140,7 +141,6 @@ fn run_tauri() {
             let seg: Vec<&str> = path.split('/').collect();
             let result = if seg.len() == 3 {
                 labkit::plugins::data_base()
-                    .map_err(|e| e)
                     .and_then(|base| labkit::plugins::read_asset_at(&base, seg[0], seg[1], seg[2]))
             } else {
                 Err(format!("非法插件资产路径：{path}"))

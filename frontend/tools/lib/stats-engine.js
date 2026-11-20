@@ -6,10 +6,32 @@
   const S = () => W.stdlib;
   const ss = () => W.ss || W.simpleStatistics;
 
+  /* 缺失值语义：null / undefined / 空串都是「没测到」，不是 0。
+     Number(null) 与 Number('') 都等于 0，直接 map(Number) 会把空格子造成真实观测。 */
+  function isMissing(v) {
+    return v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
+  }
   function nums(arr) {
-    const a = arr.map(Number).filter(Number.isFinite);
+    const a = arr.filter(v => !isMissing(v)).map(Number).filter(Number.isFinite);
     if (!a.length) throw new Error('无有效数值');
     return a;
+  }
+  /**
+   * 成对完整病例（pairwise complete）：按行剔除任一侧缺失的观测。
+   * 配对检验与相关必须走这里——各列独立 nums() 会把不同行的值配到一起，凭空造出统计量。
+   * 独立样本检验（Welch / MWU / Bartlett）仍用 nums()，各组本就是独立样本。
+   */
+  function pairs(x, y) {
+    if (!Array.isArray(x) || !Array.isArray(y)) throw new Error('需要两个数组');
+    if (x.length !== y.length) throw new Error('配对样本长度需一致');
+    const xs = [], ys = [];
+    for (let i = 0; i < x.length; i++) {
+      if (isMissing(x[i]) || isMissing(y[i])) continue;
+      const a = Number(x[i]), b = Number(y[i]);
+      if (Number.isFinite(a) && Number.isFinite(b)) { xs.push(a); ys.push(b); }
+    }
+    if (!xs.length) throw new Error('无成对有效数值');
+    return { x: xs, y: ys, n: xs.length, dropped: x.length - xs.length };
   }
   // Lanczos lgamma（Fisher 用）
   function lgamma(z) {
@@ -68,11 +90,13 @@
     return { test: ' pooled t', statistic: t, p, df, ci: [m1 - m2 - tc * se, m1 - m2 + tc * se], mean1: m1, mean2: m2, n1, n2 };
   }
   function ttestPaired(x, y, alternative = 'two-sided') {
-    x = nums(x); y = nums(y);
-    if (x.length !== y.length) throw new Error('配对样本长度需一致');
-    const d = x.map((v, i) => v - y[i]);
+    const p = pairs(x, y);
+    const d = p.x.map((v, i) => v - p.y[i]);
+    if (d.length < 2) throw new Error('成对完整病例不足 2 对，无法做配对 t');
+    // 差值恒为 0 时 t=0/0 → NaN，必须拦下；恒为非 0 常数时 t=±∞、p→0 是正确极限（与 scipy 一致），放行。
+    if (ss().sampleVariance(d) === 0 && ss().mean(d) === 0) throw new Error('配对差值恒为 0（无差异且无变异），t 统计量无定义');
     const r = ttestOne(d, 0, alternative);
-    return Object.assign(r, { test: '配对 t', meanDiff: ss().mean(d) });
+    return Object.assign(r, { test: '配对 t', meanDiff: ss().mean(d), dropped: p.dropped });
   }
   function tCrit(df) {
     // 双侧 95% t 临界值：二分求 tCdf(t,df)=0.975
@@ -92,13 +116,21 @@
     return { test: 'χ² 独立性', statistic: r.statistic, p: r.pValue, df: r.df, expected: r._expected };
   }
   function chi2GOF(observed, expected) {
-    observed = nums(observed);
-    if (expected) { expected = nums(expected); if (expected.length !== observed.length) throw new Error('期望频数长度需一致'); }
-    else { const m = observed.reduce((a, b) => a + b, 0) / observed.length; expected = observed.map(() => m); }
+    let obs, exp, dropped = 0;
+    if (expected) {
+      // observed[i] 与 expected[i] 是同一类别，属成对结构，不能各列独立剔除。
+      const p = pairs(observed, expected);
+      obs = p.x; exp = p.y; dropped = p.dropped;
+    } else {
+      obs = nums(observed);
+      const m = obs.reduce((a, b) => a + b, 0) / obs.length;
+      exp = obs.map(() => m);
+    }
+    if (obs.length < 2) throw new Error('至少需 2 个类别');
     let chi = 0;
-    observed.forEach((o, i) => { if (expected[i] <= 0) throw new Error('期望频数需 > 0'); chi += (o - expected[i]) ** 2 / expected[i]; });
-    const df = observed.length - 1;
-    return { test: 'χ² 拟合优度', statistic: chi, p: 1 - S().chisquareCdf(chi, df), df };
+    obs.forEach((o, i) => { if (exp[i] <= 0) throw new Error('期望频数需 > 0'); chi += (o - exp[i]) ** 2 / exp[i]; });
+    const df = obs.length - 1;
+    return { test: 'χ² 拟合优度', statistic: chi, p: 1 - S().chisquareCdf(chi, df), df, dropped };
   }
 
   // Fisher 精确（双侧：概率 ≤ 观察表概率的所有表求和）
@@ -123,9 +155,14 @@
     return { test: 'Mann-Whitney U', statistic: r.statistic, p: r.pvalue, method: r.method, z: r.zstatistic, n1: x.length, n2: y.length };
   }
   function wilcoxon(x, y, alternative = 'two-sided') {
-    x = nums(x);
-    const r = y ? S().wilcoxon(x, nums(y), { alternative }) : S().wilcoxon(x, { alternative });
-    return { test: 'Wilcoxon 符号秩', statistic: r.statistic, p: r.pValue };
+    if (y) {
+      const p = pairs(x, y);
+      const r = S().wilcoxon(p.x, p.y, { alternative });
+      return { test: 'Wilcoxon 符号秩', statistic: r.statistic, p: r.pValue, n: p.n, dropped: p.dropped };
+    }
+    const a = nums(x);
+    const r = S().wilcoxon(a, { alternative });
+    return { test: 'Wilcoxon 符号秩', statistic: r.statistic, p: r.pValue, n: a.length };
   }
   function bartlett(groups) {
     const gs = groups.map(nums);
@@ -134,15 +171,17 @@
     return { test: 'Bartlett 方差齐性', statistic: r.statistic, p: r.pValue, k: gs.length };
   }
   function correlation(x, y, kind = 'pearson') {
-    x = nums(x); y = nums(y);
-    if (x.length !== y.length || x.length < 3) throw new Error('两变量需等长且 n≥3');
+    const p = pairs(x, y);
+    if (p.n < 3) throw new Error('成对完整病例需 n≥3');
     const s = ss();
     let r;
-    if (kind === 'pearson') r = s.sampleCorrelation(x, y);
-    else r = s.sampleCorrelation(S().ranks(x), S().ranks(y));
-    const n = x.length, df = n - 2;
-    const t = r * Math.sqrt(df / (1 - r * r));
-    return { test: kind === 'pearson' ? 'Pearson 相关' : 'Spearman 相关', statistic: r, p: altP(t, df, 'two-sided'), df, t, n };
+    if (kind === 'pearson') r = s.sampleCorrelation(p.x, p.y);
+    else r = s.sampleCorrelation(S().ranks(p.x), S().ranks(p.y));
+    const n = p.n, df = n - 2;
+    // 浮点上 r 可能略微超出 ±1，直接代入 1-r² 会得负数开方 → NaN。
+    const rc = Math.max(-1, Math.min(1, r));
+    const t = Math.abs(rc) === 1 ? Infinity : rc * Math.sqrt(df / (1 - rc * rc));
+    return { test: kind === 'pearson' ? 'Pearson 相关' : 'Spearman 相关', statistic: r, p: altP(t, df, 'two-sided'), df, t, n, dropped: p.dropped };
   }
 
   W.statsEngine = { descriptive, ttestOne, ttestInd, ttestPaired, chi2Indep, chi2GOF, fisher, mwu, wilcoxon, bartlett, correlation, quantile };

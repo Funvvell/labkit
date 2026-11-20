@@ -1,0 +1,49 @@
+name: CI
+
+# 测试门禁：push main / 任意 PR 都跑，并被 pages.yml 与 release.yml 以 workflow_call 复用，
+# 保证「坏 main 不能直达 Pages 演示与安装包」。
+# 前端零构建，无需安装依赖；Rust 侧 rust-toolchain.toml 钉 stable-x86_64-pc-windows-msvc，故跑 windows。
+# SDPC 闭源 DLL 缺失不影响构建与测试（build.rs 只发 warning，相关测试不加载 DLL）。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend tests (node:test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run node:test suite
+        run: node --test tests/js/*.test.mjs
+
+  rust:
+    name: Rust tests (cargo)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust -> target
+
+      - name: cargo test
+        working-directory: rust
+        run: cargo test --locked

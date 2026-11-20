@@ -31,6 +31,7 @@ function paletteIndex() {
     ['tool-new-window', '在新窗口打开当前工具', '动作 · 独立工具窗口', 'xcxck dakai dangqian gongju', () => { if (_route.name === 'tool' && _route.arg) openToolWindow(_route.arg); else toast('当前不在工具页；也可在工具卡上 Ctrl/⌘+点击'); }],
     ['focus-start', '开始专注', '动作 · 首页计时卡片', 'kszz kaishi zhuanzhu', () => { navigate('home'); setTimeout(() => { const c = document.querySelector('#dashGrid [data-w="focus"]'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); else toast('专注计时卡片已被移除，可在「+ 添加卡片」中加回'); }, 80); }],
     ['dash-edit', '编辑首页布局', '动作 · Ctrl+E', 'bjbj bianji buju', () => { navigate('home'); setTimeout(() => document.getElementById('btnDashEdit')?.click(), 80); }],
+    ['toolbox-edit', '自定义工具分组', '动作 · 工具库「整理分组」· 新建 / 重命名 / 排序 / 隐藏', 'zdy gz fl fenzu fenlei zidingyi zhengli toolbox group', () => { navigate('toolhub'); setTimeout(() => { document.querySelector('#toolhubTabs [data-thtab="tools"]')?.click(); document.getElementById('btnToolboxEdit')?.click(); }, 80); }],
     ['db-export', '导出台账 JSON', '动作 · 设置页', 'dc daochu taizhang json', () => { navigate('settings'); setTimeout(() => document.getElementById('btnDbExport')?.click(), 80); }],
   ];
   acts.forEach(([id, title, sub, py, run]) => items.push({ kind: 'act', id, title, sub, hay: (id + ' ' + title + ' ' + sub + ' ' + py).toLowerCase(), run }));
