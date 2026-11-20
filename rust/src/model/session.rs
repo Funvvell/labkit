@@ -89,18 +89,23 @@ pub fn load_if_exists(path: &Path) -> RoiStore {
     match load(path) {
         Ok(s) => s,
         Err(e) => {
-            tracing::warn!("会话读取失败，忽略: {e}");
+            // 主文件坏时先试 .bak，避免「读失败→空 store→下次保存覆盖」丢光 ROI。
+            let bak = path.with_extension("json.bak");
+            if bak.exists() {
+                if let Ok(s) = load(&bak) {
+                    tracing::warn!("ROI 会话主文件损坏（{e}），已从 .bak 回退");
+                    return s;
+                }
+            }
+            tracing::warn!("会话读取失败且无可用备份，忽略: {e}");
             RoiStore::new()
         }
     }
 }
 
 pub fn save(path: &Path, store: &RoiStore) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    std::fs::write(path, serde_json::to_string_pretty(&store.to_json())?)?;
-    Ok(())
+    // 与台账同标准：原子写 + 覆盖前留 .bak，崩溃/磁盘满不会留下半截文件。
+    crate::store::atomic_write(path, &serde_json::to_string_pretty(&store.to_json())?)
 }
 
 pub fn import_legacy(store: &mut RoiStore, path: &Path) -> Result<usize> {

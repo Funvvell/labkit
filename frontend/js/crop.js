@@ -43,7 +43,8 @@ function persistRois(){
   if(!IN_TAURI||!currentSlidePath||!roiDbReady)return;
   const mine=rois.map((r,i)=>({id:currentSlidePath+'#'+i,slide_path:currentSlidePath,x:r.x,y:r.y,w:r.w,h:r.h,angle:0,created_at:''}));
   roiDb=roiDb.filter(r=>r.slide_path!==currentSlidePath).concat(mine);
-  invoke('save_rois',{rois:roiDb}).catch(()=>{});
+  // 只回写本切片的 ROI 并声明权威切片，Rust 侧保留其它窗口的切片（跨窗口合并写）。
+  invoke('save_rois',{rois:mine,slides:[currentSlidePath]}).catch(e=>toast('ROI 保存失败：'+e,5200));
 }
 function layoutSlide(){
   imgW=(slideInfo&&slideInfo.full_w)||slideImg.naturalWidth||100;

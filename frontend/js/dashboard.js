@@ -245,8 +245,9 @@ function migrateLayout(raw){
   if(raw&&raw.v===2&&Array.isArray(raw.nodes)){
     const seen=new Set(),out=[];
     raw.nodes.forEach(n=>{
-      if(!n||!WIDGETS[n.id]||seen.has(n.id))return;seen.add(n.id);
-      const s=snapSize(n.id,n.w,n.h);
+      if(!n||typeof n.id!=='string'||!n.id||seen.has(n.id))return;seen.add(n.id);
+      // 未知 id（插件停用/未加载）保留占位，重新启用后布局不丢；渲染侧会跳过无 body 的卡片。
+      const s=WIDGETS[n.id]?snapSize(n.id,n.w,n.h):{w:WCOLS.indexOf(n.w)>=0?n.w:2,h:HROWS.indexOf(n.h)>=0?n.h:2};
       out.push({id:n.id,x:Math.max(0,Math.min(4-s.w,n.x|0)),y:Math.max(0,n.y|0),w:s.w,h:s.h});
     });
     return out;
@@ -258,14 +259,22 @@ function migrateLayout(raw){
   }
   return null;
 }
+/* 布局随台账落盘（Store → DB._store.dashLayout），进备份/导出/多窗口同步。
+   旧 localStorage 键仅作迁移来源：读到旧值先用，首次 saveDash 时写入台账并清旧键。 */
 let dashLayout=(function(){
   try{
-    const raw=localStorage.getItem(DASH_KEY);
-    if(raw){const nodes=migrateLayout(JSON.parse(raw));if(nodes!==null)return nodes}
+    let raw=(typeof Store!=='undefined'&&Store)?Store.get('dashLayout',null):null;
+    if(raw==null){const legacy=localStorage.getItem(DASH_KEY);if(legacy)raw=JSON.parse(legacy);}
+    if(raw!=null){const nodes=migrateLayout(raw);if(nodes!==null)return nodes}
   }catch(e){}
   return autoPlace(DEFAULT_LAYOUT);
 })();
-function saveDash(){try{localStorage.setItem(DASH_KEY,JSON.stringify({v:2,nodes:dashLayout}))}catch(e){}}
+function saveDash(){
+  try{
+    Store.set('dashLayout',{v:2,nodes:dashLayout});
+    localStorage.removeItem(DASH_KEY);
+  }catch(e){console.warn('Dashboard 布局保存失败：',e)}
+}
 let dashEdit=false,dashRO=null,dragW=null,resizeRaf=0;
 let _gs=null,_gsReady=false;   // gridstack 实例；init 期间屏蔽 change 事件，避免误标脏
 
@@ -352,7 +361,7 @@ function buildDashGS(grid,intro){
   const L=activeLayout();
   if(!L.length){grid.innerHTML='<div class="dash-empty">Dashboard 是空的 — 进入「编辑布局」后点「+ 添加卡片」挑几张放进来</div>';return}
   grid.innerHTML=L.map((n,i)=>{
-    const def=WIDGETS[n.id];if(!def)return '';
+    const def=WIDGETS[n.id];if(!def||typeof def.body!=='function')return '';
     const sizes=(def.sizes||[def.size]).map(parseSize).filter(Boolean);
     const minW=Math.min(...sizes.map(p=>p.w)),maxW=Math.max(...sizes.map(p=>p.w));
     const minH=Math.min(...sizes.map(p=>p.h)),maxH=Math.max(...sizes.map(p=>p.h));
@@ -419,7 +428,7 @@ function buildDashFallback(grid,intro){
   const L=activeLayout();
   if(!L.length){grid.innerHTML='<div class="dash-empty">Dashboard 是空的 — 进入「编辑布局」后点「+ 添加卡片」挑几张放进来</div>';return}
   grid.innerHTML=L.map((n,i)=>{
-    const def=WIDGETS[n.id];if(!def)return '';
+    const def=WIDGETS[n.id];if(!def||typeof def.body!=='function')return '';
     return `<div class="dash-card wcard w${n.w} h${n.h}${intro?' intro':''}" data-w="${n.id}" data-size="${n.w}x${n.h}"${dashEdit?' tabindex="0"':''} style="${intro?'animation-delay:'+Math.min(i*0.05,0.4)+'s':''}">
       <div class="card-inner">
         ${cardHeadHTML(def,n.w+'x'+n.h)}

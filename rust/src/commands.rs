@@ -259,9 +259,19 @@ pub fn load_rois() -> Result<Vec<Roi>, String> {
 }
 
 #[tauri::command]
-pub fn save_rois(rois: Vec<Roi>) -> Result<String, String> {
+pub fn save_rois(rois: Vec<Roi>, slides: Option<Vec<String>>) -> Result<String, String> {
     let path = roi_session::default_session_path().map_err(|e| e.to_string())?;
     let mut store = RoiStore::new();
+    if let Some(slides) = &slides {
+        // 多窗口合并：只替换本窗口声明权威的切片，保留其它窗口正在编辑的切片，
+        // 避免「各窗口回写自己加载时的全量快照」互相抹掉对方的 ROI。
+        let owned: std::collections::HashSet<&str> = slides.iter().map(|s| s.as_str()).collect();
+        for r in roi_session::load_if_exists(&path).all() {
+            if !owned.contains(r.slide_path.to_string_lossy().as_ref()) {
+                store.add(r);
+            }
+        }
+    }
     for r in rois {
         store.add(r);
     }

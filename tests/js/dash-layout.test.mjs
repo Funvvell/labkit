@@ -27,6 +27,12 @@ globalThis.localStorage = {
   setItem(k, v) { lsBag[k] = String(v); },
   removeItem(k) { delete lsBag[k]; },
 };
+// 布局现在随台账落盘：给 Store 一个内存桩，验证 saveDash 写台账而非 localStorage。
+const storeBag = {};
+globalThis.Store = {
+  get(k, d) { return Object.prototype.hasOwnProperty.call(storeBag, k) ? storeBag[k] : d; },
+  set(k, v) { storeBag[k] = v; },
+};
 vm.runInThisContext(fs.readFileSync(path.join(root, 'frontend/js/dashboard.js'), 'utf8'), { filename: 'frontend/js/dashboard.js' });
 
 /* 矩形两两相交检测（网格坐标） */
@@ -77,11 +83,12 @@ test('非法 / 未知数据回退 null（交由默认布局兜底）', () => {
   assert.equal(migrateLayout({ v: 2, nodes: 'x' }), null);
 });
 
-test('未知卡片 id 过滤、重复 id 去重（v2 与老格式都适用）', () => {
+test('老格式过滤未知 id；v2 保留未知 id 占位（插件停用再启用不丢布局），重复 id 去重', () => {
   const a = migrateLayout([{ id: 'kpi', size: '4x2' }, { id: 'ghost', size: '2x2' }, { id: 'kpi', size: '2x2' }]);
   assert.deepEqual(a.map(n => n.id), ['kpi']);
   const b = migrateLayout({ v: 2, nodes: [{ id: 'qpcr', x: 0, y: 0, w: 1, h: 1 }, { id: 'ghost', x: 1, y: 0, w: 1, h: 1 }, { id: 'qpcr', x: 2, y: 0, w: 1, h: 1 }] });
-  assert.deepEqual(b.map(n => n.id), ['qpcr']);
+  assert.deepEqual(b.map(n => n.id), ['qpcr', 'ghost'], 'v2 应保留未知插件节点占位');
+  assert.ok(WCOLS.includes(b[1].w) && HROWS.includes(b[1].h), '未知节点尺寸夹回规范格');
 });
 
 test('空 v2 布局是合法状态（用户删光卡片），不回退默认', () => {
@@ -142,10 +149,21 @@ test('WIDGETS 自洽：sizes 含默认尺寸、全部可解析；body(size) 每�
   }
 });
 
-test('saveDash：写入 {v:2,nodes}，读回迁移后与当前布局一致', () => {
+test('saveDash：布局写入台账（Store）并清除旧 localStorage 键，读回迁移后一致', () => {
+  lsBag[DASH_KEY] = JSON.stringify({ v: 2, nodes: [{ id: 'kpi', x: 0, y: 0, w: 4, h: 2 }] });
   saveDash();
-  const raw = JSON.parse(lsBag[DASH_KEY]);
+  const raw = Store.get('dashLayout', null);
+  assert.ok(raw, '布局必须进台账而非只留 localStorage');
   assert.equal(raw.v, 2);
   assert.ok(Array.isArray(raw.nodes));
   assert.deepEqual(migrateLayout(raw), dashLayout);
+  assert.equal(lsBag[DASH_KEY], undefined, '迁移完成后旧键应清除');
+});
+
+test('坏卡片注册被拒：registerWidget 缺 body 函数不得进入 WIDGETS', () => {
+  // 渲染侧对无 body 的卡片跳过；注册侧直接拒绝，双保险防整页 Dashboard 崩溃。
+  const src = fs.readFileSync(path.join(root, 'frontend/js/plugins.js'), 'utf8');
+  assert.ok(src.includes("typeof def.body !== 'function'"), 'registerWidget 必须校验 body');
+  const dash = fs.readFileSync(path.join(root, 'frontend/js/dashboard.js'), 'utf8');
+  assert.ok(dash.includes("typeof def.body!=='function'"), '渲染器必须跳过无 body 卡片');
 });

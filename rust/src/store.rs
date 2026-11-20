@@ -49,12 +49,52 @@ fn tmp_path(path: &Path) -> PathBuf {
     path.with_extension("json.tmp")
 }
 
-/// 只接受 JSON 对象：台账库的顶层永远是 `{tasks:[...],projects:[...],...}`。
+/// 接受 JSON 对象，且已知台账键的类型必须正确：
+/// 只查 is_object 会让 `{"tasks":"str"}` 通过，随后所有列表页 .slice/.map 崩溃。
+/// 未知键放行（向前兼容），已知键类型错一律拒写。
 fn validate(data: &Value) -> Result<()> {
-    if !data.is_object() {
-        return Err(AppError::Other(
-            "台账数据必须是 JSON 对象，已拒绝写入以免覆盖现有记录".into(),
-        ));
+    let o = data.as_object().ok_or_else(|| {
+        AppError::Other("台账数据必须是 JSON 对象，已拒绝写入以免覆盖现有记录".into())
+    })?;
+    const ARR: &[&str] = &[
+        "projects",
+        "tasks",
+        "focusRecords",
+        "experiments",
+        "literatures",
+        "reagents",
+        "instruments",
+        "reminders",
+        "budget",
+        "bookings",
+        "notes",
+        "recentSlides",
+    ];
+    for k in ARR {
+        if let Some(v) = o.get(*k) {
+            if !v.is_array() {
+                return Err(AppError::Other(format!("台账字段 {k} 必须是数组，已拒绝写入")));
+            }
+        }
+    }
+    for k in ["_store", "ui"] {
+        if let Some(v) = o.get(k) {
+            if !v.is_object() {
+                return Err(AppError::Other(format!("台账字段 {k} 必须是对象，已拒绝写入")));
+            }
+        }
+    }
+    for k in ["_rev", "budgetTotal"] {
+        if let Some(v) = o.get(k) {
+            if !v.is_number() {
+                return Err(AppError::Other(format!("台账字段 {k} 必须是数字，已拒绝写入")));
+            }
+        }
+    }
+    if let Some(v) = o.get("isDemo") {
+        if !v.is_boolean() {
+            return Err(AppError::Other("台账字段 isDemo 必须是布尔，已拒绝写入".into()));
+        }
     }
     Ok(())
 }
@@ -66,7 +106,8 @@ fn parse(text: &str) -> Result<Value> {
 }
 
 /// 原子写：临时文件 + fsync + rename。覆盖前保留 `.bak`。
-fn atomic_write(path: &Path, text: &str) -> Result<()> {
+/// 公开给 ROI / qPCR 会话复用，保证它们与台账同一可靠性标准。
+pub fn atomic_write(path: &Path, text: &str) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -113,11 +154,10 @@ fn recover_from_bak(path: &Path) -> Result<Option<Value>> {
     }
     let text = fs::read_to_string(&bak)?;
     let v = parse(&text)?;
-    // 回退成功就把主文件修回来，避免每次启动都走回退分支。
-    if let Err(e) = atomic_write(path, &serde_json::to_string_pretty(&v)?) {
-        tracing::warn!("台账回退后修复主文件失败: {e}");
-    }
-    tracing::info!("台账已从 .bak 恢复");
+    // 只读回退，**不**在这里修主文件：atomic_write 会先把损坏的主文件 copy 成 .bak，
+    // 那会毁掉唯一的好备份；且 load 路径不持写锁，并发写会互踩。
+    // 主文件留待下一次持锁的 save/merge_save 原子覆盖，届时自然修复。
+    tracing::warn!("台账主文件损坏，本次从 .bak 回退读取；主文件将在下次保存时修复");
     Ok(Some(v))
 }
 
@@ -242,10 +282,9 @@ pub fn import_at(path: &Path, src: &Path) -> Result<Value> {
     let text = fs::read_to_string(src)?;
     let mut data = parse(&text)?;
     let _g = write_guard();
-    if path.exists() {
-        if let Err(e) = backup_at(path) {
-            tracing::warn!("导入前备份失败（继续导入）: {e}");
-        }
+    if path.exists() && load_at(path)?.is_some() {
+        // 有数据时备份失败必须中止，不能「继续导入」覆盖掉唯一副本。
+        backup_at(path)?;
     }
     let old_rev = load_at(path)?
         .and_then(|v| v.get("_rev").and_then(|r| r.as_u64()))
@@ -269,7 +308,12 @@ pub fn import_from(src: &Path) -> Result<Value> {
 pub fn reset() -> Result<Option<PathBuf>> {
     let path = db_path()?;
     let _g = write_guard();
-    let bak = backup_at(&path).ok();
+    // 备份失败必须中止：否则磁盘满等场景下会无备份删库。无数据时才允许免备份重置。
+    let bak = if load_at(&path)?.is_some() {
+        Some(backup_at(&path)?)
+    } else {
+        None
+    };
     if path.exists() {
         fs::remove_file(&path)?;
     }

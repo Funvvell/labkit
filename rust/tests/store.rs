@@ -46,7 +46,7 @@ fn overwrite_keeps_previous_version_as_bak() {
 }
 
 #[test]
-fn corrupt_main_recovers_from_bak_and_repairs_itself() {
+fn corrupt_main_recovers_from_bak_without_clobbering_backup() {
     let d = TempDir::new().unwrap();
     let p = db(&d);
     store::save_at(&p, &json!({"rev":1})).unwrap();
@@ -55,13 +55,17 @@ fn corrupt_main_recovers_from_bak_and_repairs_itself() {
     std::fs::write(&p, "{\"rev\":2,\"tasks\":[").unwrap();
     let got = store::load_at(&p).unwrap().unwrap();
     assert_eq!(got, json!({"rev":1}), "应回退到 .bak 里上一版完整数据");
-    // 回退后主文件被修好，下次启动不再走回退分支
-    let again = store::load_at(&p).unwrap().unwrap();
-    assert_eq!(again, json!({"rev":1}));
+    // 回退是只读的：不得把损坏主文件 copy 成 .bak 毁掉唯一好备份，
+    // 也不在无锁的 load 路径修主文件；主文件留待下次持锁保存自然修复。
+    let bak = std::fs::read_to_string(p.with_extension("json.bak")).unwrap();
     assert_eq!(
-        serde_json::from_str::<serde_json::Value>(&std::fs::read_to_string(&p).unwrap()).unwrap(),
-        json!({"rev":1})
+        serde_json::from_str::<serde_json::Value>(&bak).unwrap(),
+        json!({"rev":1}),
+        ".bak 必须仍是好数据"
     );
+    assert_eq!(std::fs::read_to_string(&p).unwrap(), "{\"rev\":2,\"tasks\":[");
+    store::save_at(&p, &json!({"rev":3})).unwrap();
+    assert_eq!(store::load_at(&p).unwrap().unwrap(), json!({"rev":3}));
 }
 
 #[test]

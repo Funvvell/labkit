@@ -88,6 +88,8 @@ LabKit.registerWidget = function (def) {
   }
   const id = pluginFullId(pid, def && def.id);
   if (!id) { console.warn('扩展卡片 id 非法：', def && def.id); return null; }
+  // body 必须是函数：否则渲染时 def.body(...) 抛错会炸掉整个 Dashboard。
+  if (!def || typeof def.body !== 'function') { console.warn('扩展卡片缺少 body 函数，拒绝注册：', id); return null; }
   if (typeof WIDGETS !== 'undefined' && WIDGETS[id]) return id;  // 撞名去重
   if (typeof WIDGETS === 'undefined') return null;
   WIDGETS[id] = Object.assign({}, def, {
