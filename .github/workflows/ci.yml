@@ -15,7 +15,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # 组名带 github.workflow：本文件既被 push 直触，也被 pages/release 以 workflow_call 复用
+  # （复用调用里 github.workflow 是调用方名字）。不带区分会让两条运行互撞 cancel-in-progress。
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
