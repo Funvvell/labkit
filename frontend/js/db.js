@@ -243,22 +243,26 @@ function dbRenderCurrentView(){
 function dbRefreshViews(){
   if(typeof shellRenderPins==='function')shellRenderPins();
   if(typeof syncPinButtons==='function')syncPinButtons();
+  if(typeof shellRenderCats==='function')shellRenderCats();
+  if(typeof toolboxInvalidate==='function')toolboxInvalidate();
   if(typeof renderToolHub==='function')renderToolHub();
   if(typeof notifyBadge==='function')notifyBadge();
   if(typeof applyTheme==='function')applyTheme();
   if(typeof applyDensity==='function')applyDensity();
   if(typeof setGreet==='function')setGreet();
-  if(document.querySelector('.modal-mask')||(typeof dashEdit!=='undefined'&&dashEdit)){
+  if(document.querySelector('.modal-mask')||(typeof dashEdit!=='undefined'&&dashEdit)
+    ||(typeof toolboxIsEditing==='function'&&toolboxIsEditing())){
     _dbViewPending=true;dbWatchIdle();return;
   }
   dbRenderCurrentView();
 }
-/* 模态关闭 / 退出布局编辑后补刷新（观察 #win 子树，仅在有待刷新时挂载） */
+/* 模态关闭 / 退出布局编辑 / 退出工具箱整理后补刷新（观察 #win 子树，仅在有待刷新时挂载） */
 function dbWatchIdle(){
   if(_dbMO)return;
   _dbMO=new MutationObserver(()=>{
     if(!_dbViewPending)return;
-    if(document.querySelector('.modal-mask')||(typeof dashEdit!=='undefined'&&dashEdit))return;
+    if(document.querySelector('.modal-mask')||(typeof dashEdit!=='undefined'&&dashEdit)
+      ||(typeof toolboxIsEditing==='function'&&toolboxIsEditing()))return;
     _dbMO.disconnect();_dbMO=null;_dbViewPending=false;
     dbRenderCurrentView();
   });

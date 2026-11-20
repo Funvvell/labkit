@@ -24,7 +24,7 @@ const PAGE_META = {
     icon: '<path d="M4 20H20M7 20V12M12 20V6M17 20V10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' },
   toolhub:     { name: '工具库',     desc: '全部科研小工具',          py: 'gjk gongjuku gongju', pin: false,
     icon: '<path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="18.5" cy="17" r="2.6" stroke="currentColor" stroke-width="1.6"/>' },
-  plugins:     { name: '插件市场',   desc: '社区工具与卡片',          py: 'cj cj market plugin', pin: false,
+  plugins:     { name: '扩展管理',   desc: '工具扩展与卡片扩展',      py: 'kz kuozhan cj plugin market', pin: false,
     icon: '<path d="M9.5 3.5h5l.7 3.2 2.5 1.5 3-1.3 2.3 4-2.5 2v3l2.5 2-2.3 4-3-1.3-2.5 1.5-.7 3.2h-5l-.7-3.2-2.5-1.5-3 1.3-2.3-4 2.5-2v-3l-2.5-2 2.3-4 3 1.3 2.5-1.5.7-3.2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.5"/>' },
   settings:    { name: '设置',       desc: '密度 · 数据备份 · 关于',  py: 'sz shezhi beifen', pin: false,
     icon: '<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M12 3V5.5M12 18.5V21M3 12H5.5M18.5 12H21M5.6 5.6L7.4 7.4M16.6 16.6L18.4 18.4M18.4 5.6L16.6 7.4M7.4 16.6L5.6 18.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' },
@@ -35,13 +35,14 @@ function pageIcon(id) {
 }
 /* 可固定页面清单（工作台菜单顺序） */
 const WB_PAGES = ['tasks', 'projects', 'experiments', 'literature', 'labres', 'reports', 'focus'];
-/* 未固定子页 → 侧栏高亮映射回首页，避免"死"状态 */
-const NAV_HOME_MAP = WB_PAGES;
+/* 未固定子页 → 侧栏高亮映射回首页，避免"死"状态；文献库已是侧栏一级入口，不再回退首页 */
+const NAV_HOME_MAP = WB_PAGES.filter(id => id !== 'literature');
 function navKeyFor(name) { return name === 'tool' ? 'toolhub' : name; }
 
 function shellSyncNav(name) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelector(`.nav-item[data-nav="${navKeyFor(name)}"]`)?.classList.add('active');
+  document.querySelectorAll('.wb-tab').forEach(b => b.classList.toggle('active', b.dataset.nav === name));
   const kind = name === 'tool' ? 'tool' : 'page', id = name === 'tool' ? _route.arg : name;
   document.querySelector(`.pin-item[data-pin-kind="${kind}"][data-pin-id="${id}"]`)?.classList.add('active');
   if (NAV_HOME_MAP.includes(name) && !Store.isPinned('page', name))
@@ -63,7 +64,7 @@ function shellRenderPins() {
     ? (window.TOOL_META || []).some(t => t.id === p.id)
     : !!PAGE_META[p.id]);
   host.innerHTML = '<div class="side-group">固定</div>' + (pins.length
-    ? pins.map((p, i) => `<div class="nav-item sub pin-item" data-pin-kind="${p.kind}" data-pin-id="${esc(p.id)}" data-pin-idx="${i}" title="${esc(pinLabel(p))}（右键重命名）"><span class="pin-grip" title="拖动排序">⠿</span>${pinIcon(p)}<span class="label">${esc(pinLabel(p))}</span><button class="pin-x" title="取消固定" aria-label="取消固定 ${esc(pinLabel(p))}">×</button></div>`).join('')
+    ? pins.map((p, i) => `<div class="nav-item sub pin-item" data-pin-kind="${p.kind}" data-pin-id="${esc(p.id)}" data-pin-idx="${i}" role="button" tabindex="0" aria-label="打开 ${esc(pinLabel(p))}" title="${esc(pinLabel(p))}（右键重命名）"><span class="pin-grip" title="拖动排序">⠿</span>${pinIcon(p)}<span class="label">${esc(pinLabel(p))}</span><button class="pin-x" title="取消固定" aria-label="取消固定 ${esc(pinLabel(p))}">×</button></div>`).join('')
     : '<div class="pin-empty">从「工作台 ▾」菜单或页头 ☆ 固定常用入口</div>');
   bindPinDnD(host);
 }
@@ -166,12 +167,25 @@ function pinCtxOpen(e, item) {
 }
 
 function shellRenderCats() {
-  const groups = {};
-  (window.TOOL_META || []).forEach(t => { (groups[t.group] = groups[t.group] || []).push(t); });
   const host = document.getElementById('sideCats');
-  host.innerHTML = Object.entries(groups).map(([g, ts]) =>
-    `<details class="side-cat"><summary>${esc(g)}<span class="cat-n">${ts.length}</span></summary>` +
-    ts.map(t => `<button class="nav-item sub" data-tool-link="${t.id}">${toolIcon(t.id)}<span class="label">${esc(t.name)}</span></button>`).join('') +
+  if (!host) return;
+  /* P5：侧栏分组跟工具箱配置同源（可改名 / 改序 / 隐藏）。
+     toolboxView 不可用时回退旧的按 meta.group 分组——脚本顺序出问题也不至于白屏。 */
+  let groups = [];
+  if (typeof toolboxView === 'function') {
+    groups = toolboxView().groups
+      .filter(g => g.count > 0)
+      .map(g => ({ id: g.id, name: g.name, color: g.color, tools: g.tools }));
+  } else {
+    const bag = {};
+    (window.TOOL_META || []).forEach(t => { (bag[t.group] = bag[t.group] || []).push(t); });
+    groups = Object.entries(bag).map(([g, ts]) => ({ id: g, name: g, color: '#007aff', tools: ts }));
+  }
+  /* 侧栏的折叠交给原生 <details>（每个用户自己展开），这里只回显分组名与数量；
+     toolhub 页的「折叠分组」是另一层语义（整组收起），两者互不干扰。 */
+  host.innerHTML = groups.map(g =>
+    `<details class="side-cat" data-tb-cat="${esc(g.id)}"><summary><span class="cat-dot" style="background:${g.color}"></span>${esc(g.name)}<span class="cat-n">${g.tools.length}</span></summary>` +
+    g.tools.map(t => `<button class="nav-item sub" data-tool-link="${esc(t.id)}">${toolIcon(t.id)}<span class="label">${esc(t.name)}</span></button>`).join('') +
     '</details>'
   ).join('');
 }
@@ -222,8 +236,13 @@ function shellInit() {
     const it = e.target.closest('.pin-item');
     if (it) pinCtxOpen(e, it);
   });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const pi = e.target.closest && e.target.closest('.pin-item');
+    if (!pi || e.target.closest('.pin-x,.pin-grip')) return;
+    e.preventDefault(); pi.click();
+  });
   document.getElementById('sideSearch').onclick = paletteOpen;
   const bs = document.getElementById('btnSearch'); if (bs) bs.onclick = paletteOpen;   // 标题栏搜索（P0 重写时曾遗漏，P1 恢复）
-  const sideAdd = document.getElementById('sideAdd');   // 旧版侧栏「添加工具」按钮，现版 HTML 已无此元素
-  if (sideAdd) sideAdd.onclick = () => { navigate('toolhub'); };
+  const wc = document.getElementById('wbCommand'); if (wc) wc.onclick = paletteOpen;
 }

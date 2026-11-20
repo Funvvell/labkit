@@ -42,6 +42,13 @@
 
 Every tool shares one chrome: **load example / reset / help & provenance drawer / export bar**. Inputs and configs **persist automatically** across page switches and restarts. **Cross-tool data flow**: cleaning → tests / plotter / Table 1; test results → APA strings (reloadable across restarts).
 
+**Toolbox personalisation** (patterns from VS Code's Activity Bar and Dashy's section config):
+
+- "Arrange" on the tool library page opens a draft mode — create / rename / recolour / re-icon / delete / reorder groups, drag tools across groups, reorder within a group, hide tools. Nothing is written until you press Save; `Esc` restores the previous state
+- Hidden tools disappear from the sidebar and the library but **stay searchable in Ctrl+K with a "hidden" badge** (VS Code's `View: Open View` behaviour — hidden is not unreachable)
+- Groups and ordering are **shared by** the library page, the sidebar categories and Ctrl+K. Only your diffs are stored (an overlay), so installing extensions or upgrading LabKit never scrambles your layout
+- Keyboard equivalents: `Alt+←/→` moves between groups, `Alt+↑/↓` reorders within one
+
 ### Interaction (patterns borrowed from IT-Tools / DevToys / Rubick / Obsidian Bookmarks)
 
 - **Ctrl+K command palette** over tools, pages and global actions, with pinyin-initial fuzzy matching
@@ -53,8 +60,8 @@ Every tool shares one chrome: **load example / reset / help & provenance drawer 
 - **Dark mode** (light / dark / system); charts and crop canvas stay paper-white for journal submission
 - First-run welcome: start blank or load sample data; customizable display name
 - **Zotero integration**: read-only sync from local Zotero 7+ (items / collections / saved searches), source filtering and one-click import in the literature page; Zotero 10+ can optionally mirror reading status as tags after authorization (the local notebook stays authoritative); optional Better BibTeX probing
-- **GitHub plugin marketplace**: Obsidian-style "index repo + Release assets" — browse/search, explicit install confirmation, disable/update/rollback/uninstall and local dev loading. Off by default, never auto-updates. Tools and widgets share public registries with `x-<pluginId>-` prefix isolation; see [`docs/PLUGIN_DEV.md`](docs/PLUGIN_DEV.md)
-- The design system no longer ships inside the app — see [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) (visual contract for new tools / plugins)
+- **Extensions: tool extensions and widget extensions installed separately**: after HACS `category` and Directus extension `type` — one package is exactly one kind, and a kind mismatch is rejected *before* download. Tool extensions are browsed from **Tool library → "Get more tools"**, widget extensions from **Home → "＋ Card" → "Get cards"**; install / update / rollback / uninstall live in **Extensions** in the sidebar. Two indexes (`tools.json` / `widgets.json`), off by default, never auto-updates; tools and widgets share public registries with `x-<pluginId>-` prefix isolation — see [`docs/PLUGIN_DEV.md`](docs/PLUGIN_DEV.md)
+- The design system no longer ships inside the app — see [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) (visual contract for new tools / extensions)
 
 ### Pathology workspace
 

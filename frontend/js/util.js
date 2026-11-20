@@ -23,6 +23,28 @@ function todayStr(){return dayISO(new Date())}
 function daysAgoISO(n){const d=new Date();d.setDate(d.getDate()-n);return dayISO(d)}
 function nowStamp(){const d=new Date();return dayISO(d)+'T'+pad2(d.getHours())+':'+pad2(d.getMinutes())}
 function uid(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+
+/* ===================== Native dialog helpers =====================
+   统一管理 top-layer 浮层：优先 showModal()（焦点限制、Esc、焦点返回由浏览器负责），
+   旧环境/测试桩没有 showModal 时回退到 open 属性 + [hidden]。 */
+function openLayer(el){
+  if(!el)return;
+  el.hidden=false;
+  if(typeof el.showModal==='function'&&!el.open){
+    try{el.showModal();return}catch(_){/* fall through */}
+  }
+  if(typeof el.setAttribute==='function')el.setAttribute('open','');
+}
+function closeLayer(el){
+  if(!el)return;
+  if(el.open&&typeof el.close==='function'){try{el.close()}catch(_){ }el.hidden=true;return}
+  if(typeof el.removeAttribute==='function')el.removeAttribute('open');
+  el.hidden=true;
+}
+function layerIsOpen(el){
+  return !!(el&&((typeof el.open==='boolean'&&el.open)||!el.hidden));
+}
+
 function daysLeft(s){
   const m=String(s||'').match(/(\d{4})-(\d{2})-(\d{2})/);if(!m)return null;
   const t=new Date(+m[1],+m[2]-1,+m[3]);const n=new Date();n.setHours(0,0,0,0);

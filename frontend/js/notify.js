@@ -36,8 +36,9 @@ function notifyOpen(){
     ?('<div class="notify-list">'+items.map((it,i)=>`<div class="notify-item${it.urgent?' urgent':''}" data-ni="${i}"><span class="ni-dot"></span><div class="ni-txt"><b>${esc(it.text)}</b><small>${esc(it.sub)}</small></div></div>`).join('')+'</div>')
     :'<div class="notify-empty">没有待处理提醒 — 任务截止、试剂效期与仪器校准会在这里汇总</div>';
   mask.hidden=false;
+  openLayer(mask);
   body.querySelectorAll('[data-ni]').forEach(el=>el.onclick=()=>{
-    const it=items[+el.dataset.ni];mask.hidden=true;if(it.go)navigate(it.go);
+    const it=items[+el.dataset.ni];closeLayer(mask);if(it.go)navigate(it.go);
   });
   notifyBadge();
 }
@@ -45,8 +46,8 @@ function notifyOpen(){
   const b=document.getElementById('btnBell');if(b)b.onclick=notifyOpen;
   const m=document.getElementById('notifyMask');
   if(m){
-    m.addEventListener('click',e=>{if(e.target===m)m.hidden=true;});
-    const c=document.getElementById('notifyClose');if(c)c.onclick=()=>m.hidden=true;
-    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!m.hidden)m.hidden=true;});
+    m.addEventListener('click',e=>{if(e.target===m)closeLayer(m);});
+    m.addEventListener('close',()=>{m.hidden=true;});
+    const c=document.getElementById('notifyClose');if(c)c.onclick=()=>closeLayer(m);
   }
 })();

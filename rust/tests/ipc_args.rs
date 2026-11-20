@@ -208,6 +208,7 @@ fn export_rois_sends_required_keys() {
 }
 
 /// P4 插件安装契约：Rust 命令必填参数与前端 invoke 顶层键一一对应。
+/// P5 起还要求 kind —— 装错市场必须在前端就带上类型，Rust 侧据此拒绝。
 #[test]
 fn plugins_install_sends_contract_keys() {
     let src = frontend_source();
@@ -219,10 +220,44 @@ fn plugins_install_sends_contract_keys() {
         .collect();
     assert!(!installs.is_empty(), "前端没有调用 plugins_install");
     for keys in installs {
-        for need in ["id", "repo", "version"] {
+        for need in ["id", "repo", "version", "kind"] {
             assert!(
                 keys.iter().any(|k| k == need),
                 "plugins_install 缺少参数 {need}，实际发送: {keys:?}"
+            );
+        }
+    }
+}
+
+/// P5 双市场：索引请求必须带 kind（tool / widget），否则 Rust 无法判断读哪份索引。
+#[test]
+fn plugins_index_sends_market_kind() {
+    let src = frontend_source();
+    let calls = invoke_calls(&src);
+    let idx: Vec<&Vec<String>> = calls
+        .iter()
+        .filter(|(c, _)| c == "plugins_index")
+        .map(|(_, k)| k)
+        .collect();
+    assert!(!idx.is_empty(), "前端没有调用 plugins_index");
+    for keys in idx {
+        assert!(
+            keys.iter().any(|k| k == "kind"),
+            "plugins_index 缺少参数 kind，实际发送: {keys:?}"
+        );
+    }
+    // 本地开发载入也要声明类型
+    let local: Vec<&Vec<String>> = calls
+        .iter()
+        .filter(|(c, _)| c == "plugins_install_local")
+        .map(|(_, k)| k)
+        .collect();
+    assert!(!local.is_empty(), "前端没有调用 plugins_install_local");
+    for keys in local {
+        for need in ["dir", "kind"] {
+            assert!(
+                keys.iter().any(|k| k == need),
+                "plugins_install_local 缺少参数 {need}，实际发送: {keys:?}"
             );
         }
     }

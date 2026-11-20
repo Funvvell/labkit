@@ -20,6 +20,13 @@ function applyView(name) {
   // 工作区收起侧栏（顶部面包屑返回）；其余视图保持持久侧栏
   const isWorkspace = (name === 'crop' || name === 'qpcr' || name === 'tool');
   document.getElementById('sidebar').classList.toggle('hidden', isWorkspace);
+  if (document.body && document.body.dataset) document.body.dataset.view = name;
+  if (typeof WINDOW_MODE === 'undefined' || !WINDOW_MODE) {
+    if (name !== 'tool') document.title = '科研工具箱 LabKit';
+  }
+  const wbPages = ['home', 'tasks', 'focus', 'projects', 'experiments', 'literature', 'labres', 'reports'];
+  const tabs = document.getElementById('workbenchTabs');
+  if (tabs) tabs.hidden = !wbPages.includes(name);
   if (typeof shellSyncNav === 'function') shellSyncNav(name);
 }
 /* 视图切换同步生效；淡入由 CSS .view.active 动画承担（reduced-motion 全局已关动画）。
@@ -29,7 +36,11 @@ function renderRoute(r) {
   _route = r;
   applyView(r.name);
   if (r.name === 'tool' && r.arg) renderTool(r.arg);   // toolhub.js：注入脚本并渲染，不再改路由
-  if (r.name === 'plugins' && typeof pluginFetchIndex === 'function') pluginFetchIndex();
+  if (r.name === 'plugins') {
+    /* 先同步画一遍已装列表（浏览器演示模式不联网，靠这一步出内容），再拉索引 */
+    if (typeof renderExtPage === 'function') renderExtPage();
+    if (typeof pluginFetchAll === 'function') pluginFetchAll();
+  }
 }
 function navigate(name, arg) {
   const r = (name === 'tool') ? { name: 'tool', arg } : parseHash('#/' + name);

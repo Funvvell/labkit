@@ -86,6 +86,8 @@ await shot('p2-exe-edit.png');
 
 /* 3) 真实鼠标拖右下角改尺寸：reagents 1x2 → 期望吸附到声明档（如 2x3） */
 await ev(`(()=>{if(!dashDraft.some(x=>x.id==='reagents')){addWidget('reagents');touchDraft()}})()`); await sleep(400);
+/* 首页新增指挥台后 Dashboard 可能落在首屏下方；先滚到目标卡，再按真实坐标拖拽。 */
+await ev(`(()=>{document.querySelector('#dashGrid .grid-stack-item[gs-id="reagents"]')?.scrollIntoView({block:'center'});return true})()`); await sleep(350);
 const rz = await ev(`(()=>{
   const el=document.querySelector('#dashGrid .grid-stack-item[gs-id="reagents"]');
   const h=el.querySelector('.ui-resizable-se');

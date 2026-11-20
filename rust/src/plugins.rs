@@ -19,8 +19,13 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 const UA: &str = concat!("LabKit/", env!("CARGO_PKG_VERSION"));
-pub const DEFAULT_INDEX_URL: &str =
-    "https://raw.githubusercontent.com/Funvvell/labkit-plugins/main/plugins.json";
+/// 索引基址：工具与卡片两个市场共用同一目录，只靠文件名区分类型
+/// （参考 HACS 的 category → 目录、Directus 的 extension type → 安装位置）。
+pub const DEFAULT_INDEX_BASE: &str =
+    "https://raw.githubusercontent.com/Funvvell/labkit-plugins/main";
+/// 存量合并索引：新目录里找不到 tools.json / widgets.json 时回退到这里，按条目 kind 过滤。
+/// 生态迁移期保留，两个版本后再移除。
+pub const LEGACY_INDEX_FILE: &str = "plugins.json";
 const CACHE_TTL: Duration = Duration::from_secs(30 * 60);
 
 /* ---------------- 纯逻辑：白名单 / 路径 / 版本 / 哈希 ---------------- */
@@ -47,6 +52,83 @@ pub fn valid_version(v: &str) -> bool {
 /// 资产文件名白名单：插件包只允许这三个文件。
 pub fn valid_asset(name: &str) -> bool {
     matches!(name, "manifest.json" | "main.js" | "styles.css")
+}
+
+/* ---------------- 市场拆分：类型语义（纯函数，可单测） ---------------- */
+
+/// 市场类型文件名：tool → tools.json / widget → widgets.json。
+pub fn index_file(kind: &str) -> Result<&'static str, String> {
+    match kind.trim().to_ascii_lowercase().as_str() {
+        "tool" => Ok("tools.json"),
+        "widget" => Ok("widgets.json"),
+        other => Err(format!("未知扩展类型：{other}（只允许 tool / widget）")),
+    }
+}
+
+/// 索引候选 URL：
+/// * 目录源（默认）→ [&lt;base&gt;/tools.json, &lt;base&gt;/plugins.json]
+/// * 完整 .json   → 单元素（老用户手填 plugins.json 继续可用）
+pub fn index_urls(kind: &str, source: Option<&str>) -> Result<Vec<String>, String> {
+    let file = index_file(kind)?;
+    let raw = source
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(DEFAULT_INDEX_BASE);
+    if !raw.starts_with("https://raw.githubusercontent.com/") && raw != DEFAULT_INDEX_BASE {
+        return Err("索引源必须是 raw.githubusercontent.com 的 HTTPS 地址".into());
+    }
+    if raw.ends_with(".json") {
+        return Ok(vec![raw.to_string()]);
+    }
+    let base = raw.trim_end_matches('/');
+    Ok(vec![
+        format!("{base}/{file}"),
+        format!("{base}/{LEGACY_INDEX_FILE}"),
+    ])
+}
+
+/// 精确的市场类型（both / 未声明 / 未知 → None）。
+fn market_kind(kind: &str) -> Option<&'static str> {
+    match kind.trim().to_ascii_lowercase().as_str() {
+        "tool" => Some("tool"),
+        "widget" => Some("widget"),
+        _ => None,
+    }
+}
+
+/// 索引条目是否属于该市场：both 两侧都收；条目未声明类型按 tool（与 IndexEntry::kind() 一致）。
+pub fn entry_matches(kind: &str, e: &IndexEntry) -> bool {
+    let want = match market_kind(kind) {
+        Some(k) => k,
+        None => return false,
+    };
+    let got = if e.kind.trim().is_empty() {
+        "tool"
+    } else {
+        e.kind.trim()
+    };
+    got == "both" || got == want
+}
+
+/// 市场与包类型是否互斥。both / 未声明一律不拦（存量包要能装）。
+pub fn kind_conflict(market: &str, declared: &str) -> bool {
+    match (market_kind(market), market_kind(declared)) {
+        (Some(m), Some(d)) => m != d,
+        _ => false,
+    }
+}
+
+/// 生效类型与 legacy 标记：包内声明优先，其次跟随市场，再次视为工具包。
+/// legacy = 包内没有声明单一类型（老包 / both），扩展管理页据此提示迁移。
+pub fn effective_kind(market: Option<&str>, declared: &str) -> (String, bool) {
+    match declared.trim().to_ascii_lowercase().as_str() {
+        "tool" => return ("tool".into(), false),
+        "widget" => return ("widget".into(), false),
+        "both" => return ("both".into(), true),
+        _ => {}
+    }
+    let m = market.and_then(market_kind);
+    (m.unwrap_or("tool").to_string(), true)
 }
 
 /// 安全拼接：base.join(rel) 且 rel 必须是纯相对 Normal 段。
@@ -131,20 +213,31 @@ pub struct IndexEntry {
     pub description: String,
     #[serde(default)]
     pub repo: String,
-    #[serde(default, rename = "kind")]
-    pub kind_field: String,
-    #[serde(default, rename = "minAppVersion")]
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default)]
     pub min_app_version: String,
 }
 
 impl IndexEntry {
+    /// 未声明按 tool（与前端 pluginEntryKind 保持一致）。
     pub fn kind(&self) -> &str {
-        if self.kind_field.is_empty() {
+        if self.kind.trim().is_empty() {
             "tool"
         } else {
-            &self.kind_field
+            &self.kind
         }
     }
+}
+
+/// 一次索引请求的结果：实际命中的 URL + 是否走了存量合并索引 + 过滤后的条目。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexPayload {
+    pub kind: String,
+    pub url: String,
+    pub legacy: bool,
+    pub items: Vec<IndexEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -162,6 +255,9 @@ pub struct Manifest {
     pub repo: String,
     #[serde(default)]
     pub min_app_version: String,
+    /// 扩展类型：tool / widget（新包必填）；both 仅存量兼容；空 = 未声明。
+    #[serde(default)]
+    pub kind: String,
     #[serde(default = "default_main")]
     pub main: String,
     #[serde(default)]
@@ -174,9 +270,9 @@ fn default_main() -> String {
     "main.js".into()
 }
 
-/// manifest 校验：必填字段 + id 白名单 + 资产文件名白名单。
+/// manifest 校验：必填字段 + id 白名单 + 资产文件名白名单 + kind 取值。
 pub fn parse_manifest(bytes: &[u8], expected_id: Option<&str>) -> Result<Manifest, String> {
-    let m: Manifest = serde_json::from_slice(bytes)
+    let mut m: Manifest = serde_json::from_slice(bytes)
         .map_err(|e| format!("manifest.json 解析失败：{e}"))?;
     if !valid_id(&m.id) {
         return Err(format!("manifest id 非法：{}", m.id));
@@ -197,6 +293,11 @@ pub fn parse_manifest(bytes: &[u8], expected_id: Option<&str>) -> Result<Manifes
             return Err(format!("styles 资产名非法：{s}"));
         }
     }
+    let k = m.kind.trim().to_ascii_lowercase();
+    if !k.is_empty() && !matches!(k.as_str(), "tool" | "widget" | "both") {
+        return Err(format!("manifest kind 非法：{}（只允许 tool / widget）", m.kind));
+    }
+    m.kind = k;
     Ok(m)
 }
 
@@ -205,6 +306,10 @@ pub fn parse_manifest(bytes: &[u8], expected_id: Option<&str>) -> Result<Manifes
 pub struct InstalledPlugin {
     pub id: String,
     pub version: String,
+    /// 生效类型（tool / widget / both，已按市场推断过）。
+    pub kind: String,
+    /// 包内未声明单一类型（存量合并包）。
+    pub legacy: bool,
     pub manifest: Manifest,
     pub path: String,
 }
@@ -229,7 +334,28 @@ pub fn install_at(
     manifest_bytes: &[u8],
     assets: &[(String, Vec<u8>)],
 ) -> Result<InstalledPlugin, String> {
-    let m = parse_manifest(manifest_bytes, Some(id))?;
+    install_at_kind(base, id, version, None, manifest_bytes, assets)
+}
+
+/// 带市场类型的安装：market = Some("tool"|"widget") 时先做类型冲突校验（装错市场直接拒绝，
+/// 而不是先落盘再拦截），并把生效类型写进返回值。落盘仍是原始 manifest，类型以安装记录为准。
+pub fn install_at_kind(
+    base: &Path,
+    id: &str,
+    version: &str,
+    market: Option<&str>,
+    manifest_bytes: &[u8],
+    assets: &[(String, Vec<u8>)],
+) -> Result<InstalledPlugin, String> {
+    let mut m = parse_manifest(manifest_bytes, Some(id))?;
+    if let Some(mk) = market {
+        if kind_conflict(mk, &m.kind) {
+            let declared = if m.kind.is_empty() { "未声明" } else { m.kind.as_str() };
+            return Err(format!("包类型为 {declared}，不能安装到 {mk} 市场"));
+        }
+    }
+    let (ek, legacy) = effective_kind(market, &m.kind);
+    m.kind = ek.clone();
     if !m.version.is_empty() && m.version != version {
         return Err(format!("manifest 版本与目录版本不一致：{} ≠ {}", m.version, version));
     }
@@ -291,6 +417,8 @@ pub fn install_at(
     Ok(InstalledPlugin {
         id: id.to_string(),
         version: version.to_string(),
+        kind: ek,
+        legacy,
         manifest: m,
         path: dir.to_string_lossy().into_owned(),
     })
@@ -378,41 +506,79 @@ async fn get_json(url: &str, token: Option<&str>, secs: u64) -> Result<serde_jso
         .map_err(|e| format!("响应解析失败：{e}"))
 }
 
-/// 索引：raw 域无 API 限速；缓存 30 分钟，refresh=true 强制刷新。
-/// 校验条目 id 白名单与 repo 格式（owner/name），坏条目跳过而非让整个市场不可用。
-pub async fn fetch_index(source: Option<&str>, refresh: bool) -> Result<Vec<IndexEntry>, String> {
-    let url = source
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| DEFAULT_INDEX_URL.into());
-    if !url.starts_with("https://raw.githubusercontent.com/") && url != DEFAULT_INDEX_URL {
-        return Err("索引源必须是 raw.githubusercontent.com 的 HTTPS 地址".into());
+/// 拉一个索引文件；404 返回 Ok(None) 供上层回退，其余错误（网络/限流/解析）直接冒泡——
+/// 静默降级会让市场看起来「空了」，比报错更难排查。
+async fn load_index(url: &str, refresh: bool) -> Result<Option<serde_json::Value>, String> {
+    if !refresh {
+        if let Some(v) = cached(url) {
+            return Ok(Some(v));
+        }
     }
-    let v = if refresh {
-        let v = get_json(&url, None, 20).await?;
-        remember(&url, &v);
-        v
-    } else {
-        match cached(&url) {
+    let cli = http(20)?;
+    let r = cli
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("请求失败：{e}"))?;
+    let status = r.status();
+    if status == reqwest::StatusCode::NOT_FOUND {
+        return Ok(None);
+    }
+    if !status.is_success() {
+        return Err(format!("HTTP {status}（GitHub 未鉴权限流 60 次/时，可在设置页填 PAT）"));
+    }
+    let v = r
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|e| format!("响应解析失败：{e}"))?;
+    remember(url, &v);
+    Ok(Some(v))
+}
+
+/// 按市场取索引：先读 <base>/<tools|widgets>.json，404 才回退到存量 plugins.json。
+/// 缓存按最终 URL 分槽（Rust 内存 30 分钟），两个市场天然不互相污染。
+/// 校验条目 id 白名单与 repo 格式（owner/name），坏条目跳过而非让整个市场不可用。
+pub async fn fetch_index(
+    kind: &str,
+    source: Option<&str>,
+    refresh: bool,
+) -> Result<IndexPayload, String> {
+    let want = market_kind(kind)
+        .ok_or_else(|| format!("未知扩展类型：{kind}（只允许 tool / widget）"))?;
+    let urls = index_urls(want, source)?;
+    let mut missing: Vec<String> = Vec::new();
+    for url in urls {
+        let v = match load_index(&url, refresh).await? {
             Some(v) => v,
             None => {
-                let v = get_json(&url, None, 20).await?;
-                remember(&url, &v);
-                v
+                missing.push(url);
+                continue;
+            }
+        };
+        let arr = v.as_array().ok_or("索引文件必须是 JSON 数组")?;
+        let mut items = Vec::new();
+        for raw in arr {
+            match serde_json::from_value::<IndexEntry>(raw.clone()) {
+                Ok(e)
+                    if valid_id(&e.id)
+                        && e.repo.split('/').count() == 2
+                        && !e.repo.contains(' ')
+                        && entry_matches(want, &e) =>
+                {
+                    items.push(e)
+                }
+                _ => continue,
             }
         }
-    };
-    let arr = v.as_array().ok_or("索引文件必须是 JSON 数组")?;
-    let mut out = Vec::new();
-    for raw in arr {
-        match serde_json::from_value::<IndexEntry>(raw.clone()) {
-            Ok(e) if valid_id(&e.id) && e.repo.split('/').count() == 2 && !e.repo.contains(' ') => {
-                out.push(e)
-            }
-            _ => continue,
-        }
+        let legacy = url.ends_with(LEGACY_INDEX_FILE);
+        return Ok(IndexPayload {
+            kind: want.to_string(),
+            url,
+            legacy,
+            items,
+        });
     }
-    Ok(out)
+    Err(format!("索引不存在：{}", missing.join(" 或 ")))
 }
 
 /// 解析某个仓库的最新 Release：选兼容 minAppVersion 的版本 + 三个资产 URL。
@@ -484,6 +650,7 @@ pub async fn install_from_release(
     id: &str,
     repo: &str,
     version: &str,
+    market: Option<&str>,
     min_app_version: Option<&str>,
     token: Option<&str>,
 ) -> Result<InstalledPlugin, String> {
@@ -500,6 +667,16 @@ pub async fn install_from_release(
     }
     if resolved.manifest.id != id {
         return Err(format!("插件 id 不匹配：{} ≠ {id}", resolved.manifest.id));
+    }
+    if let Some(mk) = market {
+        if kind_conflict(mk, &resolved.manifest.kind) {
+            let declared = if resolved.manifest.kind.is_empty() {
+                "未声明"
+            } else {
+                resolved.manifest.kind.as_str()
+            };
+            return Err(format!("包类型为 {declared}，不能安装到 {mk} 市场"));
+        }
     }
     let cli = http(120)?;
     let mut manifest_bytes: Option<Vec<u8>> = None;
@@ -528,11 +705,16 @@ pub async fn install_from_release(
         }
     }
     let mb = manifest_bytes.ok_or("Release 缺少 manifest.json 资产")?;
-    install_at(base, id, version, &mb, &assets)
+    install_at_kind(base, id, version, market, &mb, &assets)
 }
 
 /// 本地开发载入：从用户选择的目录读取 manifest/main/styles（免发布调试）。
 pub fn install_local(base: &Path, dir: &str) -> Result<InstalledPlugin, String> {
+    install_local_kind(base, dir, None)
+}
+
+/// 带市场类型的本地载入：开发载入时必须声明这是工具扩展还是卡片扩展。
+pub fn install_local_kind(base: &Path, dir: &str, market: Option<&str>) -> Result<InstalledPlugin, String> {
     let src = Path::new(dir);
     if !src.is_dir() {
         return Err("所选路径不是插件目录".into());
@@ -549,7 +731,7 @@ pub fn install_local(base: &Path, dir: &str) -> Result<InstalledPlugin, String> 
             .map_err(|e| format!("读取资产 {name} 失败：{e}"))?;
         assets.push((name.to_string(), bytes));
     }
-    install_at(base, &m.id, &version, &mb, &assets)
+    install_at_kind(base, &m.id, &version, market, &mb, &assets)
 }
 
 /* ---------------- Tauri 命令层 ---------------- */
@@ -566,8 +748,12 @@ pub fn data_base() -> Result<PathBuf, String> {
 }
 
 #[tauri::command]
-pub async fn plugins_index(source: Option<String>, refresh: Option<bool>) -> Result<Vec<IndexEntry>, String> {
-    fetch_index(source.as_deref(), refresh.unwrap_or(false)).await
+pub async fn plugins_index(
+    kind: String,
+    source: Option<String>,
+    refresh: Option<bool>,
+) -> Result<IndexPayload, String> {
+    fetch_index(&kind, source.as_deref(), refresh.unwrap_or(false)).await
 }
 
 #[tauri::command]
@@ -584,17 +770,27 @@ pub async fn plugins_install(
     id: String,
     repo: String,
     version: String,
+    kind: Option<String>,
     min_app_version: Option<String>,
     token: Option<String>,
 ) -> Result<InstalledPlugin, String> {
     let base = data_base()?;
-    install_from_release(&base, &id, &repo, &version, min_app_version.as_deref(), token.as_deref()).await
+    install_from_release(
+        &base,
+        &id,
+        &repo,
+        &version,
+        kind.as_deref(),
+        min_app_version.as_deref(),
+        token.as_deref(),
+    )
+    .await
 }
 
 #[tauri::command]
-pub fn plugins_install_local(dir: String) -> Result<InstalledPlugin, String> {
+pub fn plugins_install_local(dir: String, kind: Option<String>) -> Result<InstalledPlugin, String> {
     let base = data_base()?;
-    install_local(&base, &dir)
+    install_local_kind(&base, &dir, kind.as_deref())
 }
 
 #[tauri::command]

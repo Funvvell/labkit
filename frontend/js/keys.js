@@ -26,7 +26,7 @@ const VIEW_KEYS = {
     ['编辑态 Enter / Delete', '精确设置 / 移除卡片'],
   ],
 };
-function helpIsOpen() { return !document.getElementById('helpMask').hidden; }
+function helpIsOpen() { return layerIsOpen(document.getElementById('helpMask')); }
 function helpRender() {
   const vk = VIEW_KEYS[_route.name] || [];
   document.getElementById('helpBody').innerHTML =
@@ -38,10 +38,10 @@ function helpRender() {
 }
 function helpToggle() {
   const m = document.getElementById('helpMask');
-  if (m.hidden) { helpRender(); m.hidden = false; }
-  else m.hidden = true;
+  if (layerIsOpen(m)) closeLayer(m);
+  else { helpRender(); openLayer(m); }
 }
-function helpClose() { document.getElementById('helpMask').hidden = true; }
+function helpClose() { closeLayer(document.getElementById('helpMask')); }
 function keysInit() {
   window.addEventListener('keydown', e => {
     const tag = (e.target.tagName || '').toLowerCase();
@@ -61,5 +61,6 @@ function keysInit() {
     if (e.key === '?') { e.preventDefault(); helpToggle(); return; }
   });
   document.getElementById('helpMask').addEventListener('mousedown', e => { if (e.target.id === 'helpMask') helpClose(); });
+  document.getElementById('helpMask').addEventListener('close', () => { document.getElementById('helpMask').hidden = true; });
   document.getElementById('helpClose').onclick = helpClose;
 }

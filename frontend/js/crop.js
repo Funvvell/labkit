@@ -29,7 +29,9 @@ function setSlide(src,name){
   slideImg.src=src;
   document.getElementById('miniImg').src=src;
   frame.classList.remove('hidden');miniNav.classList.remove('hidden');dropHint.classList.add('hidden');
-  document.getElementById('cropFile').textContent=(name||'切片')+' · 已载入预览';
+  const fileEl=document.getElementById('cropFile');
+  fileEl.textContent=(name||'切片')+' · 已载入预览';
+  fileEl.title=name||'切片';
 }
 /* ---- ROI 会话持久化（~/.liver_portal_crop/session_rust.json，跨切片合并） ---- */
 async function ensureRoiDb(){
@@ -584,7 +586,7 @@ setInterval(async()=>{
 /* 精确编辑浮层（双击列表项） */
 function openRoiEditor(i){
   const r=rois[i];if(!r)return;
-  const mask=document.createElement('div');mask.className='modal-mask';
+  const mask=document.createElement('dialog');mask.className='modal-mask';mask.setAttribute('aria-label','精确编辑 ROI '+(i+1));
   const box=document.createElement('div');box.className='roi-modal';
   box.innerHTML=`<h4>精确编辑 ROI ${i+1}</h4>
     <div class="grid2">
@@ -594,17 +596,21 @@ function openRoiEditor(i){
       <div><div class="lbl2">高</div><input id="em_h" type="number" value="${r.h}"></div>
     </div>
     <div class="btn-row"><button class="btn pri" id="em_ok">应用</button><button class="btn sec" id="em_cancel">取消</button></div>`;
-  mask.appendChild(box);document.getElementById('win').appendChild(mask);
-  document.getElementById('em_cancel').onclick=()=>mask.remove();
-  mask.addEventListener('mousedown',e=>{if(e.target===mask)mask.remove();});
-  document.getElementById('em_ok').onclick=()=>{
+  mask.appendChild(box);document.body.appendChild(mask);
+  const close=()=>{closeLayer(mask);if(mask.parentNode)mask.remove()};
+  mask.addEventListener('close',()=>{if(mask.parentNode)mask.remove()});
+  const cancel=box.querySelector('#em_cancel');cancel.onclick=close;
+  mask.addEventListener('click',e=>{if(e.target===mask)close()});
+  const apply=box.querySelector('#em_ok');apply.onclick=()=>{
     snapshot();
-    r.x=Math.max(0,parseInt(document.getElementById('em_x').value)||0);
-    r.y=Math.max(0,parseInt(document.getElementById('em_y').value)||0);
-    r.w=Math.max(20,parseInt(document.getElementById('em_w').value)||r.w);
-    r.h=Math.max(20,parseInt(document.getElementById('em_h').value)||r.h);
-    mask.remove();drawRois();persistRois();toast('ROI '+(i+1)+' 坐标已更新');
+    r.x=Math.max(0,parseInt(box.querySelector('#em_x').value)||0);
+    r.y=Math.max(0,parseInt(box.querySelector('#em_y').value)||0);
+    r.w=Math.max(20,parseInt(box.querySelector('#em_w').value)||r.w);
+    r.h=Math.max(20,parseInt(box.querySelector('#em_h').value)||r.h);
+    close();drawRois();persistRois();toast('ROI '+(i+1)+' 坐标已更新');
   };
+  openLayer(mask);
+  setTimeout(()=>box.querySelector('#em_x')?.focus(),20);
 }
 
 /* 按路径打开切片：供「打开切片」按钮、拖拽、以及 Dashboard「最近切片」卡片共用。 */

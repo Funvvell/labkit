@@ -68,8 +68,9 @@ async function zoteroSync(){
 
 /* ---- 导入：搜索弹窗（quicksearch），离线时浏览上次同步 ---- */
 function zoteroImportModal(){
-  const mask=document.createElement('div');mask.className='modal-mask';
+  const mask=document.createElement('dialog');mask.className='modal-mask';mask.setAttribute('aria-label','从 Zotero 导入文献');
   const box=document.createElement('div');box.className='roi-modal wide';
+  const close=()=>{closeLayer(mask);if(mask.parentNode)mask.remove()};
   let timer=0,lastQ='';
   const draw=list=>{
     box.innerHTML=`<h4>从 Zotero 导入文献</h4>
@@ -111,13 +112,15 @@ function zoteroImportModal(){
       if(raw)renderRows(raw.map(zoteroMapItem));
     };
     q.oninput=()=>{clearTimeout(timer);timer=setTimeout(search,350)};
-    box.querySelector('#zi_close').onclick=()=>mask.remove();
+    box.querySelector('#zi_close').onclick=close;
     search();
     setTimeout(()=>q.focus(),50);
   };
   draw();
-  mask.appendChild(box);document.getElementById('win').appendChild(mask);
-  mask.onclick=e=>{if(e.target===mask)mask.remove()};
+  mask.appendChild(box);document.body.appendChild(mask);
+  mask.addEventListener('close',()=>{if(mask.parentNode)mask.remove()});
+  mask.addEventListener('click',e=>{if(e.target===mask)close()});
+  openLayer(mask);
 }
 
 /* ---- 打开条目 / PDF / 状态镜像 ---- */

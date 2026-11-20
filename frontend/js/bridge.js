@@ -18,7 +18,7 @@ async function invoke(cmd, args = {}) {
 function mockInvoke(cmd, args) {
   const ok = (v) => Promise.resolve(v);
   switch (cmd) {
-    case 'app_info': return ok({version:'0.2.0', name:'科研工具箱 LabKit', tool_count:12});
+    case 'app_info': return ok({version:'0.4.0', name:'科研工具箱 LabKit', tool_count:20});
     /* 浏览器里没有磁盘，用 localStorage 顶一下，保证纯前端也能演示增删改 */
     case 'db_load': return ok(readCache());
     case 'db_save': writeCache();return ok('（浏览器缓存，非磁盘文件）');

@@ -29,7 +29,7 @@
 ### 工作台（科研台账）
 
 - **任务 / 项目 / 实验 / 文献 / 仪器 / 试剂 / 预约 / 经费 / 速记 / 提醒** 十一类记录，看板 + 表格双视图
-- **可编辑 Dashboard**：16 张卡片各声明多档尺寸（mini 摘要 / small 精简 / medium 标准 / large 全量），gridstack 自由网格拖拽摆放、右下角拖拽改尺寸（自动吸附到卡片支持的档位）；⇔⇕ 快速切档、⚙ 精确坐标、键盘方向键移动 / Shift+方向键改尺寸；布局 v2 随台账保存，老布局自动迁移保序保尺寸
+- **今日科研指挥台 + 可编辑 Dashboard**：首页先汇总今日重点、临近节点、最近工具与快速动作；16 张卡片各声明多档尺寸（mini 摘要 / small 精简 / medium 标准 / large 全量），gridstack 自由网格拖拽摆放、右下角拖拽改尺寸（自动吸附到卡片支持的档位）；⇔⇕ 快速切档、⚙ 精确坐标、键盘方向键移动 / Shift+方向键改尺寸；布局 v2 随台账保存，老布局自动迁移保序保尺寸
 - **专注计时**与近 7 天趋势、任务完成率报表
 - **通知中心**：任务截止、试剂效期、仪器校准到期、导出完成等汇总提醒（标题栏铃铛）
 - 数据磁盘化：`~/.liver_portal_crop/labkit_db.json`，原子写 + 滚动备份 + 损坏自愈；浏览器模式降级 localStorage
@@ -45,10 +45,21 @@
 每个工具统一壳层：**载入示例 / 重置 / 帮助与来源抽屉 / 导出条**；输入与配置**自动持久化**（切页、重启不丢）；
 **跨工具数据流**：数据清洗 → 检验 / 绘图 / Table 1，检验结果 → APA 报告串（跨重启可载入）。
 
+**工具箱个性化**（参照 VS Code 的 Activity Bar 与 Dashy 的 section 配置）：
+
+- 工具库页「整理」进入草稿模式——分组可新建 / 重命名 / 改色改图标 / 删除 / 拖拽排序，
+  工具可跨组拖动、组内排序、隐藏；改动点「保存」才落盘，`Esc` 原样还原
+- 隐藏的工具在侧栏与工具库消失，但 **Ctrl+K 仍可搜到并标注「已隐藏」**（VS Code 的
+  `View: Open View` 同款，藏起来不等于失联）
+- 分组与顺序**同源生效**于工具库页、侧栏工具分类、Ctrl+K 三处；只存用户改动（覆盖层），
+  插件装卸与内置新增工具都不会打乱你的布局
+- 键盘等价：`Alt+←/→` 换组，`Alt+↑/↓` 组内移动
+
 ### 交互（参照 IT-Tools / DevToys / Rubick / Obsidian Bookmarks 的成熟范式）
 
 - **Ctrl+K 命令面板**：20 工具 + 全部页面 + 全局动作，支持**拼音首字母**模糊匹配（如 `yw`→引物、`sjqx`→数据清洗）
-- **精简侧栏 + 自定义固定**：侧栏常驻首页 / 工具库 / 设置；任务、项目、实验、文献、仪器试剂、报表、专注从首页 **「工作台 ▾」** 一个入口进入，常用入口可**固定到侧栏**（页头 ☆ / 菜单 ☆ / 工具星标 / Alt+F），支持拖拽排序、右键重命名（范式同 Obsidian Bookmarks / Trigger.dev Favorites）
+- **工具库发现层**：搜索、最近使用、分组筛选、固定工具置顶；工具页提供面包屑与统一壳（示例 / 重置 / 导出 / 帮助）
+- **三线侧栏 + 工作台二级导航**：侧栏收敛为「工作台 / 工具库 / 资料与设置」；进入工作台后用「今日 · 任务 · 项目 · 实验 · 文献 · 试剂 · 报表 · 专注」tabs 切换。常用页面或工具可**固定到侧栏**（页头 ☆ / 工作台菜单 / 工具星标 / Alt+F），支持拖拽排序、右键重命名（范式同 Obsidian Bookmarks / Trigger.dev Favorites）
 - **不失联保障**：首页卡片删光后，「工作台 ▾」菜单 + Ctrl+K + hash 深链仍可到达每个页面
 - **工具独立多窗口**：桌面版所有工具（含裁剪 / qPCR）**默认在独立窗口打开**，同工具再开即聚焦，窗口尺寸位置自动记忆（官方 window-state 插件）；设置里可勾选「默认在页内打开」切回页内，工具卡「↗」/ Ctrl/⌘+点击 / 中键随时可临时开新窗口。关闭主窗口即退出整个应用：退出前广播 `flush-now` 收集各窗口落盘回执，失败/超时弹窗让用户选「强制退出」或「取消退出」。多窗口台账**合并写 + 事件广播**同步：各窗口写各自的键互不覆盖，改动实时互见（同键并发编辑为后写覆盖）
 - **hash 路由深链**：`#/tool/tests` 可分享、刷新恢复、前进后退可用
@@ -56,7 +67,7 @@
 - **暗色模式**（浅色 / 深色 / 跟随系统）；图表与裁图画布保持纸面白色，符合期刊投稿要求
 - 首启欢迎：空白开始 / 载入示例二选一；称呼可自定义
 - **Zotero 对接**：本机 Zotero 7+ 只读同步（条目 / 分类 / 保存搜索）、文献页来源筛选与一键导入；Zotero 10+ 授权后可把阅读状态镜像为 tag（本地台账始终为准）；Better BibTeX 可选探测
-- **GitHub 插件市场**：仿 Obsidian「索引仓库 + Release 附件」机制，浏览/搜索/显式确认安装/禁用/更新/回退/卸载与本地开发载入；默认关闭、不自动更新。工具与卡片统一注册表开放给社区（`x-<插件id>-` 前缀隔离），开发见 [`docs/PLUGIN_DEV.md`](docs/PLUGIN_DEV.md)
+- **扩展：工具扩展 / 卡片扩展分开安装**：仿 HACS 的 `category` 与 Directus 的 extension `type`——一个包只能是一类，`kind` 不符在安装前就拒绝。工具扩展入口在**工具库 →「获取更多工具」**，卡片扩展入口在**首页 →「＋ 卡片」→「获取卡片」**；安装/更新/回退/卸载集中在侧栏「扩展管理」。索引按类型拆成 `tools.json` / `widgets.json`，默认关闭、不自动更新，工具与卡片统一注册表开放给社区（`x-<扩展id>-` 前缀隔离），开发见 [`docs/PLUGIN_DEV.md`](docs/PLUGIN_DEV.md)
 - 设计规范不再内置于软件，见 [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md)（新增工具 / 插件的视觉契约）
 
 ### 病理图像工作区
@@ -122,13 +133,15 @@ cargo tauri build                  # 出安装包
 
 ```
 frontend/            零构建前端（index.html 壳 + css/ + js/ 模块 + tools/ 20 工具 + vendor/ 开源库）
+  js/toolbox.js      工具箱个性化数据层（分组/排序/隐藏/图标配色的覆盖层，纯函数可测）
+  js/plugins.js      双市场扩展（工具扩展 / 卡片扩展）+ 类型门禁 + 扩展管理页
 rust/                Tauri 2 + Rust：SDPC FFI 解码、TIFF 导出、qPCR 解析、台账磁盘化、77+ 单测
 tests/js/            node:test 对数测试（统计口径与 OpenEpi/scipy/tableone 对齐）+ 外壳单测
 rust/tests/          IPC 命名契约测试（保护前后端接口）
 ```
 
 - Rust 算法层与 IPC 契约稳定，前端交互迭代不触碰（契约测试保护）
-- 统计实现均与上游对数：`tests/js/stats.test.mjs` 等 135 个 node 用例 + 108 个 cargo 用例
+- 统计实现均与上游对数：`tests/js/stats.test.mjs` 等 153 个 node 用例 + 108 个 cargo 用例
 
 ## 🛠️ 开发指南
 
@@ -142,7 +155,7 @@ node tests/smoke_exe.mjs
 ```
 
 新增一个工具只需三步（注册表条目 + 脚本 + 对数测试），详见 [CONTRIBUTING.md](CONTRIBUTING.md)；视觉契约见 [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)。
-交互范式参考 [IT-Tools](https://github.com/CorentinTh/it-tools)、[DevToys](https://github.com/DevToys-app/DevToys)、[Rubick](https://github.com/rubickCenter/rubick)、[Obsidian Bookmarks](https://obsidian.md/help/plugins/bookmarks)（仅借鉴交互，未复制其代码）；病理工作区以 [QuPath](https://github.com/qupath/qupath) 为领域基准。
+交互范式参考 [Raycast](https://www.raycast.com/)、[Linear](https://linear.app/)、[IT-Tools](https://github.com/CorentinTh/it-tools)、[DevToys](https://github.com/DevToys-app/DevToys)、[Obsidian Bookmarks](https://obsidian.md/help/plugins/bookmarks)（仅借鉴交互，未复制其代码）；病理工作区以 [QuPath](https://github.com/qupath/qupath) 为领域基准；现代 Web 交互与可访问性参考 [GoogleChrome/modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance)。
 
 ## 📄 许可与署名
 

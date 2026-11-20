@@ -19,7 +19,7 @@ function taskHTML(t,showKey){
   const [pn,pc]=PRI_CLS[t.pri]||PRI_CLS.normal;
   const proj=DB.projects.find(p=>p.id===t.proj);
   return `<div class="task-item ${t.done?'done':''} ${showKey?'key':''}" data-task="${t.id}">
-    <div class="task-check" data-check="${t.id}"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12L10 17L19 7" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <input type="checkbox" class="task-check" data-check="${t.id}"${t.done?' checked':''} aria-label="${t.done?'恢复':'完成'}任务：${esc(t.name)}">
     <div class="task-body">
       <div class="task-name">${esc(t.name)}</div>
       <div class="task-meta">
@@ -42,7 +42,7 @@ function bindTaskEvents(){
       const t=DB.tasks.find(x=>x.id===el.dataset.check);if(!t)return;
       setTaskState(t,t.done?'todo':'done');
     };
-    el.onclick=fire;
+    el.onclick=el.tagName==='INPUT'?null:fire;
     if(el.tagName==='INPUT')el.onchange=fire;
   });
   document.querySelectorAll('[data-tomorrow]').forEach(el=>el.onclick=()=>{
@@ -103,7 +103,9 @@ const TSTATE=[['todo','待办'],['doing','进行中'],['done','完成']];
 function setTaskState(t,st){
   t.state=st;t.done=st==='done';
   t.doneAt=st==='done'?todayStr():'';
-  saveDB();renderTasks();renderKpi();renderReports();queueResize();
+  saveDB();renderTasks();renderKpi();renderReports();
+  if(typeof renderHomeDeck==='function')renderHomeDeck();
+  queueResize();
 }
 function boardCard(t){
   const i=DB.tasks.indexOf(t);
@@ -225,8 +227,9 @@ function mdLite(s){
 }
 function projNoteModal(i){
   const p=DB.projects[i];if(!p)return;
-  const mask=document.createElement('div');mask.className='modal-mask';
+  const mask=document.createElement('dialog');mask.className='modal-mask';mask.setAttribute('aria-label',p.name+' 项目笔记');
   const box=document.createElement('div');box.className='roi-modal wide';
+  const close=()=>{closeLayer(mask);if(mask.parentNode)mask.remove()};
   const draw=edit=>{
     box.innerHTML=`<h4>${esc(p.name)} · 项目笔记</h4>
       <div class="sub">支持 # 标题、- 列表、**加粗**</div>
@@ -240,9 +243,10 @@ function projNoteModal(i){
       box.querySelector('#pn_save').onclick=()=>{p.note=ta.value;saveDB();renderProjects();close();toast('已保存项目笔记')};
     }else box.querySelector('#pn_edit').onclick=()=>draw(true);
   };
-  const close=()=>mask.remove();
-  mask.appendChild(box);document.getElementById('win').appendChild(mask);
-  mask.onclick=ev=>{if(ev.target===mask)close()};
+  mask.appendChild(box);document.body.appendChild(mask);
+  mask.addEventListener('close',()=>{if(mask.parentNode)mask.remove()});
+  mask.addEventListener('click',ev=>{if(ev.target===mask)close()});
+  openLayer(mask);
   draw(false);
 }
 function renderLitRemind(){

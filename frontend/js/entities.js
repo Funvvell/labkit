@@ -1,30 +1,43 @@
 // LabKit · entities.js — P0 由 index.html 机械拆分，保持原顺序与语义（classic script，零构建）
 /* ===================== 通用表单弹窗 + 各台账的新建 ===================== */
 function formModal(title,fields,onOK,okLabel){
-  const mask=document.createElement('div');mask.className='modal-mask';
+  const mask=document.createElement('dialog');mask.className='modal-mask';
+  const titleId='fm_title_'+Date.now().toString(36);
+  mask.setAttribute('aria-labelledby',titleId);
   const box=document.createElement('div');box.className='roi-modal wide';
   const fhtml=fields.map((f,i)=>{
-    const id='fm_'+i;let ctl;
-    if(f.type==='select')ctl=`<select id="${id}">${f.options.map(o=>`<option${String(o)===String(f.value)?' selected':''}>${esc(o)}</option>`).join('')}</select>`;
-    else if(f.type==='textarea')ctl=`<textarea id="${id}" placeholder="${esc(f.ph||'')}">${esc(f.value||'')}</textarea>`;
-    else ctl=`<input id="${id}" type="${f.type||'text'}" value="${esc(f.value==null?'':f.value)}" placeholder="${esc(f.ph||'')}">`;
-    return `<div class="fld${f.type==='textarea'||f.full?' full':''}"><div class="lbl2">${esc(f.label)}</div>${ctl}</div>`;
+    const id='fm_'+i,errId='fm_err_'+i;let ctl;
+    const req=f.req?' required aria-required="true"':'';
+    const described=` aria-describedby="${errId}"`;
+    if(f.type==='select')ctl=`<select id="${id}"${req}${described}>${f.options.map(o=>`<option${String(o)===String(f.value)?' selected':''}>${esc(o)}</option>`).join('')}</select>`;
+    else if(f.type==='textarea')ctl=`<textarea id="${id}"${req}${described} placeholder="${esc(f.ph||'')}">${esc(f.value||'')}</textarea>`;
+    else ctl=`<input id="${id}" type="${f.type||'text'}"${req}${described} value="${esc(f.value==null?'':f.value)}" placeholder="${esc(f.ph||'')}">`;
+    return `<div class="fld${f.type==='textarea'||f.full?' full':''}"><label class="lbl2" for="${id}">${esc(f.label)}</label>${ctl}<div class="fld-err" id="${errId}" aria-live="polite"></div></div>`;
   }).join('');
-  box.innerHTML=`<h4>${esc(title)}</h4><div class="grid2">${fhtml}</div>
+  box.innerHTML=`<h4 id="${titleId}">${esc(title)}</h4><div class="grid2">${fhtml}</div>
     <div class="btn-row"><button class="btn pri" id="fm_ok">${esc(okLabel||'保存')}</button><button class="btn sec" id="fm_cancel">取消</button></div>`;
-  mask.appendChild(box);document.getElementById('win').appendChild(mask);
-  const close=()=>mask.remove();
-  mask.onclick=e=>{if(e.target===mask)close()};
+  mask.appendChild(box);document.body.appendChild(mask);
+  const close=()=>{closeLayer(mask);if(mask.parentNode)mask.remove()};
+  mask.addEventListener('close',()=>{if(mask.parentNode)mask.remove()});
+  mask.addEventListener('click',e=>{if(e.target===mask)close()});
   box.querySelector('#fm_cancel').onclick=close;
   box.querySelector('#fm_ok').onclick=()=>{
-    const out={};
+    const out={};let firstBad=null;
     for(let i=0;i<fields.length;i++){
-      const el=box.querySelector('#fm_'+i),v=el.value.trim();
-      if(fields[i].req&&!v){toast('请填写「'+fields[i].label+'」');el.focus();return}
+      const el=box.querySelector('#fm_'+i),err=box.querySelector('#fm_err_'+i),v=el.value.trim();
+      if(err)err.textContent='';
+      el.removeAttribute('aria-invalid');
+      if(fields[i].req&&!v){
+        if(err)err.textContent='请填写「'+fields[i].label+'」';
+        el.setAttribute('aria-invalid','true');
+        if(!firstBad)firstBad=el;
+      }
       out[fields[i].k]=fields[i].type==='number'?(Number(v)||0):v;
     }
+    if(firstBad){firstBad.focus();return}
     close();onOK(out);
   };
+  openLayer(mask);
   setTimeout(()=>{const f=box.querySelector('input,textarea,select');if(f)f.focus()},30);
 }
 /* ===================== 台账 CRUD：一套注册表喂九个页面 =====================
@@ -199,15 +212,19 @@ function entityDelete(kind,i){
   },'删除');
 }
 function confirmModal(title,msg,onOK,okLabel,onCancel,cancelLabel){
-  const mask=document.createElement('div');mask.className='modal-mask';
+  const mask=document.createElement('dialog');mask.className='modal-mask';
+  const titleId='cf_title_'+Date.now().toString(36);
+  mask.setAttribute('aria-labelledby',titleId);
   const box=document.createElement('div');box.className='roi-modal';
-  box.innerHTML=`<h4>${esc(title)}</h4><div class="sub" style="margin:8px 0 16px;line-height:1.75">${esc(msg)}</div>
-    <div class="btn-row"><button class="btn danger" id="cf_ok">${esc(okLabel||'确定')}</button><button class="btn sec" id="cf_no">${esc(cancelLabel||'取消')}</button></div>`;
-  mask.appendChild(box);document.getElementById('win').appendChild(mask);
-  const close=()=>mask.remove();
-  mask.onclick=ev=>{if(ev.target===mask)close()};
+  box.innerHTML=`<h4 id="${titleId}">${esc(title)}</h4><div class="sub" style="margin:8px 0 16px;line-height:1.75">${esc(msg)}</div>
+    <div class="btn-row"><button class="btn danger" id="cf_ok">${esc(okLabel||'确定')}</button><button class="btn sec" id="cf_no" autofocus>${esc(cancelLabel||'取消')}</button></div>`;
+  mask.appendChild(box);document.body.appendChild(mask);
+  const close=()=>{closeLayer(mask);if(mask.parentNode)mask.remove()};
+  mask.addEventListener('close',()=>{if(mask.parentNode)mask.remove()});
+  mask.addEventListener('click',ev=>{if(ev.target===mask)close()});
   box.querySelector('#cf_no').onclick=()=>{close();if(typeof onCancel==='function')onCancel()};
   box.querySelector('#cf_ok').onclick=()=>{close();onOK()};
+  openLayer(mask);
 }
 /* 兼容旧调用名：首页卡片和子页按钮都还在用这些名字 */
 function newTaskModal(){entityModal('task')}

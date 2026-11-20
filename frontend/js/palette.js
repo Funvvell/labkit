@@ -6,18 +6,27 @@ let _palOpen = false, _palItems = [], _palSel = 0;
 function palViews() { return Object.entries(PAGE_META).map(([id, m]) => [id, m.name, m.desc, m.py]); }
 function paletteIndex() {
   const items = [];
-  (window.TOOL_META || []).forEach(t => items.push({
-    kind: 'tool', id: t.id, title: t.name, sub: t.group + ' · ' + t.desc,
-    hay: (t.id + ' ' + t.name + ' ' + t.desc + ' ' + (t.py || '') + ' ' + (t.keywords || '')).toLowerCase(),
-    run: () => openTool(t.id),
-  }));
+  /* 隐藏的工具仍然进索引（VS Code 的「View: Open View」同款：藏起来不等于失联），
+     只是标注「已隐藏」，让用户知道为什么在工具库里找不到它。 */
+  const tv = (typeof toolboxView === 'function') ? toolboxView() : null;
+  (window.TOOL_META || []).forEach(t => {
+    const it = tv && tv.items[t.id];
+    const hidden = !!(it && it.hidden);
+    const gname = (it && it.gname) || t.group;
+    items.push({
+      kind: 'tool', id: t.id, title: t.name, sub: (hidden ? '已隐藏 · ' : '') + gname + ' · ' + t.desc,
+      hidden,
+      hay: (t.id + ' ' + t.name + ' ' + t.desc + ' ' + (t.py || '') + ' ' + (t.keywords || '') + ' ' + gname).toLowerCase(),
+      run: () => openTool(t.id),
+    });
+  });
   palViews().forEach(([id, title, sub, py]) => items.push({
     kind: 'page', id, title, sub, hay: (id + ' ' + title + ' ' + sub + ' ' + py).toLowerCase(),
     run: () => navigate(id),
   }));
   const acts = [
     ['new-task', '新建任务', '动作 · 任务中心', 'xjrw xinjian renwu', () => { navigate('tasks'); setTimeout(() => entityModal('task'), 80); }],
-    ['new-exp', '新建实验', '动作 · 实验台账', 'xjsy xinjian shiyan', () => { navigate('experiments'); setTimeout(() => entityModal('experiment'), 80); }],
+    ['new-exp', '新建实验', '动作 · 实验台账', 'xjsy xinjian shiyan', () => { navigate('experiments'); setTimeout(() => entityModal('exp'), 80); }],
     ['pin-current', '固定 / 取消固定当前页面', '动作 · 侧栏固定区 · Alt+F', 'gd guding dingzhu altf', () => togglePinCurrent()],
     ['tool-new-window', '在新窗口打开当前工具', '动作 · 独立工具窗口', 'xcxck dakai dangqian gongju', () => { if (_route.name === 'tool' && _route.arg) openToolWindow(_route.arg); else toast('当前不在工具页；也可在工具卡上 Ctrl/⌘+点击'); }],
     ['focus-start', '开始专注', '动作 · 首页计时卡片', 'kszz kaishi zhuanzhu', () => { navigate('home'); setTimeout(() => { const c = document.querySelector('#dashGrid [data-w="focus"]'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); else toast('专注计时卡片已被移除，可在「+ 添加卡片」中加回'); }, 80); }],
@@ -57,7 +66,7 @@ function palRender() {
     `<div class="pal-sec">${esc(s.label)}</div>` + s.items.map(x => {
       const k = i++;
       const ico = x.kind === 'tool' ? toolIcon(x.id) : (x.kind === 'page' ? pageIcon(x.id) : IC.json);
-      return `<div class="pal-item${k === _palSel ? ' sel' : ''}" role="option" aria-selected="${k === _palSel}" data-pal="${k}"><span class="pal-ico">${ico}</span><span class="pal-txt"><b>${esc(x.title)}</b><small>${esc(x.sub || '')}</small></span><span class="pal-kind">${x.kind === 'tool' ? '工具' : x.kind === 'page' ? '页面' : '动作'}</span></div>`;
+      return `<div class="pal-item${k === _palSel ? ' sel' : ''}${x.hidden ? ' pal-hidden' : ''}" role="option" aria-selected="${k === _palSel}" data-pal="${k}"><span class="pal-ico">${ico}</span><span class="pal-txt"><b>${esc(x.title)}</b><small>${esc(x.sub || '')}</small></span><span class="pal-kind">${x.kind === 'tool' ? (x.hidden ? '工具 · 已隐藏' : '工具') : x.kind === 'page' ? '页面' : '动作'}</span></div>`;
     }).join('')
   ).join('') || '<div class="pal-empty">没有匹配项 — 换个词试试（支持拼音首字母，如 yw / qpcr / sjqx）</div>';
   list.querySelector('.pal-item.sel')?.scrollIntoView({ block: 'nearest' });
@@ -65,13 +74,14 @@ function palRender() {
 function paletteIsOpen() { return _palOpen; }
 function paletteOpen() {
   _palOpen = true; _palSel = 0;
-  document.getElementById('palMask').hidden = false;
+  palRender();
+  openLayer(document.getElementById('palMask'));
   const inp = document.getElementById('palInput');
   inp.value = ''; palRender(); inp.focus();
 }
 function paletteClose() {
   _palOpen = false;
-  document.getElementById('palMask').hidden = true;
+  closeLayer(document.getElementById('palMask'));
 }
 function paletteToggle() { _palOpen ? paletteClose() : paletteOpen(); }
 function palRun(k, newWin) {
@@ -91,6 +101,7 @@ function paletteInit() {
     else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); paletteClose(); }
   });
   document.getElementById('palMask').addEventListener('mousedown', e => { if (e.target.id === 'palMask') paletteClose(); });
+  document.getElementById('palMask').addEventListener('close', () => { _palOpen = false; document.getElementById('palMask').hidden = true; });
   document.getElementById('palList').addEventListener('click', e => {
     const it = e.target.closest('[data-pal]'); if (it) palRun(+it.dataset.pal);
   });

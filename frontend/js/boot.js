@@ -10,13 +10,16 @@ function setGreet(){
 /* P3：首启欢迎 —— 示例数据 / 空白开始 二选一，选择后写入本地台账 */
 function showWelcome(){
   const m=document.getElementById('welcomeMask');if(!m)return;
-  m.hidden=false;
+  m.addEventListener('cancel',e=>e.preventDefault());
+  m.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();}},true);
+  m.addEventListener('close',()=>{m.hidden=true;});
+  openLayer(m);
   const nameEl=document.getElementById('welcomeName');
   nameEl.value=Store.settings().name||'';
   const finish=async blank=>{
     Store.setSetting('name',nameEl.value.trim());
     if(blank){Object.keys(EMPTY_DB).forEach(k=>DB[k]=[]);DB.isDemo=false;}
-    m.hidden=true;
+    closeLayer(m);
     saveDB();await flushDB();
     refreshHome();renderLiterature();renderLab();renderFocusPage();renderReports();renderSettings();
     setGreet();if(typeof notifyBadge==='function')notifyBadge();
@@ -50,14 +53,19 @@ function showWelcome(){
   if(typeof renderToolHub==='function')renderToolHub();       // 工具库卡片同步插件工具
   if(typeof renderZoteroBar==='function')renderZoteroBar();   // P3：文献页连接状态条
   if(typeof zoteroProbe==='function'&&zoteroCfg().enabled)zoteroProbe();  // 开启对接时后台探测
-  if(typeof pluginFetchIndex==='function'&&_route.name==='plugins')pluginFetchIndex();  // 深链直达市场时磁盘已就绪
+  if(typeof pluginFetchAll==='function'&&_route.name==='plugins')pluginFetchAll();  // 深链直达扩展管理时磁盘已就绪
   applyDensity();
   buildDash(true);
   refreshHome();
   renderLiterature();renderLab();renderFocusPage();renderReports();renderSettings();
 })();
 invoke('init_engine').catch(()=>{});
-invoke('app_info').then(info=>{if(info&&info.version)document.querySelector('.side-foot').textContent='v'+info.version+' · Rust + Tauri'}).catch(()=>{});
+invoke('app_info').then(info=>{
+  if(!info||!info.version)return;
+  document.querySelectorAll('.side-foot').forEach(el=>{el.textContent='v'+info.version+' · Rust + Tauri'});
+  const about=document.getElementById('aboutLine');
+  if(about)about.textContent='科研工具箱 LabKit v'+info.version+' · Rust + Tauri · SDPC 解码 & qPCR 核心复用自 Rust 重构版';
+}).catch(()=>{});
 if(!WINDOW_MODE||WIN_LABEL==='tool-crop')ensureRoiDb();
 /* Restore the last qPCR run (wells + design) from the independent session file. */
 if(IN_TAURI&&(!WINDOW_MODE||WIN_LABEL==='tool-qpcr')){

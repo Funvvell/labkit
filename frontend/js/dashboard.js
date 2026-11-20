@@ -126,10 +126,26 @@ function renderSlidesCard(el,size){
     openView('crop');openSlidePath(s.path);
   });
 }
+/* 「科研工具」卡片：不再硬编码 6 个入口，改为跟随工具箱配置
+   固定 → 最近 → 工具箱顺序补足；隐藏的工具不出现（否则刚隐藏又在首页冒出来）。 */
+function toolCardEntries(n) {
+  const metas = window.TOOL_META || [];
+  if (typeof toolboxPickEntries === 'function') {
+    return toolboxPickEntries(
+      metas,
+      (typeof toolboxRaw === 'function') ? toolboxRaw() : null,
+      Store.pins().filter(p => p.kind === 'tool').map(p => p.id),
+      Store.recent() || [],
+      n,
+    );
+  }
+  return metas.slice(0, n);
+}
 function renderToolsCard(){
-  const tools=[['crop','病理切片裁剪','ROI 框选 · TIFF 导出'],['qpcr','qPCR 数据分析','ΔΔCt · geNorm · 统计'],['experiments','实验台账','记录与项目绑定'],['labres','试剂 / 仪器','库存 · 效期 · 校准'],['literature','文献库','待读与笔记状态'],['reports','统计报表','专注与产出趋势']];
-  /* crop/qpcr 用 data-tool-id 走 openTool（桌面版默认新窗口）；其余是页面导航。 */
-  setHTML('toolsCard',`<div class="bento">${tools.map(([v,n,d])=>`<div class="bento-card" ${(v==='crop'||v==='qpcr')?'data-tool-id="'+v+'"':'data-goto="'+v+'"'}><b>${n}</b><p>${d}</p></div>`).join('')}</div>`);
+  const list = toolCardEntries(6);
+  const bento = list.map(t => `<div class="bento-card" data-tool-id="${esc(t.id)}"><b>${esc(t.name)}</b><p>${esc(t.desc||'')}</p></div>`).join('')
+    || '<div class="sub">工具箱里暂时没有可显示的工具</div>';
+  setHTML('toolsCard', `<div class="bento">${bento}</div><div class="bento-more"><button class="card-act" type="button" data-goto="toolhub">管理工具 ›</button></div>`);
 }
 function renderQpcrCard(){
   const n=(qState&&qState.wells&&qState.wells.length)||0;
@@ -463,32 +479,66 @@ function refreshHome(){
   /* 其余卡片各自渲染（带尺寸档）；卡片被移除时 setHTML 会安静跳过。
      注意顺序：整页渲染器先跑，卡片级 render 后跑，mini/small 变体才能覆盖摘要。 */
   activeLayout().forEach(n=>{const d=WIDGETS[n.id];if(d&&d.render)d.render(null,{w:n.w,h:n.h})});
+  if(typeof renderHomeDeck==='function')renderHomeDeck();
+  if(typeof deckBind==='function')deckBind();
   queueResize();
 }
-function openPicker(){
-  const mask=document.createElement('div');mask.className='modal-mask';
+/* 卡片选择器：双 tab（已装卡片 / 获取卡片）。
+   参考 Home Assistant 2026.6 的 Add card 弹窗：自定义卡片单独一区，不与内置混排。
+   卡片扩展的市场挂在第二个 tab 里，安装后直接落到 Dashboard。 */
+let dashPickerTab='cards';
+function openPicker(tab){
+  dashPickerTab=tab==='market'?'market':'cards';
+  const mask=document.createElement('dialog');mask.className='modal-mask';mask.setAttribute('aria-label','选择 Dashboard 卡片');
   const box=document.createElement('div');box.className='roi-modal wide';
+  const close=()=>{closeLayer(mask);if(mask.parentNode)mask.remove()};
   const draw=()=>{
-    box.innerHTML=`<h4>选择 Dashboard 卡片</h4>
-      <div class="sub">已选 ${activeLayout().length} / ${Object.keys(WIDGETS).length} 张 · 点击切换显示${dashEdit?' · 改动需点「保存布局」':''}</div>
+    const market=dashPickerTab==='market';
+    const total=Object.keys(WIDGETS).length;
+    box.innerHTML=`<h4>${market?'获取卡片扩展':'选择 Dashboard 卡片'}</h4>
+      <div class="seg wide" id="pkTabs">
+        <button type="button" data-pktab="cards"${market?'':' class="active"'}>已装卡片 (${activeLayout().length}/${total})</button>
+        <button type="button" data-pktab="market"${market?' class="active"':''}>获取卡片</button>
+      </div>
+      ${market
+        ? '<div id="pkMarket"></div>'
+        : `<div class="sub">点击切换显示${dashEdit?' · 改动需点「保存布局」':''}</div>
       <div class="picker-grid">${Object.entries(WIDGETS).map(([id,d])=>{
         const on=activeLayout().some(x=>x.id===id);
         const sizes=d.sizes||[d.size];
         return `<div class="pick-item${on?' on':''}" data-pick="${id}" title="支持尺寸：${sizes.map(sizeLabel).join(' / ')}"><div class="nm">${esc(d.title)}<div class="ds">${esc(d.desc||'')}</div></div><span class="sz">${sizeLabel(d.size)} · ${sizes.length} 档</span></div>`;
-      }).join('')}</div>
-      <div class="btn-row"><button class="btn pri" id="pk_done">完成</button><button class="btn sec" id="pk_reset">恢复默认布局</button></div>`;
+      }).join('')}</div>`}
+      <div class="btn-row"><button type="button" class="btn pri" id="pk_done">完成</button>${market?'':'<button type="button" class="btn sec" id="pk_reset">恢复默认布局</button>'}</div>`;
+    box.querySelectorAll('[data-pktab]').forEach(b=>b.onclick=()=>{dashPickerTab=b.dataset.pktab;draw()});
+    box.querySelector('#pk_done').onclick=close;
+    if(market){
+      const host=box.querySelector('#pkMarket');
+      if(host&&typeof pluginMountMarket==='function'){
+        pluginMountMarket(host,'widget',{
+          onInstalled:id=>{
+            if(!activeLayout().some(x=>x.id===id))addWidget(id);
+            if(dashEdit)touchDraft();else{saveDash();buildDash();refreshHome()}
+            toast('已把「'+id+'」加入 Dashboard');
+          },
+        });
+      }else if(host){
+        host.innerHTML='<div class="plugin-empty">卡片扩展市场需桌面版；浏览器模式可看演示</div>';
+      }
+      return;
+    }
     box.querySelectorAll('[data-pick]').forEach(el=>el.onclick=()=>{
       const id=el.dataset.pick;
       if(activeLayout().some(x=>x.id===id))removeWidget(id);
       else addWidget(id);
       if(dashEdit)touchDraft();else{saveDash();buildDash();refreshHome()}draw();
     });
-    box.querySelector('#pk_done').onclick=()=>mask.remove();
     box.querySelector('#pk_reset').onclick=()=>{if(dashEdit){dashDraft=autoPlace(DEFAULT_LAYOUT);touchDraft()}else{dashLayout=autoPlace(DEFAULT_LAYOUT);saveDash();buildDash(true);refreshHome()}draw();toast('已套用默认布局')};
   };
   draw();
-  mask.appendChild(box);document.getElementById('win').appendChild(mask);
-  mask.onclick=e=>{if(e.target===mask)mask.remove()};
+  mask.appendChild(box);document.body.appendChild(mask);
+  mask.addEventListener('close',()=>{if(mask.parentNode)mask.remove()});
+  mask.addEventListener('click',e=>{if(e.target===mask)close()});
+  openLayer(mask);
 }
 /* ===================== 专门的布局编辑器 =====================
    参考 Homarr 的 board edit mode：从工具栏进入编辑态，改动先落在草稿上，
@@ -650,7 +700,12 @@ document.getElementById('btnDashCancel').onclick=()=>exitDashEdit(false);
 document.getElementById('btnDashReset').onclick=()=>{
   dashDraft=autoPlace(DEFAULT_LAYOUT);touchDraft();toast('已套用默认布局，仍需点「保存布局」');
 };
-document.getElementById('btnDashAdd').onclick=openPicker;
+document.getElementById('btnDashAdd').onclick=()=>openPicker('cards');
+/* 非编辑态也能进卡片市场：否则只有点了「编辑布局」才看得到「+ 添加卡片」。 */
+(function(){
+  const b=document.getElementById('btnDashAddCard');
+  if(b)b.onclick=()=>openPicker('market');
+})();
 document.addEventListener('keydown',e=>{
   const typing=/^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName||''))||e.target.isContentEditable;
   if((e.ctrlKey||e.metaKey)&&(e.key==='e'||e.key==='E')){

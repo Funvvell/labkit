@@ -86,11 +86,13 @@ function ctx({ inTauri = false, windowMode = false, db = null } = {}) {
   };
 }
 
-/** 加载 bridge + store + toolhub，返回 openTool 探针。 */
+/** 加载 bridge + store + toolbox + toolhub，返回 openTool 探针。
+    toolbox.js 必须排在 toolhub.js 之前（index.html 同序）：toolhub 求值期即会渲染一次。 */
 function openToolHarness(opts) {
   const h = ctx(opts);
   h.run('frontend/js/bridge.js');
   h.run('frontend/js/store.js');
+  h.run('frontend/js/toolbox.js');
   h.run('frontend/js/toolhub.js');
   h.c.TOOL_META = [
     { id: 'primer', name: '引物', scripts: [] },
