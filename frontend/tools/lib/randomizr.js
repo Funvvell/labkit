@@ -133,5 +133,17 @@
     return out;
   }
 
-  W.randomizr = { completeRA, blockRA, clusterRA, blockAndClusterRA, shuffle };
+  /** 分配隐藏（CONSORT）：给每个分组一个随机字母码，码本身不含组义。
+      返回 {codeOf: 组名→码, map: [{code,group}]}；map 即揭盲映射，须与序列分开保管。
+      对应关系由 rng 决定，同种子可复现。 */
+  function blindCodes(conditions, rng) {
+    if (conditions.length > 26) throw new Error('分配隐藏最多支持 26 个分组（字母码）');
+    const letters = conditions.map((_, i) => String.fromCharCode(65 + i));
+    const shuffled = shuffle(letters.slice(), rng);
+    const codeOf = {};
+    conditions.forEach((c, i) => { codeOf[c] = shuffled[i]; });
+    return { codeOf, map: conditions.map((c, i) => ({ code: shuffled[i], group: c })) };
+  }
+
+  W.randomizr = { completeRA, blockRA, clusterRA, blockAndClusterRA, shuffle, blindCodes };
 })();

@@ -71,3 +71,32 @@ test('blockAndClusterRA：区组内整群一致', () => {
   assert.equal(count(a.slice(0, 4), '1'), 2);
   assert.equal(count(a.slice(4), '1'), 2);
 });
+test('blindCodes：码为字母置换、与组一一对应可逆、同种子可复现', () => {
+  const conds = ['对照', '处理', '联合'];
+  const a = R.blindCodes(conds, rng('seed-1'));
+  const b = R.blindCodes(conds, rng('seed-1'));
+  assert.deepEqual(a, b, '同种子必须复现同一映射');
+  assert.deepEqual(a.map.map(m => m.code).sort(), ['A', 'B', 'C']);
+  const back = {};
+  a.map.forEach(m => { back[m.code] = m.group; });
+  conds.forEach(c => assert.equal(back[a.codeOf[c]], c, '映射必须可逆'));
+  assert.equal(new Set(a.map.map(m => m.group)).size, conds.length);
+});
+
+test('blindCodes：映射随种子变化（不是固定直译）', () => {
+  const conds = ['对照', '处理'];
+  const sig = s => R.blindCodes(conds, rng(s)).map.map(m => m.code + m.group).join('|');
+  const set = new Set(Array.from({ length: 12 }, (_, i) => sig('s' + i)));
+  assert.ok(set.size > 1, 'code↔组 对应应随种子变化');
+});
+
+test('blindCodes：超过 26 组报错', () => {
+  assert.throws(() => R.blindCodes(Array.from({ length: 27 }, (_, i) => 'g' + i), rng('x')), /26/);
+});
+
+test('分配隐藏默认开启、导出仅代码、揭盲映射单独导出（静态守卫）', () => {
+  const src = readFileSync(path.join(root, 'frontend/tools/randomize.js'), 'utf8');
+  assert.ok(src.includes('id="rz-blind" checked'), '分配隐藏应默认开启');
+  assert.ok(src.includes("(blind ? ',code' : ',assignment')"), '隐藏时 CSV 表头为 code 而非 assignment');
+  assert.ok(src.includes('lastMapCSV'), '揭盲映射须单独导出');
+});
