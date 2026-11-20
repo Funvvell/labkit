@@ -110,3 +110,13 @@ test('分类自定义入口可发现：按钮语义化 + 页头文案指向 + Ct
   const pal = read('frontend/js/palette.js');
   assert.ok(pal.includes("'toolbox-edit'") && pal.includes('自定义工具分组'), 'Ctrl+K 必须能搜到分组自定义');
 });
+
+test('顶栏头像是真实按钮且绑定点击（不得是拖拽区里的死 div）', () => {
+  assert.ok(html.includes('<button class="avatar" id="btnAvatar"'), '头像必须是 button 而非 div');
+  assert.ok(!/<div class="avatar"/.test(html), '不得残留装饰 div');
+  const boot = read('frontend/js/boot.js');
+  assert.ok(boot.includes("avBtn.onclick=()=>navigate('settings')"), '头像需绑定点击进设置');
+  assert.ok(boot.includes('function refreshAvatar'), '字母取称呼首字而非硬编码 V');
+  const css = read('frontend/css/app.css');
+  assert.ok(/\.avatar\{width:30px;height:30px/.test(css), '头像与同组 icon-btn 等高 30px');
+});

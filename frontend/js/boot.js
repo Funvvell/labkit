@@ -6,6 +6,16 @@ function setGreet(){
   const h=new Date().getHours();
   const g=h<6?'夜深了':h<11?'早安':h<14?'午安':h<18?'下午好':'晚上好';
   const el=document.getElementById('greetTitle');if(el)el.textContent=g+'，'+userName();
+  refreshAvatar();
+}
+/* 顶栏头像必须是真实 button：原先是 div，落在 Tauri 拖拽区里 mousedown 会触发
+   窗口拖动而非点击（表现为「点不动」），且无任何 handler。字母取称呼首字，点击进设置。 */
+function refreshAvatar(){
+  const el=document.getElementById('btnAvatar');if(!el)return;
+  const n=userName();
+  el.textContent=Array.from(n)[0]||'研';
+  el.title=n+' · 设置';
+  el.setAttribute('aria-label',n+' · 打开设置');
 }
 /* P3：首启欢迎 —— 示例数据 / 空白开始 二选一，选择后写入本地台账 */
 function showWelcome(){
@@ -88,6 +98,8 @@ if(IN_TAURI&&(!WINDOW_MODE||WIN_LABEL==='tool-qpcr')){
 shellInit();
 paletteInit();
 keysInit();
+const avBtn=document.getElementById('btnAvatar');
+if(avBtn&&!WINDOW_MODE)avBtn.onclick=()=>navigate('settings');
 routerInit();
 /* P1 工具窗口收尾：标题栏显示工具名、隐藏返回键（窗口内无首页可回）、
    内容就绪后 show()（创建时 visible:false，window-state 已先恢复尺寸/位置，防闪烁）。 */
