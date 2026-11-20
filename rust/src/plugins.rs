@@ -705,6 +705,12 @@ pub async fn install_from_release(
         }
     }
     let mb = manifest_bytes.ok_or("Release 缺少 manifest.json 资产")?;
+    // 远程安装强制完整性声明：sha256 防 Release 资产在传输/存储侧被替换。
+    // 本地开发载入（install_local_kind）免除此要求，便于改一行装一次。
+    let m = parse_manifest(&mb, Some(id))?;
+    if m.sha256.is_none() {
+        return Err("远程安装要求 manifest 声明 main.js 的 sha256；本地开发载入可免".into());
+    }
     install_at_kind(base, id, version, market, &mb, &assets)
 }
 

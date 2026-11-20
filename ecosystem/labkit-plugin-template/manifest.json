@@ -8,5 +8,6 @@
   "minAppVersion": "0.4.0",
   "kind": "tool",
   "main": "main.js",
-  "styles": "styles.css"
+  "styles": "styles.css",
+  "sha256": "f31a686d62564e2705cb063ef4f49ef673c29a0ce543dc0dbab63086ad28e4da"
 }

@@ -53,7 +53,7 @@ tool → TOOL_META + LabKitTools ／ widget → WIDGETS
 | `minAppVersion` | 否 | 低于该版本拒绝安装 |
 | `main` | 否 | 默认 `main.js`，只允许白名单文件名 |
 | `styles` | 否 | 默认无，只允许 `styles.css` |
-| `sha256` | 否 | main.js 的 sha256；声明后逐字节校验 |
+| `sha256` | **远程必填** | `main.js` 的 sha256（`sha256sum main.js`）。远程安装缺失即拒绝；本地开发载入可免，便于改一行装一次 |
 
 > `kind` 缺失时按安装来源推断（市场类型），并标 `legacy`；扩展管理页会提示补声明。
 > 写错成其他值会被直接拒绝，避免「静默降级成工具包」这类难查问题。

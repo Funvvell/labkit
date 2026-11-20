@@ -8,5 +8,6 @@
   "minAppVersion": "0.4.0",
   "kind": "widget",
   "main": "main.js",
-  "styles": "styles.css"
+  "styles": "styles.css",
+  "sha256": "ce485eab31772ae3c78fa44688d6de53db0407dcea0734df3727c247ce2ff09e"
 }
