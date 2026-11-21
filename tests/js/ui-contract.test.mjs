@@ -12,6 +12,8 @@ const html = read('frontend/index.html');
 const appCss = read('frontend/css/app.css');
 const labCss = read('frontend/css/lab.css');
 const toolboxCss = read('frontend/css/toolbox.css');
+const adaptiveCss = read('frontend/css/adaptive.css');
+const typeCss = read('frontend/css/type.css');
 const toolhubJs = read('frontend/js/toolhub.js');
 const homeJs = read('frontend/js/home.js');
 const allJs = fs.readdirSync(path.join(root, 'frontend/js'))
@@ -30,7 +32,7 @@ test('关键 id 与零构建资源顺序完整', () => {
     'extToolList', 'extWidgetList', 'btnDashAddCard',
   ];
   for (const id of ids) assert.ok(html.includes(`id="${id}"`), `missing #${id}`);
-  const order = ['css/app.css', 'tools/tools.css', 'vendor/gridstack.min.css', 'css/lab.css', 'css/toolbox.css'];
+  const order = ['css/app.css', 'tools/tools.css', 'vendor/gridstack.min.css', 'css/lab.css', 'css/toolbox.css', 'css/adaptive.css', 'css/type.css'];
   const positions = order.map(s => html.indexOf(s));
   assert.ok(positions.every(p => p >= 0), 'stylesheet missing');
   assert.deepEqual([...positions].sort((a, b) => a - b), positions, 'stylesheet order changed');
@@ -72,9 +74,25 @@ test('样式预算与级联保护', () => {
   assert.ok(Buffer.byteLength(appCss) <= 60000, 'app.css over budget');
   assert.ok(Buffer.byteLength(labCss) <= 15000, 'lab.css over budget');
   assert.ok(Buffer.byteLength(toolboxCss) <= 12000, 'toolbox.css over budget');
+  assert.ok(Buffer.byteLength(adaptiveCss) <= 14000, 'adaptive.css over budget');
+  assert.ok(Buffer.byteLength(typeCss) <= 6000, 'type.css over budget');
   assert.ok(!/!important/.test(labCss), 'new component layer must not use !important');
   assert.ok(!/!important/.test(toolboxCss), 'toolbox.css must not use !important');
+  assert.ok(!/!important/.test(adaptiveCss), 'adaptive.css must not use !important');
+  assert.ok(!/!important/.test(typeCss), 'type.css must not use !important');
   assert.ok(!/<style\b/i.test(html), 'no inline style block in the app shell');
+});
+
+test('自适应层：工具窗口隐藏侧栏 + 组件用容器查询而非窗口断点', () => {
+  // 工具独立窗口是单一用途窗口，220px 侧栏在最小宽度下会把工作区画布挤到几十像素
+  assert.ok(/body\.win-mode \.sidebar\{display:none\}/.test(adaptiveCss), '工具窗口必须隐藏侧栏');
+  assert.ok(adaptiveCss.includes('.ws-body{container-type:inline-size}'), '工作区三栏应按容器收拢');
+  assert.ok(!/\.panel\.left\{width:268px/.test(adaptiveCss), '不得再写死面板宽度');
+  const toolsCss = read('frontend/tools/tools.css');
+  assert.ok(toolsCss.includes('.tool-wrap{container-type:inline-size}') || adaptiveCss.includes('.tool-wrap{container-type:inline-size}'),
+    '工具页需要容器查询宿主');
+  assert.ok(/@container \(max-width:700px\)\{\.tsplit/.test(toolsCss), 'tsplit 必须改容器查询');
+  assert.ok(!/@media\(max-width:900px\)\{\.tsplit/.test(toolsCss), '不得保留绑窗口宽度的旧断点');
 });
 
 test('重设计新增的组件层已加载', () => {

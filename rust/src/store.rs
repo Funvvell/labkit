@@ -45,8 +45,12 @@ fn bak_path(path: &Path) -> PathBuf {
     path.with_extension("json.bak")
 }
 
+/// 临时文件名 = 原名 + `.tmp`。不能用 with_extension：那会把 `X.md` 变成
+/// `X.json.tmp`，Vault 的 markdown 投影会与别的记录撞名。
 fn tmp_path(path: &Path) -> PathBuf {
-    path.with_extension("json.tmp")
+    let mut s = path.as_os_str().to_os_string();
+    s.push(".tmp");
+    PathBuf::from(s)
 }
 
 /// 接受 JSON 对象，且已知台账键的类型必须正确：
@@ -111,17 +115,26 @@ pub fn atomic_write(path: &Path, text: &str) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let tmp = tmp_path(path);
-    {
-        let mut f = fs::File::create(&tmp)?;
-        f.write_all(text.as_bytes())?;
-        f.sync_all()?;
-    }
     if path.exists() {
         // 备份失败不该阻断写入，但要留痕：真正的数据是接下来那次 rename。
         if let Err(e) = fs::copy(path, bak_path(path)) {
             tracing::warn!("台账备份失败（继续写入）: {e}");
         }
+    }
+    atomic_write_no_bak(path, text)
+}
+
+/// 同上但不留 `.bak`。给 Markdown Vault 用：那些 .md 是从 JSON 派生的投影，
+/// 损坏可直接重建，没必要在用户的 Obsidian 库里堆一倍数量的备份文件。
+pub fn atomic_write_no_bak(path: &Path, text: &str) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let tmp = tmp_path(path);
+    {
+        let mut f = fs::File::create(&tmp)?;
+        f.write_all(text.as_bytes())?;
+        f.sync_all()?;
     }
     if let Err(e) = fs::rename(&tmp, path) {
         let _ = fs::remove_file(&tmp);

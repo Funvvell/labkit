@@ -96,6 +96,21 @@ let dbStatus='init',dbError='',dbSavedAt='',dbPath='';
 function readCache(){try{const r=localStorage.getItem(DB_KEY);return r?JSON.parse(r):null}catch(e){return null}}
 function writeCache(){try{localStorage.setItem(DB_KEY,JSON.stringify(DB))}catch(e){}}
 
+/* 试剂余量的单一真相：quantity+unit 计量时 left 是派生字符串，不计量（quantity=null）
+   时 left 是自由文本（'2 支' / '—'）。labres 页表单只填 left、库存工具填 quantity+unit，
+   两边共用这套规则才不会互相覆盖。 */
+function reagentSyncLeft(r){
+  if(r.quantity!=null&&r.quantity!=='')r.left=`${r.quantity}${r.unit||''}`;
+  return r;
+}
+function reagentApplyLeft(r,text){
+  const s=String(text==null?'':text).trim();
+  const m=s.match(/^(\d+(?:\.\d+)?)\s*(.*)$/);
+  if(m){r.quantity=+m[1];r.unit=m[2].trim()}
+  else{r.quantity=null;r.left=s}
+  return reagentSyncLeft(r);
+}
+
 /* 老数据兼容：把「今天 09:00-10:15」这类相对时间换成真实时间戳，
    给缺 id 的记录补 id，给任务补 state/doneAt。只在读盘后跑一次。 */
 function migrateDB(){
@@ -118,7 +133,15 @@ function migrateDB(){
     if(t.done&&!t.doneAt)t.doneAt=todayStr();
     if(!t.done)t.doneAt='';
   });
-  ['literatures','reagents','instruments'].forEach(k=>(DB[k]||[]).forEach(r=>{if(!r.id)r.id=uid(k[0])}));
+  /* 11 类实体都要有稳定 id：Markdown Vault 靠 id 而非文件名映射记录，
+     reminders 历史上一直没有 id（种子无、apply 也不生成），这里一并补齐。 */
+  const IDP={projects:'p',tasks:'t',focusRecords:'f',experiments:'e',literatures:'l',reagents:'r',
+    instruments:'i',reminders:'m',budget:'b',bookings:'k',notes:'n'};
+  Object.keys(IDP).forEach(k=>(DB[k]||[]).forEach(r=>{if(!r.id)r.id=uid(IDP[k])}));
+  (DB.reagents||[]).forEach(reagentSyncLeft);
+  /* 提醒的紧急程度在 Vault 里脱耦成语义值（urgent/warn/normal），
+     缺 color 的记录补默认值，往返才不会凭空多出字段。 */
+  (DB.reminders||[]).forEach(r=>{if(!r.color)r.color='var(--accent)'});
   (DB.notes||[]).forEach(n=>{if(n.at&&!n.at.includes('T'))n.at=n.at.replace(' ','T')});
   if(!Array.isArray(DB.recentSlides))DB.recentSlides=[];
   if(typeof DB.budgetTotal!=='number')DB.budgetTotal=30000;
@@ -158,6 +181,7 @@ async function loadDBFromDisk(){
    同一键并发编辑 = 后写覆盖（键级 LWW）；实体级三方合并为后续增强。 */
 let _dbBase=null,_dbRev=0,_dbDirty=false,_dbApplying=false,_dbViewPending=false,_dbMO=null,_dbCloseFlushed=false;
 let _dbFlushing=false,_dbPendingRemote=null,_dbWriteSeq=0;
+let _vaultLastErr='',_vaultLastConflict=0;
 const _dbOrigin='w'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);
 function dbSnapshot(){const c={};Object.keys(DB).forEach(k=>{if(k!=='_rev')c[k]=DB[k]});return JSON.parse(JSON.stringify(c))}
 function dbChangedKeys(){
@@ -212,8 +236,11 @@ async function dbOnRemote(payload){
      此刻读盘会读到缺少本地刚提交改动的旧快照，adopt 会把它抹掉（真机冒烟实测） */
   if(_dbFlushing||_dbApplying){_dbPendingRemote=payload;return}
   _dbApplying=true;
-  const seq0=_dbWriteSeq;
   try{
+    /* 本地还有未落盘改动 → 先补写再读盘。否则 adopt 会用盘上快照抹掉 400ms 防抖
+       窗口里的编辑。Vault 摄入会主动广播 db-changed，这条路径比纯多窗口时代更常触发。 */
+    if(_dbDirty)await flushDB();
+    const seq0=_dbWriteSeq;
     const src=await invoke('db_load');
     if(_dbFlushing||_dbWriteSeq!==seq0){
       /* 读盘期间本地又落了新写 → 这份快照已过时，交给写盘落地后的 drain 重读 */
@@ -281,6 +308,25 @@ async function dbFocusSync(){
 }
 if(IN_TAURI){
   try{window.__TAURI__.event.listen('db-changed',ev=>dbOnRemote(ev.payload)).catch(()=>{})}catch(e){}
+  /* Vault 同步结果只做状态提示，不参与 flush / 排队机制：
+     摄入引起的台账变化由 db-changed 走既有 dbOnRemote 路径采纳。
+     投影失败会每次保存都上报，按内容去重避免刷屏。 */
+  try{window.__TAURI__.event.listen('vault-synced',ev=>{
+    const p=ev.payload||{};
+    const rep=p.report||{},pr=rep.projected||{};
+    const errs=p.error?[p.error]:(pr.errors||rep.errors||[]);
+    const key=errs.join('|');
+    if(key&&key!==_vaultLastErr){
+      _vaultLastErr=key;
+      toast('Markdown Vault：'+errs[0]+(errs.length>1?' 等 '+errs.length+' 条':'')+'（台账已保存，不受影响，下次同步自动重试）',7000);
+    }else if(!key){_vaultLastErr=''}
+    const nc=(rep.conflicts||[]).length;
+    if(nc&&nc!==_vaultLastConflict){
+      _vaultLastConflict=nc;
+      toast('Markdown Vault 有 '+nc+' 处冲突：已采用外部版本，可在设置页「保留本地」还原',7500);
+    }else if(!nc){_vaultLastConflict=0}
+    if(typeof renderVaultSettings==='function'&&typeof _route!=='undefined'&&_route.name==='settings')renderVaultSettings();
+  }).catch(()=>{})}catch(e){}
   window.addEventListener('focus',()=>{dbFocusSync()});
   /* 关窗走 changed 合并路径：不丢最后一次编辑，也不抹掉别的窗口的改动。
      preventDefault → 补写 → 再 close（第二次不再拦截），window-state 插件正常保存窗口位置 */

@@ -32,7 +32,7 @@ function formModal(title,fields,onOK,okLabel){
         el.setAttribute('aria-invalid','true');
         if(!firstBad)firstBad=el;
       }
-      out[fields[i].k]=fields[i].type==='number'?(Number(v)||0):v;
+      out[fields[i].k]=fields[i].type==='number'?(v===''&&fields[i].nullable?null:(Number(v)||0)):v;
     }
     if(firstBad){firstBad.focus();return}
     close();onOK(out);
@@ -129,8 +129,8 @@ const ENT={
       {k:'exp',label:'有效期',type:'date',value:r&&/^\d{4}-/.test(r.exp||'')?r.exp:''},
       {k:'left',label:'余量',ph:'100% / 2 支',value:r?r.left:'100%'},
     ],
-    apply:(v,r)=>Object.assign(r||{id:uid('r')},{name:v.name,no:v.no||'—',lot:v.lot||'—',loc:v.loc||'—',
-      open:v.open||todayStr().slice(5),exp:v.exp||'—',left:v.left||'100%'}),
+    apply:(v,r)=>reagentApplyLeft(Object.assign(r||{id:uid('r')},{name:v.name,no:v.no||'—',lot:v.lot||'—',loc:v.loc||'—',
+      open:v.open||todayStr().slice(5),exp:v.exp||'—'}),v.left||'100%'),
     refresh:()=>{refreshHome();renderLab();renderKpi()}},
   instrument:{name:'仪器',arr:()=>DB.instruments,label:r=>r.name,
     fields:r=>[
@@ -177,7 +177,7 @@ const ENT={
       {k:'date',label:'日期',type:'date',value:r&&/^\d{4}-/.test(r.date||'')?r.date:todayStr()},
       {k:'color',label:'紧急程度',type:'select',options:['一般','较急','紧急'],value:r?(r.color==='var(--red)'?'紧急':r.color==='var(--orange)'?'较急':'一般'):'一般'},
     ],
-    apply:(v,r)=>Object.assign(r||{},{text:v.text,date:v.date,color:{'一般':'var(--accent)','较急':'var(--orange)','紧急':'var(--red)'}[v.color]||'var(--accent)'}),
+    apply:(v,r)=>Object.assign(r||{id:uid('m')},{text:v.text,date:v.date,color:{'一般':'var(--accent)','较急':'var(--orange)','紧急':'var(--red)'}[v.color]||'var(--accent)'}),
     refresh:()=>{refreshHome();renderLitRemind()}},
   focus:{name:'专注记录',arr:()=>DB.focusRecords,label:r=>r.project+' '+r.minutes+'′',
     fields:r=>[

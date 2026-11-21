@@ -1,0 +1,66 @@
+/* LabKit · type.css — 字体与排版体系。
+   放在 adaptive.css 之后加载。@font-face 与字号阶梯集中在这里，
+   组件侧只引用 token，不再散落字面量。
+
+   字体策略：拉丁/数字/希腊/数学符号用本地打包的 Inter 与 JetBrains Mono（OFL 1.1），
+   中文继续走系统字体（Microsoft YaHei UI / PingFang SC）——不打包 CJK，
+   既省几 MB 体积，也避开微软系统字体「不得单独再分发」的许可限制。
+   CSP `font-src 'self' data:` 下完全离线可用，无任何在线字体 CDN。 */
+
+@font-face{
+  font-family:"Inter";
+  src:url("../fonts/InterVariable.woff2") format("woff2");
+  font-weight:100 900;
+  font-style:normal;
+  font-display:swap;
+}
+@font-face{
+  font-family:"JetBrains Mono";
+  src:url("../fonts/JetBrainsMono-Regular.woff2") format("woff2");
+  font-weight:400;
+  font-style:normal;
+  font-display:swap;
+}
+@font-face{
+  font-family:"JetBrains Mono";
+  src:url("../fonts/JetBrainsMono-Bold.woff2") format("woff2");
+  font-weight:700;
+  font-style:normal;
+  font-display:swap;
+}
+
+/* 字号阶梯：整数 px，消灭半像素（半像素在不同 DPI 下渲染不一致）。
+   行高三档，组件不再逐处手写 1.05–1.8。 */
+:root{
+  --text-3xs:9px;
+  --text-2xs:10px;
+  --text-xs:11px;
+  --text-sm:12px;
+  --text-md:13px;
+  --text-lg:15px;
+  --text-xl:18px;
+  --text-2xl:22px;
+  --text-3xl:26px;
+  --leading-tight:1.25;
+  --leading-normal:1.5;
+  --leading-relaxed:1.7;
+}
+
+html{
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
+}
+/* 数据型界面：数字一律等宽对齐，表格列/金额/倒计时不再因字宽跳动 */
+body{font-variant-numeric:tabular-nums lining-nums}
+/* 等宽上下文再加斜杠零，批号/货号里的 0 与 O 不再混淆 */
+.tmono,.tbl td,.ttable td,.result-table td,.input .v,kbd,.ws-file,.native-input,.zoom{
+  font-feature-settings:"tnum" 1,"zero" 1;
+}
+
+/* 正文块的中英文混排与换行质量 */
+.sub,.tnote,.hint,.tech-source,.md-body,.deck-summary{
+  line-height:var(--leading-normal);
+  text-wrap:pretty;
+}
+h1,h2,h3,.tc-name,.tool-heading h1{text-wrap:balance}

@@ -11,6 +11,9 @@
 <link rel="stylesheet" href="vendor/gridstack.min.css">
 <link rel="stylesheet" href="css/lab.css">
 <link rel="stylesheet" href="css/toolbox.css">
+<!-- 自适应收口层：必须最后加载，且 app/lab/toolbox 有字节预算，响应式规则集中在这里 -->
+<link rel="stylesheet" href="css/adaptive.css">
+<link rel="stylesheet" href="css/type.css">
 <script src="vendor/gridstack-all.js"></script>
 <script src="tools/registry.js"></script>
 </head>
@@ -106,7 +109,10 @@
             </div>
           </section>
           <div class="dash-toolbar">
-            <div class="dash-hint" id="dashHint">卡片右上角可直接新建任务 / 记录 · 点「编辑布局」调整卡片</div>
+            <div class="dash-hints">
+              <div class="dash-hint" id="dashHint">卡片右上角可直接新建任务 / 记录 · 点「编辑布局」调整卡片</div>
+              <div class="dash-hint" id="dashColHint" hidden>窗口较窄，卡片已自动重排；编辑布局请在更宽的窗口下进行</div>
+            </div>
             <div class="tools" id="dashTools">
               <button class="btn sec" id="btnDashAddCard" type="button">＋ 卡片</button>
               <button class="btn sec" id="btnDashEdit">编辑布局</button>
@@ -260,7 +266,7 @@
 
       <!-- VIEW: 设置 -->
       <section class="view" id="view-settings">
-        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>设置</h1><div class="sub">外观 · 数据与备份 · 扩展连接</div></div></div>
+        <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div><h1>设置</h1><div class="sub">外观 · 数据与备份 · Markdown 台账 · 扩展连接</div></div></div>
         <div class="scroll settings-scroll">
           <div class="settings-grid">
             <div class="settings-col">
@@ -294,6 +300,19 @@
                   <button class="btn sec" id="btnDbClearDemo">清空示例数据</button>
                   <button class="btn danger" id="btnDbReset">重置全部台账</button>
                 </div>
+              </section>
+              <section class="dash-card settings-card">
+                <div class="card-head"><h2>Markdown 台账（Vault）</h2><span class="db-pill" id="vaultPill">未启用</span></div>
+                <div class="sub">把每条台账记录落成一个 .md 文件（YAML frontmatter + 正文），可用 Obsidian 等软件直接打开编辑。外部改动会在 LabKit 聚焦时读回，外部编辑优先；原 JSON 保留为内部索引与崩溃快照。</div>
+                <div class="trow settings-trow">
+                  <label class="settings-toggle"><input type="checkbox" id="setVaultEnabled"><span>启用 Markdown Vault</span></label>
+                  <button class="btn sec" id="btnVaultDir">选择目录</button>
+                  <button class="btn sec" id="btnVaultSync">立即同步</button>
+                  <button class="btn sec" id="btnVaultOpen">显示 Vault 目录</button>
+                </div>
+                <div id="vaultInfo" class="kv-list"></div>
+                <div id="vaultConflicts"></div>
+                <div class="sub">可直接指向已有的 Obsidian 库：LabKit 只读写自己的 11 个分类目录，其余文件一律不动。删除的记录移入 .labkit/trash/，可手工找回。</div>
               </section>
             </div>
             <div class="settings-col">

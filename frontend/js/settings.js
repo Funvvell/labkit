@@ -41,6 +41,7 @@ async function renderSettings(){
   const tnw=document.getElementById('setToolOpenInPage');if(tnw)tnw.checked=!!Store.settings().toolOpenInPage;
   if(typeof renderZoteroSettings==='function')renderZoteroSettings();
   if(typeof renderPluginSettings==='function')renderPluginSettings();
+  if(typeof renderVaultSettings==='function')renderVaultSettings();
   applyDensity();
 }
 document.querySelectorAll('[data-density]').forEach(b=>b.onclick=()=>{
@@ -105,6 +106,110 @@ document.querySelectorAll('#reportRange [data-range]').forEach(b=>b.onclick=()=>
 });
 document.getElementById('btnNewFocus').onclick=()=>entityModal('focus');
 document.getElementById('btnLabNew').onclick=()=>entityModal(labTab==='reagent'?'reagent':labTab==='instrument'?'instrument':'booking');
+
+/* ===================== Markdown 台账 Vault =====================
+   一条记录一个 .md，Obsidian 可直接编辑；外部改动聚焦时读回，外部编辑优先。
+   投影/摄入全在 Rust 侧，这里只负责配置与状态展示。 */
+let _vaultSt=null;
+async function pickVaultDir(){
+  try{
+    const d=await invoke('plugin:dialog|open',{options:{title:'选择 Markdown Vault 目录（可直接选已有的 Obsidian 库）',directory:true,multiple:false}});
+    return d?String(d):'';
+  }catch(e){toast('选择目录失败：'+e,6000);return ''}
+}
+async function renderVaultSettings(){
+  const pill=document.getElementById('vaultPill');if(!pill)return;
+  const en=document.getElementById('setVaultEnabled'),info=document.getElementById('vaultInfo'),cbox=document.getElementById('vaultConflicts');
+  const btns=['btnVaultDir','btnVaultSync','btnVaultOpen'].map(id=>document.getElementById(id));
+  if(!IN_TAURI){
+    pill.textContent='浏览器模式';pill.className='db-pill browser';
+    if(en){en.checked=false;en.disabled=true}
+    btns.forEach(b=>{if(b)b.disabled=true});
+    if(info)info.innerHTML='<div class="k">说明</div><div class="v">浏览器演示模式无磁盘访问，Markdown Vault 仅桌面版可用。</div>';
+    if(cbox)cbox.innerHTML='';
+    return;
+  }
+  try{_vaultSt=await invoke('vault_status')}catch(e){_vaultSt=null}
+  const st=_vaultSt||{enabled:false,dir:'',files:0,errors:[],lastSync:'',conflicts:0,conflictList:[]};
+  if(en){en.disabled=false;en.checked=!!st.enabled}
+  btns.forEach(b=>{if(b)b.disabled=false});
+  const nConflict=st.conflicts||0;
+  pill.textContent=st.enabled?(nConflict?nConflict+' 处冲突待裁决':'已启用'):'未启用';
+  pill.className='db-pill '+(st.enabled?(nConflict?'error':''):'browser');
+  pill.title=st.dir||'';
+  const kv=[['Vault 目录',st.dir||'（未选择）'],['记录文件',String(st.files||0)],
+    ['上次同步',st.lastSync||'—'],['待裁决冲突',String(nConflict)]];
+  const errs=st.errors||[];
+  if(errs.length)kv.push(['同步错误',errs.slice(0,2).join('；')+(errs.length>2?' 等 '+errs.length+' 条':'')]);
+  if(info)info.innerHTML=kv.map(([k,v])=>`<div class="k">${esc(k)}</div><div class="v">${esc(v)}</div>`).join('');
+  if(cbox){
+    cbox.innerHTML=(st.conflictList||[]).map(c=>`<div class="vault-conflict">
+      <span class="nm" title="${esc(c.id)}">${esc(c.label||c.id)}</span>
+      <button class="btn sec" data-vault-keep="local" data-vault-id="${esc(c.id)}">保留本地</button>
+      <button class="btn sec" data-vault-keep="vault" data-vault-id="${esc(c.id)}">采用 Vault</button>
+    </div>`).join('');
+    cbox.querySelectorAll('[data-vault-keep]').forEach(b=>b.onclick=async()=>{
+      const keep=b.dataset.vaultKeep;
+      try{
+        await invoke('vault_resolve',{id:b.dataset.vaultId,keep});
+        toast(keep==='local'?'已还原本地版本，并覆盖 Vault 里的文件':'已采用 Vault 版本');
+      }catch(e){toast('裁决失败：'+e,6000)}
+      renderVaultSettings();
+    });
+  }
+}
+const _vaultEn=document.getElementById('setVaultEnabled');
+if(_vaultEn)_vaultEn.onchange=async e=>{
+  if(!IN_TAURI){toast('浏览器演示模式不支持 Markdown Vault');e.target.checked=false;return}
+  const want=e.target.checked;
+  let dir=(_vaultSt&&_vaultSt.dir)||'';
+  if(want&&!dir){
+    dir=await pickVaultDir();
+    if(!dir){e.target.checked=false;return}
+  }
+  try{
+    // 启用/换目录前先把本地改动落盘：投影源必须是已提交的最新台账
+    await flushDB();
+    const rep=await invoke('vault_configure',{dir,enable:want});
+    const n=(rep&&rep.projected&&rep.projected.written)||0;
+    toast(want?'已启用 Markdown Vault，生成 '+n+' 个记录文件（启用前已自动备份）':'已关闭 Vault，markdown 文件原样保留',5600);
+  }catch(err){toast('配置失败：'+err,7000);e.target.checked=!want}
+  renderVaultSettings();
+};
+const _vaultDirBtn=document.getElementById('btnVaultDir');
+if(_vaultDirBtn)_vaultDirBtn.onclick=async()=>{
+  if(!IN_TAURI){toast('浏览器演示模式不支持磁盘目录');return}
+  const dir=await pickVaultDir();if(!dir)return;
+  const apply=async()=>{
+    try{
+      await flushDB();
+      const rep=await invoke('vault_configure',{dir,enable:true});
+      toast('Vault 目录已设为：'+dir+'（生成 '+((rep&&rep.projected&&rep.projected.written)||0)+' 个文件）',6500);
+    }catch(e){toast('设置失败：'+e,7000)}
+    renderVaultSettings();
+  };
+  if(_vaultSt&&_vaultSt.enabled&&_vaultSt.dir&&_vaultSt.dir!==dir){
+    confirmModal('更换 Vault 目录','当前 Vault 里的 markdown 文件会原样保留但不再同步；新目录将重新生成全部记录文件。确定更换？',apply,'更换');
+  }else await apply();
+};
+const _vaultSyncBtn=document.getElementById('btnVaultSync');
+if(_vaultSyncBtn)_vaultSyncBtn.onclick=async()=>{
+  if(!IN_TAURI){toast('浏览器演示模式不支持 Vault 同步');return}
+  try{
+    await flushDB();
+    const rep=await invoke('vault_sync');
+    const p=(rep&&rep.projected)||{},nc=(rep&&rep.conflicts||[]).length;
+    toast('同步完成：读回 '+(rep.ingested||0)+' 条外部改动，写出 '+(p.written||0)+' 个文件'+(nc?'，'+nc+' 处冲突待裁决':''),6000);
+  }catch(e){toast('同步失败：'+e,7000)}
+  renderVaultSettings();
+};
+const _vaultOpenBtn=document.getElementById('btnVaultOpen');
+if(_vaultOpenBtn)_vaultOpenBtn.onclick=async()=>{
+  const dir=_vaultSt&&_vaultSt.dir;
+  if(!IN_TAURI||!dir){toast('还没有选择 Vault 目录',5000);return}
+  try{await invoke('plugin:opener|reveal_item_in_dir',{paths:[dir]})}
+  catch(e){toast('打开失败，路径：'+dir,7000)}
+};
 
 /* ===================== P3：称呼与主题 ===================== */
 function applyTheme(){

@@ -5,10 +5,20 @@
   const W = typeof window !== 'undefined' ? window : globalThis;
   // Okabe-Ito 色盲安全调色板
   const PALETTE = ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#E69F00', '#56B4E9', '#F0E442', '#000000'];
+  // 期刊图字体单一来源：Arial/Helvetica 是投稿的安全默认，plotter 与本文件共用，
+  // 不再各自散落字面量。界面 UI 字体（Inter）不用于出版图，避免期刊兼容问题。
+  const JOURNAL_FONT = 'Arial, Helvetica, sans-serif';
+
+  // 图表高度随视口伸缩：写死 340/400px 在矮窗口里把工具页撑出滚动，高分屏上又局促。
+  // 导出走 exportBar 的期刊 mm 宽度 + 固定比例，不受这里影响。
+  function plotHeight(base) {
+    const vh = (typeof window !== 'undefined' && window.innerHeight) || 800;
+    return Math.round(Math.max(240, Math.min(base, vh * 0.44)));
+  }
 
   function journalLayout(extra = {}) {
     return Object.assign({
-      font: { family: 'Arial, Helvetica, sans-serif', size: 12, color: '#000' },
+      font: { family: JOURNAL_FONT, size: 12, color: '#000' },
       paper_bgcolor: '#fff', plot_bgcolor: '#fff',
       margin: { l: 60, r: 20, t: 30, b: 50 },
       showlegend: true,
@@ -137,7 +147,7 @@
     });
     const layout = journalLayout({
       barmode: 'group', bargap: 0.25, bargroupgap: 0.08,
-      height: 340,
+      height: plotHeight(340),
       xaxis: Object.assign(journalLayout().xaxis, { title: { text: '靶基因', font: { size: 13 } }, tickfont: { size: 12 } }),
       yaxis: Object.assign(journalLayout().yaxis, { title: { text: 'Fold Change（log2）', font: { size: 13 } }, tickvals, ticktext, range: [lo, hi + 0.8], zeroline: true, zerolinecolor: '#999', zerolinewidth: 1 }),
       annotations, shapes,
@@ -160,7 +170,7 @@
       traces.unshift({ type: 'scatter', mode: 'markers', name: '复孔', x: rx, y: ry, marker: { color: '#999', size: 5, symbol: 'circle-open' }, hoverinfo: 'skip' });
     }
     const layout = journalLayout({
-      height: 300, showlegend: true,
+      height: plotHeight(300), showlegend: true,
       xaxis: Object.assign(journalLayout().xaxis, { title: { text: 'log10(稀释倍数)', font: { size: 13 } } }),
       yaxis: Object.assign(journalLayout().yaxis, { title: { text: 'Cq', font: { size: 13 } } }),
       annotations: [{
@@ -197,5 +207,5 @@
     container.querySelector('#' + baseName + '_png600').onclick = () => png(600);
   }
 
-  W.QpcrPlots = { journalLayout, fcChart, stdCurve, exportBar, PALETTE, _internal: { cellStats, log2Err, tCdf, tCrit95, starOf } };
+  W.QpcrPlots = { journalLayout, fcChart, stdCurve, exportBar, plotHeight, PALETTE, JOURNAL_FONT, _internal: { cellStats, log2Err, tCdf, tCrit95, starOf } };
 })();

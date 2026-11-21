@@ -48,6 +48,20 @@ LabKit（MIT）复用以下成熟开源项目。除注明外均以原样或最�
 - **tauri-plugin-window-state** Copyright (c) Tauri Programme. https://github.com/tauri-apps/plugins-workspace — P1 工具窗口尺寸/位置记忆。
 - **reqwest** Copyright (c) Sean McArthur. https://github.com/seanmonstar/reqwest — P3 Zotero 本地 API / P4 插件市场的 Rust 侧 HTTP 客户端（rustls）。
 - **url** Copyright (c) Servo contributors. https://github.com/servo/rust-url — P3 附件 file:// 重定向解析。
+- **yaml-rust2** Copyright (c) Ethiraric, David Aguilar 等. https://github.com/Ethiraric/yaml-rust2
+  — Markdown Vault 的 YAML frontmatter 解析（`rust/src/vault.rs`）。选它是因为 serde_yaml 上游已归档、
+  serde_yaml_ng / serde_norway 停更于 2024 年、serde_yml 因 unsoundness 废弃，yaml-rust2 是唯一活跃维护的
+  YAML 1.2 实现。传递依赖 **arraydeque**（MIT/Apache-2.0）、**hashlink**（MIT/Apache-2.0）、
+  **encoding_rs**（Apache-2.0/MIT，本项目已直接依赖）。
+
+## SIL Open Font License 1.1（本地打包字体）
+- **Inter** Copyright (c) The Inter Project Authors (rsms). https://github.com/rsms/inter
+  变量字体子集 `frontend/fonts/InterVariable.woff2`（v4.1.0，经官方 npm 包 `inter-ui` 获取）。
+- **JetBrains Mono** Copyright (c) JetBrains s.r.o. https://github.com/JetBrains/JetBrainsMono
+  子集 `frontend/fonts/JetBrainsMono-{Regular,Bold}.woff2`（v2.304）。
+  两者由 `tools/font-build/build_fonts.py` 子集化（拉丁/希腊/数学符号，不含 CJK），
+  许可原文随附 `frontend/fonts/*-OFL.txt`，来源与 sha256 见 `frontend/fonts/manifest.json`。
+  中文不打包，走系统字体（Microsoft YaHei UI / PingFang SC），避开微软字体再分发限制。
 
 ## ISC License
 - **simple-statistics** Copyright (c) Tom MacWright. https://github.com/simple-statistics/simple-statistics

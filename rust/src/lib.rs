@@ -17,6 +17,7 @@ pub mod decode;
 pub mod qpcr;
 pub mod render;
 pub mod store;
+pub mod vault;
 pub mod imgbatch;
 pub mod zotero;
 pub mod inventree;

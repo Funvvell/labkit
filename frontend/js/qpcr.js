@@ -179,7 +179,7 @@ function fcChartSvg(analysis){
   const y=v=>padT+(hi-Math.log2(Math.max(1e-6,v)))/(hi-lo)*(H-padT-padB);
   const gw=(W-padL-10)/targets.length;
   const bw=Math.min(34,(gw-14)/groups.length);
-  let svg=`<svg viewBox="0 0 ${W} ${H}" height="${H}">`;
+  let svg=`<svg class="lc-svg" viewBox="0 0 ${W} ${H}" role="img">`;
   for(let k=Math.ceil(lo);k<=Math.floor(hi);k++){
     const yy=y(Math.pow(2,k));
     const lab=k===0?'1':(k===1?'2':(k===-1?'0.5':'2^'+k));

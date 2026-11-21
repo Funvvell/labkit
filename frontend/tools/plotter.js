@@ -187,8 +187,8 @@
       }
 
       const layout = W.QpcrPlots.journalLayout({
-        height: 400, barmode: 'group', boxmode: 'group',
-        font: { family: 'Arial, Helvetica, sans-serif', size: font, color: '#000' },
+        height: W.QpcrPlots.plotHeight(400), barmode: 'group', boxmode: 'group',
+        font: { family: W.QpcrPlots.JOURNAL_FONT, size: font, color: '#000' },
         xaxis: Object.assign(W.QpcrPlots.journalLayout().xaxis, { title: { text: xk, font: { size: font + 1 } }, type: type === 'scatter' && rows.every(r => Number.isFinite(Number(r[xk]))) ? 'linear' : 'category' }),
         yaxis: Object.assign(W.QpcrPlots.journalLayout().yaxis, { title: { text: yk, font: { size: font + 1 } } }),
         shapes, annotations,

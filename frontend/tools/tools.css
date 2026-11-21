@@ -5,7 +5,7 @@
 .toolhub-groups{display:flex;flex-direction:column;gap:22px;padding:2px 2px 24px}
 .toolhub-group h3{font-size:11px;font-weight:700;color:var(--muted);margin:0 0 9px;letter-spacing:.06em;text-transform:uppercase;text-wrap:balance;display:flex;align-items:center;gap:7px}
 .toolhub-group h3::after{content:"";height:1px;flex:1;background:var(--hairline)}
-.toolhub-group h3 span{font-family:var(--mono);font-size:9.5px;font-weight:500;color:var(--disabled)}
+.toolhub-group h3 span{font-family:var(--mono);font-size:var(--text-2xs);font-weight:500;color:var(--disabled)}
 .toolhub-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px}
 .tool-card{position:relative;min-width:0;display:flex}
 .tool-card .tc-open{
@@ -28,7 +28,7 @@
   font-size:11px;color:var(--muted,#86868b);margin-top:3px;line-height:1.45;text-wrap:pretty;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
 }
-.tool-card .tc-kind{display:inline-flex;align-items:center;height:16px;padding:0 5px;margin-top:5px;border-radius:4px;background:var(--accent-soft);color:var(--accent);font-size:8.5px;font-weight:700;letter-spacing:.03em}
+.tool-card .tc-kind{display:inline-flex;align-items:center;height:16px;padding:0 5px;margin-top:5px;border-radius:4px;background:var(--accent-soft);color:var(--accent);font-size:var(--text-3xs);font-weight:700;letter-spacing:.03em}
 .tool-card .tc-fav,.tool-card .tc-win{
   position:absolute;z-index:2;width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;
   font-size:13px;line-height:1;color:var(--disabled);opacity:0;transition:opacity .12s,background .12s,color .12s;
@@ -51,7 +51,7 @@
 .tool-section .hint{font-size:12px;color:var(--muted,#86868b);margin:-6px 0 12px;line-height:1.55;text-wrap:pretty}
 .trow{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin-bottom:10px}
 .tfield{display:flex;flex-direction:column;gap:4px}
-.tfield label{font-size:11.5px;color:var(--muted,#6e6e73);font-weight:500;transition:color .15s}
+.tfield label{font-size:var(--text-sm);color:var(--muted,#6e6e73);font-weight:500;transition:color .15s}
 .tfield:has(:focus-visible) label{color:var(--accent,#007AFF)}
 .tfield input,.tfield select,.tfield textarea{
   border:1px solid color-mix(in srgb,var(--ink,#1d1d1f) 12%,transparent);border-radius:9px;padding:7px 10px;
@@ -62,8 +62,8 @@
 /* :user-invalid —— 仅在用户交互后才显示校验失败态，避免加载即报错 */
 .tfield input:user-invalid,.tfield textarea:user-invalid{border-color:var(--red,#FF453A)}
 .tfield input:user-invalid:focus{box-shadow:0 0 0 3px color-mix(in srgb,var(--red,#FF453A) 14%,transparent)}
-.tfield input[type=number]{width:110px}
-.tfield textarea{width:100%;min-height:110px;font-family:var(--mono,ui-monospace),Consolas,monospace;font-size:12px;resize:vertical;scrollbar-width:thin}
+.tfield input[type=number]{width:clamp(84px,12cqw,110px)}
+.tfield textarea{width:100%;min-height:110px;font-family:var(--mono);font-size:12px;resize:vertical;scrollbar-width:thin}
 .tbtn{border:none;border-radius:9px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:filter .15s,background .15s}
 .tbtn.pri{background:var(--accent,#007AFF);color:#fff}
 .tbtn.pri:hover{filter:brightness(1.08)}
@@ -74,17 +74,34 @@
 .tout:empty{display:none}
 .tnote{font-size:12px;color:var(--muted,#86868b);margin-top:8px;line-height:1.55;text-wrap:pretty}
 .twarn{font-size:12px;color:#b25000;background:color-mix(in srgb,var(--orange,#FF9F0A) 12%,transparent);border-radius:9px;padding:8px 12px;margin-top:8px;line-height:1.5}
-.terr{font-size:12.5px;color:#d70015;background:color-mix(in srgb,var(--red,#FF453A) 8%,transparent);border-radius:9px;padding:8px 12px;margin-top:8px}
-.ttable{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:8px}
+.terr{font-size:var(--text-md);color:#d70015;background:color-mix(in srgb,var(--red,#FF453A) 8%,transparent);border-radius:9px;padding:8px 12px;margin-top:8px}
+.ttable{border-collapse:collapse;width:100%;font-size:var(--text-md);margin-top:8px}
 .ttable th,.ttable td{border:1px solid color-mix(in srgb,var(--ink,#1d1d1f) 9%,transparent);padding:6px 10px;text-align:left}
 .ttable th{background:color-mix(in srgb,var(--ink,#1d1d1f) 3.5%,transparent);font-weight:600}
 .ttable td.num,.ttable th.num{text-align:right;font-variant-numeric:tabular-nums}
-.tmono{font-family:var(--mono,ui-monospace),Consolas,monospace;font-size:12px;white-space:pre-wrap;background:color-mix(in srgb,var(--ink,#1d1d1f) 3.5%,transparent);border-radius:9px;padding:10px 12px;margin-top:8px}
+.tmono{font-family:var(--mono);font-size:12px;white-space:pre-wrap;background:color-mix(in srgb,var(--ink,#1d1d1f) 3.5%,transparent);border-radius:9px;padding:10px 12px;margin-top:8px}
 .tcopy{margin-top:8px}
 .tsplit{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media(max-width:900px){.tsplit{grid-template-columns:1fr}}
+/* 容器查询而非窗口断点：同一个工具页在主窗页内与独立窗口里可用宽度差一大截，
+   按窗口宽度判断会与实际容器脱节（宿主 .tool-wrap 设了 container-type）。 */
+@container (max-width:700px){.tsplit{grid-template-columns:1fr}}
+/* 工具内联固定宽的收口：随容器伸缩，不再写死 px */
+.tfield.grow{flex:1;min-width:150px}
+.tfield.w-sm{width:clamp(88px,14cqw,120px)}
+.tfield.w-md{width:clamp(120px,20cqw,180px)}
+.tfield.w-lg{width:clamp(160px,28cqw,240px)}
+.tfield input,.tfield select{max-width:100%}
+.tfield.grow input,.tfield.w-sm input,.tfield.w-md input,.tfield.w-lg input,
+.tfield.grow select,.tfield.w-sm select,.tfield.w-md select,.tfield.w-lg select{width:100%}
+.t-out-scroll{overflow:auto;overscroll-behavior:contain}
+/* 库存工具的 InvenTree Token 输入 */
+.iv-token{width:clamp(140px,24cqw,200px);max-width:100%}
+/* 孔板：画布列随容器伸缩，右侧区域栏不再写死 280px */
+.pl-canvas-box{flex:1;min-width:240px}
+.pl-side{width:clamp(210px,30cqw,280px);flex:0 0 auto}
+@container (max-width:700px){.pl-side{width:auto}}
 /* OpenEpi 上游输出（老式 HTML 表格）适配 */
-.oe-output{font-size:12.5px;line-height:1.5;overflow-x:auto}
+.oe-output{font-size:var(--text-md);line-height:1.5;overflow-x:auto}
 .oe-output table{border-collapse:collapse;margin:6px 0;max-width:100%}
 .oe-output td,.oe-output th{border:1px solid color-mix(in srgb,var(--ink,#1d1d1f) 10%,transparent);padding:4px 9px}
 .oe-output h2{font-size:15px;margin:10px 0 6px}

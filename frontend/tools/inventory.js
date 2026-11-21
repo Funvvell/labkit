@@ -19,9 +19,6 @@
     if (r.quantity != null && r.min_stock != null && Number(r.quantity) <= Number(r.min_stock)) return { k: 'low', t: '低库存', c: '#AF52DE' };
     return { k: 'ok', t: '正常', c: '#30D158' };
   }
-  function syncLeft(r) {
-    if (r.quantity != null && r.quantity !== '') r.left = `${r.quantity}${r.unit || ''}`;
-  }
   function persist() {
     if (typeof saveDB === 'function') saveDB();
     if (typeof refreshHome === 'function') refreshHome();
@@ -46,7 +43,7 @@
         <div id="ivApi" style="display:none;margin-top:8px;padding:8px;border:1px dashed #ccc;border-radius:8px">
           <div class="trow">
             <input id="ivApiUrl" type="text" placeholder="https://inventree.example.org" style="flex:1">
-            <input id="ivApiToken" type="password" placeholder="API Token" style="width:180px">
+            <input id="ivApiToken" type="password" placeholder="API Token" class="iv-token">
             <button class="tbtn sec" id="ivApiTest">测试连接</button>
             <button class="tbtn sec" id="ivApiPull">拉取 parts 入库</button>
           </div>
@@ -102,9 +99,9 @@
         { k: 'category', label: '类别', type: 'select', options: CATS, value: r ? (r.category || '试剂') : '试剂' },
         { k: 'spec', label: '规格', value: r ? r.spec : '', ph: '如 500mL / 100T' },
         { k: 'loc', label: '位置', value: r ? r.loc : '', ph: '试剂柜2 / -20°C' },
-        { k: 'quantity', label: '存量', type: 'number', value: r && r.quantity != null ? r.quantity : '' },
+        { k: 'quantity', label: '存量', type: 'number', nullable: 1, value: r && r.quantity != null ? r.quantity : '' },
         { k: 'unit', label: '单位', value: r ? r.unit : '', ph: 'mL / 盒 / %' },
-        { k: 'min_stock', label: '最低库存', type: 'number', value: r && r.min_stock != null ? r.min_stock : '' },
+        { k: 'min_stock', label: '最低库存', type: 'number', nullable: 1, value: r && r.min_stock != null ? r.min_stock : '' },
         { k: 'exp', label: '效期', type: 'date', value: r ? r.exp : '' },
         { k: 'open', label: '开封日期', type: 'date', value: r ? r.open : '' },
         { k: 'supplier', label: '供应商', value: r ? r.supplier : '' },
@@ -116,7 +113,7 @@
         const target = r || {};
         Object.assign(target, out);
         if (!r) { target.id = 'r' + Date.now(); target.movements = []; rows().push(target); }
-        syncLeft(target);
+        reagentSyncLeft(target);
         persist(); render();
         toast('已保存');
       });
@@ -129,7 +126,7 @@
         const q = Number(r.quantity || 0) + Number(out.delta);
         r.quantity = Math.max(0, q);
         (r.movements = r.movements || []).push({ date: new Date().toISOString().slice(0, 10), delta: Number(out.delta), note: out.note });
-        syncLeft(r);
+        reagentSyncLeft(r);
         persist(); render();
         toast(`存量更新为 ${r.quantity}${r.unit || ''}`);
       }, '记账');
@@ -189,8 +186,8 @@
           unit: row.unit || row.units || '', min_stock: row.min_stock != null && row.min_stock !== '' ? Number(row.min_stock) : (row.minimum_stock != null && row.minimum_stock !== '' ? Number(row.minimum_stock) : undefined),
           exp: row.exp || row.expiry_date || '', open: row.open || '', supplier: row.supplier || '', notes: row.notes || '',
         };
-        if (hit) { Object.assign(hit, patch); syncLeft(hit); updated++; }
-        else { patch.id = 'r' + Date.now() + '_' + added; patch.movements = []; syncLeft(patch); rows().push(patch); added++; }
+        if (hit) { Object.assign(hit, patch); reagentSyncLeft(hit); updated++; }
+        else { patch.id = 'r' + Date.now() + '_' + added; patch.movements = []; reagentSyncLeft(patch); rows().push(patch); added++; }
       });
       persist(); render();
       ev.target.value = '';

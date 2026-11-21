@@ -24,7 +24,7 @@
         </div>
         <div class="trow" style="margin-top:6px">
           <label class="tfield">体积上限<select id="ibCap"><option value="0">不限</option><option value="10485760">10 MB（期刊常见）</option><option value="5242880">5 MB</option><option value="1048576">1 MB</option></select></label>
-          <label class="tfield">重命名模板<input id="ibPattern" type="text" placeholder="留空=原名；如 Fig_{i:03}_{name}" style="width:220px"></label>
+          <label class="tfield w-lg">重命名模板<input id="ibPattern" type="text" placeholder="留空=原名；如 Fig_{i:03}_{name}"></label>
           <label class="tfield"><span>允许覆盖</span><input id="ibOverwrite" type="checkbox"></label>
         </div>
         <div class="trow" style="margin-top:6px">

@@ -1,0 +1,71 @@
+/* LabKit · adaptive.css — 窗口与容器自适应层。
+   放在所有既有样式表之后加载，只做「尺寸/排布」的收口，不改色彩与组件外观。
+
+   为什么单独一个文件：app.css / lab.css / toolbox.css 有字节预算
+   （见 tests/js/ui-contract.test.mjs），响应式规则堆进去会撑爆。
+
+   原则（docs/DESIGN_SYSTEM.md §9）：组件重排优先容器查询，不把组件断点
+   绑死在窗口宽度——工具页在「主窗页内」与「独立窗口」两种宿主下可用宽度
+   差一大截，按窗口宽度判断必然与实际容器脱节。 */
+
+/* ============ 工具独立窗口：侧栏兜底隐藏 ============
+   router.js applyView 已对 crop / qpcr / tool 视图收起侧栏；这里按窗口模式再兜一层，
+   避免工具窗口从启动到路由生效之间侧栏闪现，也保证单一用途窗口不出现全局导航。 */
+body.win-mode .sidebar{display:none}
+
+/* ============ 工作区三栏（crop / qpcr）：固定 px → 容器比例 + 下限 ============ */
+.ws-body{container-type:inline-size}
+.panel.left{width:clamp(196px,24cqw,268px);flex:0 0 clamp(196px,24cqw,268px)}
+.panel.right{width:clamp(206px,26cqw,290px);flex:0 0 clamp(206px,26cqw,290px)}
+/* 极窄容器：三栏改纵向堆叠，画布在上、参数与列表在下，整块可滚 */
+@container (max-width:680px){
+  .ws-body{flex-direction:column;overflow-y:auto}
+  .panel.left,.panel.right{width:auto;flex:0 0 auto;border-left:0;border-right:0;border-top:1px solid var(--line)}
+  .stage-wrap{flex:0 0 auto;height:380px;min-height:380px}
+  #qpcrResult{flex:0 0 auto;min-height:320px}
+}
+
+/* ============ 固定列数网格 → 自动 fitting ============
+   原来写死 6 / 3 列且无窄窗断点，窄窗把卡片挤成一条。 */
+.kpi-row{grid-template-columns:repeat(auto-fit,minmax(138px,1fr))}
+.dash-grid-3{grid-template-columns:repeat(auto-fit,minmax(238px,1fr))}
+.board-row{grid-template-columns:repeat(auto-fit,minmax(258px,1fr))}
+.proj-grid{grid-template-columns:repeat(auto-fit,minmax(276px,1fr))}
+
+/* ============ Dashboard 回退网格（GridStack 不可用时）跟容器走 ============
+   GridStack 渲染时 .dash-grid.grid-stack 是 display:block，列数由 JS 管，
+   这里的规则只影响回退渲染器。 */
+#view-home{container-type:inline-size}
+@container (max-width:900px){
+  .dash-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dash-grid .wcard.w2,.dash-grid .wcard.w4{grid-column:span 2}
+}
+@container (max-width:560px){
+  .dash-grid{grid-template-columns:minmax(0,1fr)}
+  .dash-grid .wcard.w1,.dash-grid .wcard.w2,.dash-grid .wcard.w4{grid-column:span 1}
+}
+/* 窄容器下卡片头允许换行，标题不被操作按钮挤掉 */
+@container (max-width:700px){
+  .wcard .card-head h2{font-size:14px}
+  .card-inner{padding:13px}
+}
+
+/* ============ 台账表格：窄窗横向滚动而不是被裁切 ============
+   .tbl 单元格是 white-space:nowrap，外层原来只有 overflow-y。 */
+#expTable,#litTable,#labTable,#focusTable,#ivTable{overflow-x:auto;overscroll-behavior-x:contain}
+#expTable::-webkit-scrollbar,#litTable::-webkit-scrollbar,#labTable::-webkit-scrollbar,
+#focusTable::-webkit-scrollbar,#ivTable::-webkit-scrollbar{height:8px}
+#expTable::-webkit-scrollbar-thumb,#litTable::-webkit-scrollbar-thumb,#labTable::-webkit-scrollbar-thumb,
+#focusTable::-webkit-scrollbar-thumb,#ivTable::-webkit-scrollbar-thumb{background:rgba(0,0,0,.16);border-radius:4px}
+
+/* ============ 手写 SVG 图表：按容器伸缩且不变形 ============
+   原来 <svg viewBox height="H"> 没有 width，默认 meet 会把内容居中留白
+   （宽窗两侧大片空白）或整体缩小（窄窗字和点都变小）。 */
+.lc-svg{width:100%;height:auto;display:block}
+
+/* ============ 工具页容器查询宿主 ============ */
+.tool-wrap{container-type:inline-size}
+
+/* Dashboard 工具条：窄容器提示与原提示同列，不挤占按钮区 */
+.dash-hints{display:flex;flex-direction:column;gap:2px;min-width:0}
+#dashColHint{color:var(--orange)}

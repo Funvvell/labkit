@@ -16,6 +16,14 @@
 | markdown-table.bundle.js | markdown-table | 3.1.0 | MIT |
 | openepi/*.js | OpenEpi（MIT，官方声明见 NOTICE.md；含 MartinStats 公有领域模块） | 2026 抓取 | MIT |
 | gridstack-all.js / gridstack.min.css | gridstack.js（UMD 原样引入，版权行见 NOTICE.md） | 14.1.1 | MIT（全文见 gridstack-LICENSE.txt） |
+| ../fonts/InterVariable.woff2 | Inter 变量字体子集（rsms/inter，经官方 npm 包 inter-ui） | 4.1.0 | OFL-1.1（全文见 ../fonts/Inter-OFL.txt） |
+| ../fonts/JetBrainsMono-Regular.woff2 / -Bold.woff2 | JetBrains Mono 子集 | 2.304 | OFL-1.1（全文见 ../fonts/JetBrainsMono-OFL.txt） |
+
+## SIL Open Font License 1.1（Inter / JetBrains Mono）
+字体子集由 `tools/font-build/build_fonts.py` 生成（fontTools），只含拉丁/希腊/数学符号，
+不含 CJK（中文走系统字体）。来源 URL 与源文件/产物 sha256 见 `frontend/fonts/manifest.json`。
+OFL 全文随字体分发：`frontend/fonts/Inter-OFL.txt`、`frontend/fonts/JetBrainsMono-OFL.txt`。
+OFL 允许再分发与嵌入应用，要求保留版权与许可声明，且不得单独出售字体本身。
 
 ## MIT（通用文本，适用于上表 MIT 组件，版权行见 NOTICE.md）
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:

@@ -32,6 +32,7 @@
 - **专注计时**与近 7 天趋势、任务完成率报表
 - **通知中心**：任务截止、试剂效期、仪器校准到期、导出完成等汇总提醒（标题栏铃铛）
 - 数据磁盘化：`~/.liver_portal_crop/labkit_db.json`，原子写 + 滚动备份 + 损坏自愈；浏览器模式降级 localStorage
+- **通用格式导出**：可选 Markdown Vault，一条台账记录一个 `.md`（YAML frontmatter），Obsidian 等软件可直接打开编辑并回读，换软件不丢数据
 
 ### 工具库（20 个工具 / 工作区）
 
@@ -124,6 +125,11 @@ cargo tauri build                  # 出安装包
 ## 🔒 数据与隐私
 
 - 台账：`~/.liver_portal_crop/labkit_db.json`（设置页可查看路径 / 备份 / 导入导出 / 重置）
+- **Markdown 台账（Vault）**：设置页可把 11 类台账记录各落成一个 `.md`（YAML frontmatter + 正文），
+  目录可直接指向已有的 Obsidian 库。在 Obsidian 里改动会在 LabKit 聚焦时读回，**外部编辑优先**；
+  两边同时改同一条会留冲突副本，可在设置页一键「保留本地」。记录靠 frontmatter 里的稳定 `id` 匹配，
+  重命名文件不会产生孤儿；删除走 `.labkit/trash/` 软删除。JSON 仍保留为内部索引与崩溃快照，
+  Vault 写失败只提示、绝不影响已落盘的台账。默认关闭。
 - 工具输入快照、固定入口、最近使用、主题与称呼同随台账落盘
 - **无遥测**；默认不联网。仅在你主动操作时产生网络请求：打开扩展市场拉取 GitHub 索引、
   Zotero 同步访问本机 `127.0.0.1`、可选 InvenTree API、以及你点击的文献 DOI 链接

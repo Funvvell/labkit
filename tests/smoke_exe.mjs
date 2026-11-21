@@ -8,7 +8,7 @@
 //       P1 多窗口：工具窗口创建与窗口模式、跨窗口台账双向合并同步、同 id 聚焦不新建、
 //       关闭重开位置尺寸恢复（tauri-plugin-window-state）。
 // 截图证据写入 docs/p5-exe-*.png。Node ≥ 21（自带 WebSocket）。
-import { writeFileSync, existsSync } from 'node:fs';
+import { writeFileSync, existsSync, readdirSync, readFileSync, rmSync, utimesSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -165,6 +165,82 @@ try {
   p1.push(['p1Exception', String(e).slice(0, 200)]);
 }
 out.push(['p1MultiWindow', p1]);
+/* ---- Vault：Markdown 台账真机往返（在真实 CSP + 真实磁盘上跑） ----
+   用一条专用冒烟速记做载体，全程不碰用户的真实记录；结束后关闭 Vault 并清理目录。 */
+const vlt = [];
+const VAULT_DIR = path.join(ROOT, 'docs', '.smoke-vault');
+const SMOKE_NOTE = 'smoke-vault-note';
+let vaultWasEnabled = false;
+try {
+  const st0 = await ev(`window.__TAURI__.core.invoke('vault_status')`);
+  vaultWasEnabled = !!(st0 && st0.enabled);
+  vlt.push(['initiallyDisabled', !vaultWasEnabled]);
+  if (vaultWasEnabled) {
+    // 用户已经把自己的库接上了：冒烟绝不改他的配置，也不往他的库里写测试记录
+    vlt.push(['skipped', 'Vault 已启用，跳过以免改动用户配置与真实库']);
+  } else {
+  rmSync(VAULT_DIR, { recursive: true, force: true });
+
+  // 1) 放一条专用速记并落盘
+  await ev(`DB.notes.unshift({id:${JSON.stringify(SMOKE_NOTE)},at:'2026-11-21T10:00',text:'冒烟原始内容'});saveDB();flushDB()`);
+  await sleep(700);
+
+  // 2) 启用 Vault → 投影
+  const cfg = await ev(`window.__TAURI__.core.invoke('vault_configure',{dir:${JSON.stringify(VAULT_DIR)},enable:true})`);
+  vlt.push(['projected', !!(cfg && cfg.projected && cfg.projected.written > 0)]);
+  vlt.push(['projectErrors', (cfg && cfg.projected && cfg.projected.errors) || []]);
+
+  // 3) 宿主机直接查文件：11 个分类目录 + frontmatter 结构
+  const walk = d => { let n = 0; for (const e of readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) { if (!e.name.startsWith('.')) n += walk(p); } else if (e.name.endsWith('.md')) n++; } return n; };
+  const dirs = readdirSync(VAULT_DIR, { withFileTypes: true }).filter(e => e.isDirectory() && !e.name.startsWith('.')).map(e => e.name);
+  vlt.push(['kindDirs', dirs.length]);
+  vlt.push(['mdCount', walk(VAULT_DIR)]);
+  const notePath = path.join(VAULT_DIR, '速记', '冒烟原始内容.md');
+  vlt.push(['noteFileExists', existsSync(notePath)]);
+  const sample = existsSync(notePath) ? readFileSync(notePath, 'utf8') : '';
+  vlt.push(['frontmatterParsable', /^---\r?\n[\s\S]*?\r?\n---\r?\n/.test(sample) && /id: "smoke-vault-note"/.test(sample) && /kind: "note"/.test(sample)]);
+  vlt.push(['noBakClutter', !readdirSync(path.join(VAULT_DIR, '速记')).some(f => f.endsWith('.bak'))]);
+
+  // 4) 模拟 Obsidian 外部编辑：改正文 + 前移 mtime，再经 db_load 摄入
+  if (existsSync(notePath)) {
+    writeFileSync(notePath, sample.replace('冒烟原始内容', '在 Obsidian 里改过的内容'), 'utf8');
+    const future = new Date(Date.now() + 5000);
+    utimesSync(notePath, future, future);
+    const loaded = await ev(`window.__TAURI__.core.invoke('db_load').then(d=>(d.notes.find(n=>n.id===${JSON.stringify(SMOKE_NOTE)})||{}).text)`);
+    vlt.push(['externalEditAdopted', loaded === '在 Obsidian 里改过的内容']);
+    const st1 = await ev(`window.__TAURI__.core.invoke('vault_status')`);
+    vlt.push(['statusFiles', st1 && st1.files]);
+  } else vlt.push(['externalEditAdopted', false]);
+
+  // 5) 设置页 UI 真实渲染
+  await ev(`location.hash='#/settings'`); await sleep(900);
+  await ev(`renderVaultSettings()`); await sleep(600);
+  vlt.push(['vaultPill', await ev(`document.getElementById('vaultPill').textContent`)]);
+  vlt.push(['vaultInfoHasDir', await ev(`document.getElementById('vaultInfo').innerHTML.includes('.smoke-vault')`)]);
+  vlt.push(['vaultToggleChecked', await ev(`document.getElementById('setVaultEnabled').checked`)]);
+
+  // 6) 删除记录 → 投影软删除到 trash，不硬删
+  await ev(`DB.notes=DB.notes.filter(n=>n.id!==${JSON.stringify(SMOKE_NOTE)});saveDB();flushDB()`);
+  await sleep(800);
+  vlt.push(['noteFileGone', !existsSync(notePath)]);
+  const trashDir = path.join(VAULT_DIR, '.labkit', 'trash');
+  vlt.push(['softDeleted', existsSync(trashDir) && readdirSync(trashDir).some(f => f.includes('冒烟原始内容'))]);
+  }
+} catch (e) {
+  vlt.push(['vaultException', String(e).slice(0, 240)]);
+} finally {
+  // 清理只在冒烟自己启用过 Vault 时做，绝不改用户已有的配置
+  if (!vaultWasEnabled) {
+    try {
+      await ev(`window.__TAURI__.core.invoke('vault_configure',{dir:'',enable:false}).catch(()=>{})`);
+      await ev(`Store.set('vault',null);DB.notes=DB.notes.filter(n=>n.id!==${JSON.stringify(SMOKE_NOTE)});saveDB();flushDB()`);
+      await sleep(600);
+    } catch (e) { /* 清理失败也要继续报告 */ }
+    try { rmSync(VAULT_DIR, { recursive: true, force: true }); } catch (e) { /* 忽略 */ }
+  }
+}
+out.push(['vaultMarkdown', vlt]);
+
 out.push(['errors', [...new Set(main.errs)].slice(0, 10)]);
 
 const fail = [];
@@ -178,6 +254,13 @@ for (const [k, v] of p1) {
   if (['toolWindowCreated', 'toolVisible', 'mainGotToolForm', 'toolGotTask', 'toolFormSurvived', 'mainTaskSurvived', 'diskMerged', 'focusNotDuplicate', 'sizeRestored', 'posRestored'].includes(k) && v !== true) fail.push('p1:' + k);
   if (k === 'windowMode' && (!v || v.mode !== true || v.label !== 'tool-primer' || v.backHidden !== true)) fail.push('p1:windowMode');
   if (k === 'toolWindowErrors' && v.length) fail.push('p1:toolConsole');
+}
+for (const [k, v] of vlt) {
+  if (['projected', 'noteFileExists', 'frontmatterParsable', 'noBakClutter', 'externalEditAdopted',
+    'vaultInfoHasDir', 'vaultToggleChecked', 'noteFileGone', 'softDeleted'].includes(k) && v !== true) fail.push('vault:' + k);
+  if (k === 'kindDirs' && !(v >= 1 && v <= 11)) fail.push('vault:kindDirs');
+  if (k === 'projectErrors' && v.length) fail.push('vault:projectErrors');
+  if (k === 'vaultException') fail.push('vault:exception');
 }
 if (out[out.length - 1][1].length) fail.push('consoleErrors');
 console.log(JSON.stringify({ out, fail }, null, 1));

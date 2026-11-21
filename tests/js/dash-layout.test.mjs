@@ -167,3 +167,84 @@ test('坏卡片注册被拒：registerWidget 缺 body 函数不得进入 WIDGETS
   const dash = fs.readFileSync(path.join(root, 'frontend/js/dashboard.js'), 'utf8');
   assert.ok(dash.includes("typeof def.body!=='function'"), '渲染器必须跳过无 body 卡片');
 });
+
+/* ---------------- 响应式列数：布局永远以 4 列规范坐标存储 ---------------- */
+
+const CANON = [
+  { id: 'kpi', x: 0, y: 0, w: 4, h: 2 },
+  { id: 'tasks', x: 0, y: 2, w: 2, h: 4 },
+  { id: 'focus', x: 2, y: 2, w: 2, h: 2 },
+  { id: 'deadlines', x: 2, y: 4, w: 1, h: 2 },
+  { id: 'reagents', x: 3, y: 4, w: 1, h: 2 },
+  { id: 'notes', x: 0, y: 6, w: 2, h: 1 },
+];
+
+function overlapIn(nodes, cols) {
+  for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+    const a = nodes[i], b = nodes[j];
+    if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) return `${a.id}/${b.id}`;
+  }
+  return null;
+}
+
+test('dashColsFor：按容器宽度分档，阈值与 CSS 断点一致', () => {
+  assert.equal(dashColsFor(1200), 4);
+  assert.equal(dashColsFor(900), 4);
+  assert.equal(dashColsFor(899), 2);
+  assert.equal(dashColsFor(560), 2);
+  assert.equal(dashColsFor(559), 1);
+  assert.equal(dashColsFor(320), 1);
+});
+
+test('renderCoords 4 列：原样返回规范坐标', () => {
+  const m = renderCoords(CANON, 4);
+  CANON.forEach(n => assert.deepEqual(m.get(n.id), { x: n.x, y: n.y, w: n.w, h: n.h }));
+});
+
+test('renderCoords 降列：不越界、不重叠、保持阅读顺序', () => {
+  for (const cols of [2, 1]) {
+    const m = renderCoords(CANON, cols);
+    const arr = [...m.values()];
+    assert.equal(arr.length, CANON.length, `${cols} 列不得丢卡片`);
+    arr.forEach(n => {
+      assert.ok(n.x >= 0 && n.y >= 0, `${cols} 列坐标非负`);
+      assert.ok(n.x + n.w <= cols, `${cols} 列不得越界：${JSON.stringify(n)}`);
+      assert.ok(n.w >= 1 && n.h >= 1);
+    });
+    assert.equal(overlapIn(arr, cols), null, `${cols} 列不得重叠`);
+    // 只往下落位，y 单调不减 = 阅读顺序不被打乱
+    for (let i = 1; i < arr.length; i++) assert.ok(arr[i].y >= arr[i - 1].y, `${cols} 列顺序被打乱`);
+  }
+});
+
+test('renderCoords 是纯函数：绝不改写规范布局（降列回写会毁掉用户布局）', () => {
+  const before = JSON.stringify(CANON);
+  renderCoords(CANON, 2); renderCoords(CANON, 1); renderCoords(CANON, 4);
+  assert.equal(JSON.stringify(CANON), before);
+});
+
+test('窄→宽往返：规范坐标逐字节复原，用户布局不因 resize 变形', () => {
+  const saved = JSON.stringify(CANON);
+  // 模拟渲染期降列再升列：存储侧始终是同一份规范坐标
+  renderCoords(CANON, 1);
+  renderCoords(CANON, 2);
+  const back = renderCoords(CANON, 4);
+  assert.equal(JSON.stringify(CANON), saved);
+  CANON.forEach(n => assert.deepEqual(back.get(n.id), { x: n.x, y: n.y, w: n.w, h: n.h }));
+});
+
+test('降列模式下禁止拖拽/改尺寸回写，且编辑入口被拦住', () => {
+  const src = fs.readFileSync(path.join(root, 'frontend/js/dashboard.js'), 'utf8');
+  assert.ok(/function onGsChange\(ev,items\)\{\s*\n\s*if\(!_gsReady\|\|!_gs\|\|_gsCols<4\)return/.test(src),
+    'onGsChange 必须在降列时跳过回写');
+  assert.ok(/function onGsResizeStop\(ev,el\)\{\s*\n\s*if\(_gsCols<4\)return/.test(src),
+    'onGsResizeStop 必须在降列时跳过回写');
+  assert.ok(src.includes('const editable=dashEdit&&_gsCols>=4'), '降列时引擎必须禁用拖拽/缩放');
+  assert.ok(/function enterDashEdit\(\)\{[\s\S]{0,120}_gsCols<4/.test(src), '窄容器下进入编辑必须被拦住并提示');
+});
+
+test('1 列时所有卡片归一为单列宽，但规范宽度仍是 1/2/4', () => {
+  const m = renderCoords(CANON, 1);
+  [...m.values()].forEach(n => assert.equal(n.w, 1));
+  assert.deepEqual(CANON.map(n => n.w), [4, 2, 2, 1, 1, 2], '规范宽度不得被降列改写');
+});

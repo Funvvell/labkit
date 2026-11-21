@@ -1,0 +1,46 @@
+{
+  "generator": "tools/font-build/build_fonts.py",
+  "ranges": [
+    "U+0020-007E",
+    "U+00A0-00FF",
+    "U+0100-017F",
+    "U+0370-03FF",
+    "U+2000-206F",
+    "U+2070-209F",
+    "U+2100-214F",
+    "U+2190-21FF",
+    "U+2200-22FF"
+  ],
+  "fonts": [
+    {
+      "file": "InterVariable.woff2",
+      "family": "Inter",
+      "source": "https://cdn.jsdelivr.net/npm/inter-ui@4.1.0/variable/InterVariable.woff2",
+      "sourceSha256": "693b77d4f32ee9b8bfc995589b5fad5e99adf2832738661f5402f9978429a8e3",
+      "sha256": "d367fb7faf8b9c2b34de6c3a247ad53215ce79c1f2416853ac901e482e239684",
+      "bytes": 141060,
+      "license": "OFL-1.1",
+      "licenseFile": "Inter-OFL.txt"
+    },
+    {
+      "file": "JetBrainsMono-Regular.woff2",
+      "family": "JetBrains Mono",
+      "source": "https://cdn.jsdelivr.net/gh/JetBrains/JetBrainsMono@v2.304/fonts/ttf/JetBrainsMono-Regular.ttf",
+      "sourceSha256": "a0bf60ef0f83c5ed4d7a75d45838548b1f6873372dfac88f71804491898d138f",
+      "sha256": "c973da745eb5e7b39e004beb314b52a64b98e14c8c0dee21864c7df3bb99af40",
+      "bytes": 51224,
+      "license": "OFL-1.1",
+      "licenseFile": "JetBrainsMono-OFL.txt"
+    },
+    {
+      "file": "JetBrainsMono-Bold.woff2",
+      "family": "JetBrains Mono",
+      "source": "https://cdn.jsdelivr.net/gh/JetBrains/JetBrainsMono@v2.304/fonts/ttf/JetBrainsMono-Bold.ttf",
+      "sourceSha256": "5590990c82e097397517f275f430af4546e1c45cff408bde4255dad142479dcb",
+      "sha256": "35ce79471637ee62b16b0a221d04c54dc2c632a045b59cb4c5a910122a7d19cd",
+      "bytes": 52920,
+      "license": "OFL-1.1",
+      "licenseFile": "JetBrainsMono-OFL.txt"
+    }
+  ]
+}

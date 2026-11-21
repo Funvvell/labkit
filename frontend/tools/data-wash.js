@@ -33,14 +33,14 @@
             <option value="rename">重命名列</option>
             <option value="delcol">删除该列</option>
           </select></div>
-          <div class="tfield"><label>参数（填补值/新列名）</label><input type="text" id="dw-arg" value="" style="width:120px"></div>
+          <div class="tfield w-md"><label>参数（填补值/新列名）</label><input type="text" id="dw-arg" value=""></div>
           <button class="tbtn pri" id="dw-apply">应用</button>
           <button class="tbtn sec" id="dw-dedupe">整行去重</button>
         </div>
         <div class="trow">
           <div class="tfield"><label>筛选列</label><select id="dw-fcol"></select></div>
           <div class="tfield"><label>条件</label><select id="dw-fop"><option value="eq">=</option><option value="ne">≠</option><option value="gt">&gt;</option><option value="lt">&lt;</option><option value="contains">包含</option><option value="missing">缺失</option><option value="notmissing">非缺失</option></select></div>
-          <div class="tfield"><label>值</label><input type="text" id="dw-fval" value="" style="width:110px"></div>
+          <div class="tfield w-sm"><label>值</label><input type="text" id="dw-fval" value=""></div>
           <button class="tbtn sec" id="dw-filter">保留满足条件的行</button>
         </div>
       </div>
@@ -79,7 +79,7 @@
       if (!show) return;
       if (table) table.destroy();
       table = new Tabulator('#dw-grid', {
-        data: rows, height: '320px', layout: 'fitDataFill',
+        data: rows, height: Math.max(220, Math.min(520, Math.round((window.innerHeight || 800) * 0.42))), layout: 'fitDataFill',
         columns: cols.map(c => ({ title: c, field: c, editor: 'input', headerSort: true })),
         cellEdited: () => { snapshot(); },
       });

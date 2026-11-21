@@ -13,13 +13,13 @@
             <option value="blockcluster">区组 + 整群</option>
           </select></div>
           <div class="tfield"><label>单位数 N</label><input type="number" id="rz-n" value="40" min="2"></div>
-          <div class="tfield"><label>分组名（逗号分隔）</label><input type="text" id="rz-conds" value="对照,处理" style="width:160px"></div>
-          <div class="tfield"><label>随机种子</label><input type="text" id="rz-seed" value="" style="width:130px" placeholder="留空=随机"></div>
+          <div class="tfield w-md"><label>分组名（逗号分隔）</label><input type="text" id="rz-conds" value="对照,处理"></div>
+          <div class="tfield w-md"><label>随机种子</label><input type="text" id="rz-seed" value="" placeholder="留空=随机"></div>
         </div>
         <div class="trow">
           <div class="tfield"><label>处理组数量 m（双臂）</label><input type="number" id="rz-m" value="20" min="0"></div>
           <div class="tfield"><label>或处理概率 prob（0-1，优先于 m 留空时）</label><input type="number" id="rz-prob" value="" step="0.01" min="0" max="1" placeholder="如 0.5"></div>
-          <div class="tfield"><label>或多臂各组数 mEach（逗号分隔）</label><input type="text" id="rz-meach" value="" style="width:150px" placeholder="如 10,10,20"></div>
+          <div class="tfield w-md"><label>或多臂各组数 mEach（逗号分隔）</label><input type="text" id="rz-meach" value="" placeholder="如 10,10,20"></div>
         </div>
         <div class="trow" id="rz-blockrow" style="display:none">
           <div class="tfield" style="flex:1"><label>区组标签（每单位一个，逗号/空格/换行分隔；循环使用）</label><textarea id="rz-blocks" rows="2" placeholder="A,A,A,A,B,B,B,B"></textarea></div>

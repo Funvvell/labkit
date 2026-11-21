@@ -138,11 +138,11 @@
 .ext-list .plugin-empty{padding:14px;font-size:12px;line-height:1.6;color:var(--muted,#8e8e93);text-wrap:pretty}
 .pc-state{font-size:11px;font-weight:600;color:var(--muted,#8e8e93)}
 .pc-state.on{color:var(--green,#30d158)}
-.pc-foot{display:flex;align-items:center;gap:8px;justify-content:space-between;font-size:10.5px;color:var(--muted,#8e8e93);margin-top:2px}
+.pc-foot{display:flex;align-items:center;gap:8px;justify-content:space-between;font-size:var(--text-xs);color:var(--muted,#8e8e93);margin-top:2px}
 .pc-reg{font-family:var(--mono)}
 .pc-when{opacity:.75}
 .pc-health{display:flex;flex-direction:column;gap:3px;margin-top:6px}
-.pc-h{font-size:10.5px;line-height:1.5;padding:3px 7px;border-radius:6px;text-wrap:pretty}
+.pc-h{font-size:var(--text-xs);line-height:1.5;padding:3px 7px;border-radius:6px;text-wrap:pretty}
 .pc-h.warn{color:var(--orange,#ff9f0a);background:color-mix(in srgb,var(--orange,#ff9f0a) 12%,transparent)}
 .pc-h.bad{color:var(--red,#ff453a);background:color-mix(in srgb,var(--red,#ff453a) 12%,transparent)}
 

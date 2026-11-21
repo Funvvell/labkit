@@ -23,9 +23,9 @@
         </div>
         <div class="trow" style="margin-top:6px" id="plLayerTabs"></div>
         <div class="tsplit" style="margin-top:8px">
-          <div style="flex:1;min-width:300px"><canvas id="plCanvas" style="max-width:100%;cursor:crosshair"></canvas>
+          <div class="pl-canvas-box"><canvas id="plCanvas" style="max-width:100%;cursor:crosshair"></canvas>
             <div class="tnote" id="plStatus">拖拽圈选孔位，单击选单孔（Ctrl 加选）。</div></div>
-          <div style="width:280px">
+          <div class="pl-side">
             <div class="tool-section" style="padding:8px">
               <b>区域（样本/组）</b>
               <div class="trow" style="margin-top:6px">
@@ -76,6 +76,8 @@
     const $ = id => host.querySelector('#' + id);
     const canvas = $('plCanvas');
     const ctx = canvas.getContext('2d');
+    // 孔板是 UI 编辑器，画布文字跟随应用字体（Inter + 系统中文），不再写死 sans-serif
+    const uiFont = () => ((getComputedStyle(document.documentElement).getPropertyValue('--sans') || '').trim() || 'sans-serif');
     let geom = { size: 34, margin: 6, off: 34 };
 
     function layer() { return plate.Layers[activeLayer]; }
@@ -94,14 +96,18 @@
     }
 
     function computeGeom() {
-      const maxW = Math.min(host.clientWidth - 320, 760);
-      const space = Math.max(16, Math.min(40, Math.floor((maxW - geom.off) / plate.Cols)));
+      // 量画布自己的容器，而不是 host 减一个写死的侧栏宽度：
+      // 侧栏现在是 clamp 的，窄容器下还会堆叠到下方，写死偏移必然算错。
+      const box = canvas.parentElement;
+      const avail = (box && box.clientWidth) || host.clientWidth || 640;
+      const maxW = Math.min(avail, 760);
+      const space = Math.max(14, Math.min(40, Math.floor((maxW - geom.off) / plate.Cols)));
       geom.size = space - 6; geom.margin = 6;
       const w = geom.off + plate.Cols * space + 10;
       const h = geom.off + plate.Rows * space + 10;
       const dpr = window.devicePixelRatio || 1;
       canvas.width = w * dpr; canvas.height = h * dpr;
-      canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+      canvas.style.width = w + 'px'; canvas.style.height = 'auto';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
     function wellXY(w) {
@@ -114,7 +120,7 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = '#f7f8fa';
       ctx.fillRect(0, 0, geom.off + plate.Cols * space + 10, geom.off + plate.Rows * space + 10);
-      ctx.fillStyle = '#555'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#555'; ctx.font = `11px ${uiFont()}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       for (let c = 0; c < plate.Cols; c++) ctx.fillText(String(c + 1), geom.off + c * space + geom.size / 2, geom.off / 2);
       for (let r = 0; r < plate.Rows; r++) ctx.fillText(PM.alphabet(r), geom.off / 2, geom.off + r * space + geom.size / 2);
       const l = layer();
@@ -126,11 +132,11 @@
         ctx.fill();
         ctx.strokeStyle = '#9aa0a6'; ctx.lineWidth = 1; ctx.stroke();
         if (w.Area && w.Area.Type === 'Range') {
-          ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.max(8, geom.size / 3)}px sans-serif`;
+          ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.max(8, geom.size / 3)}px ${uiFont()}`;
           ctx.fillText(String(w.RangeIndex), x + geom.size / 2, y + geom.size / 2 - (w.Value !== undefined ? geom.size / 6 : 0));
         }
         if (w.Value !== undefined) {
-          ctx.fillStyle = w.Area ? '#fff' : '#333'; ctx.font = `${Math.max(7, geom.size / 4)}px sans-serif`;
+          ctx.fillStyle = w.Area ? '#fff' : '#333'; ctx.font = `${Math.max(7, geom.size / 4)}px ${uiFont()}`;
           ctx.fillText(String(w.Value) + (w.Unit || ''), x + geom.size / 2, y + geom.size * 0.78);
         }
         if (!forExport && selection.has(w.Index)) {
@@ -153,7 +159,11 @@
     }
     function canvasPos(ev) {
       const rect = canvas.getBoundingClientRect();
-      return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
+      // 窄容器下 max-width:100% 会把画布整体缩小显示，但绘制坐标系没变，
+      // 命中测试必须按显示缩放比换算回逻辑坐标，否则圈选会偏位。
+      const logical = parseFloat(canvas.style.width) || rect.width || 1;
+      const k = rect.width ? logical / rect.width : 1;
+      return { x: (ev.clientX - rect.left) * k, y: (ev.clientY - rect.top) * k };
     }
     canvas.addEventListener('mousedown', ev => {
       const p = canvasPos(ev);
@@ -323,5 +333,20 @@
 
     restore();
     renderLayers(); renderAreas(); draw();
+    // webfont 异步加载：就绪后重绘一次，否则首帧画布文字会落在回退字体上
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => draw()).catch(() => { /* 忽略 */ });
+    /* 窗口/容器尺寸变化时重算孔位几何并重绘。参照 crop.js 的 ResizeObserver 范式；
+       工具页会被反复重渲染，先断开上一个观察器，避免观察已脱离文档的旧节点。 */
+    if (host.__lkRO) { try { host.__lkRO.disconnect(); } catch (e) { /* 忽略 */ } }
+    if (typeof ResizeObserver === 'function') {
+      let lastW = 0;
+      host.__lkRO = new ResizeObserver(entries => {
+        const w = Math.round(entries[0].contentRect.width);
+        if (w === lastW) return;   // 画布自身尺寸变化不该再触发一轮
+        lastW = w;
+        draw();
+      });
+      host.__lkRO.observe(canvas.parentElement);
+    }
   };
 })();

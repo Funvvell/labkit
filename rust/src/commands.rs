@@ -434,8 +434,29 @@ pub fn error_probe() -> Result<String, String> {
    （ROI 导出失败就是这么来的）。data / dest / src 两种命名法长得一样，天然安全。 */
 
 #[tauri::command]
-pub fn db_load() -> Result<Option<serde_json::Value>, String> {
-    crate::store::load().map_err(|e| e.to_string())
+pub fn db_load(app: tauri::AppHandle) -> Result<Option<serde_json::Value>, String> {
+    let db = crate::store::db_path().map_err(|e| e.to_string())?;
+    /* Vault 摄入必须在返回前完成——前端 DB 对象形状不变是硬契约，
+       home/entities/dashboard/inventory 全都直接读 DB.xxx 数组。
+       启动、dbOnRemote、dbFocusSync 都经过 db_load，所以聚焦即同步。
+       摄入失败只记日志，绝不阻断台账读取。 */
+    if let Ok(Some(vault)) = crate::vault::active_dir_at(&db) {
+        match crate::vault::ingest_at(&db, &vault) {
+            Ok(rep) => {
+                if rep.ingested > 0 || rep.removed > 0 {
+                    let _ = app.emit(
+                        "db-changed",
+                        serde_json::json!({"rev": rep.rev, "keys": rep.changed, "origin": "vault"}),
+                    );
+                }
+                if rep.ingested > 0 || rep.removed > 0 || !rep.conflicts.is_empty() || !rep.errors.is_empty() {
+                    let _ = app.emit("vault-synced", serde_json::json!({"report": rep, "origin": "vault"}));
+                }
+            }
+            Err(e) => tracing::warn!("Vault 摄入失败（台账读取不受影响）: {e}"),
+        }
+    }
+    crate::store::load_at(&db).map_err(|e| e.to_string())
 }
 
 /// P1 多窗口合并写：`changed` 为前端 diff 出的顶层键（缺省 = 整库写，旧契约兼容）；
@@ -452,14 +473,35 @@ pub fn db_save(
     let path = crate::store::db_path()
         .map(|p| p.to_string_lossy().into_owned())
         .map_err(|e| e.to_string())?;
+    let origin = origin.unwrap_or_default();
     let _ = app.emit(
         "db-changed",
         serde_json::json!({
             "rev": rev,
-            "keys": changed.unwrap_or_default(),
-            "origin": origin.unwrap_or_default(),
+            "keys": changed.clone().unwrap_or_default(),
+            "origin": origin,
         }),
     );
+    /* Vault 投影：merge_save 的写锁已释放，这里读回**已提交**的 JSON 作为投影源
+       （不是前端内存态），并发写时后一次投影天然覆盖前一次。
+       只投影本次改动的实体键；只改 _store 时跳过。
+       Vault 的任何失败都只 emit 上报，绝不改变 db_save 的返回值——台账已落盘。 */
+    if let Ok(db) = crate::store::db_path() {
+        if let Ok(Some(disk)) = crate::store::load_at(&db) {
+            if let Some(vault) = crate::vault::dir_from_data(&disk) {
+                let kinds: Option<Vec<String>> = changed.as_ref().map(|ks| {
+                    ks.iter().filter(|k| crate::vault::kind_of_key(k).is_some()).cloned().collect()
+                });
+                if !kinds.as_ref().is_some_and(|k| k.is_empty()) {
+                    let out = match crate::vault::project_data_at(&vault, &disk, kinds.as_deref()) {
+                        Ok(rep) => serde_json::json!({"report": rep, "rev": rev, "origin": origin}),
+                        Err(e) => serde_json::json!({"error": e.to_string(), "rev": rev, "origin": origin}),
+                    };
+                    let _ = app.emit("vault-synced", out);
+                }
+            }
+        }
+    }
     Ok(path)
 }
 
@@ -499,6 +541,55 @@ pub fn db_reset(app: tauri::AppHandle) -> Result<Option<String>, String> {
     // reset:true → 其它窗口清缓存并重启回首次启动态
     let _ = app.emit("db-changed", serde_json::json!({"rev": 0, "keys": [], "origin": "", "reset": true}));
     Ok(out)
+}
+
+/* ===================== Markdown Vault =====================
+   台账的对外权威存储：一条记录一个 .md（YAML frontmatter），Obsidian 可直接编辑。
+   投影永远发生在 merge_save 成功之后，Vault 的任何失败都只上报，不回滚已提交的 JSON。
+   参数同样一律单个单词（dir / enable / id / keep）。 */
+
+#[tauri::command]
+pub fn vault_status() -> Result<serde_json::Value, String> {
+    let db = crate::store::db_path().map_err(|e| e.to_string())?;
+    crate::vault::status_at(&db).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn vault_configure(app: tauri::AppHandle, dir: String, enable: bool) -> Result<serde_json::Value, String> {
+    let db = crate::store::db_path().map_err(|e| e.to_string())?;
+    let rep = crate::vault::configure_at(&db, &dir, enable).map_err(|e| e.to_string())?;
+    let _ = app.emit("vault-synced", serde_json::json!({"report": &rep, "dir": dir, "enabled": enable}));
+    // 配置写在 _store.vault，其它窗口据此重载设置页状态
+    let _ = app.emit("db-changed", serde_json::json!({"rev": rep.rev, "keys": ["_store"], "origin": "vault"}));
+    serde_json::to_value(&rep).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn vault_sync(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let db = crate::store::db_path().map_err(|e| e.to_string())?;
+    let vault = crate::vault::active_dir_at(&db)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Vault 未启用".to_string())?;
+    let rep = crate::vault::sync_at(&db, &vault).map_err(|e| e.to_string())?;
+    let _ = app.emit("vault-synced", serde_json::json!({"report": &rep, "dir": vault.to_string_lossy(), "enabled": true}));
+    if rep.ingested > 0 || rep.removed > 0 {
+        let _ = app.emit("db-changed", serde_json::json!({"rev": rep.rev, "keys": [], "origin": "vault"}));
+    }
+    serde_json::to_value(&rep).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn vault_resolve(app: tauri::AppHandle, id: String, keep: String) -> Result<serde_json::Value, String> {
+    let db = crate::store::db_path().map_err(|e| e.to_string())?;
+    let vault = crate::vault::active_dir_at(&db)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Vault 未启用".to_string())?;
+    let rep = crate::vault::resolve_at(&db, &vault, &id, &keep).map_err(|e| e.to_string())?;
+    let _ = app.emit("vault-synced", serde_json::json!({"report": &rep, "resolved": id, "keep": keep}));
+    if keep == "local" {
+        let _ = app.emit("db-changed", serde_json::json!({"rev": rep.rev, "keys": [], "origin": "vault"}));
+    }
+    serde_json::to_value(&rep).map_err(|e| e.to_string())
 }
 
 /* ===================== 多窗口退出握手 =====================

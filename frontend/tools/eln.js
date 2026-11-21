@@ -13,10 +13,10 @@
         <h3>实验记录</h3>
         <div class="trow">
           <div class="tfield"><label>模板</label><select id="eln-tpl">${tOpts}</select></div>
-          <div class="tfield"><label>标题</label><input type="text" id="eln-title" value="" style="width:220px" placeholder="如：HEK293T 转染优化"></div>
+          <div class="tfield w-lg"><label>标题</label><input type="text" id="eln-title" value="" placeholder="如：HEK293T 转染优化"></div>
           <div class="tfield"><label>日期</label><input type="date" id="eln-date"></div>
-          <div class="tfield"><label>操作者</label><input type="text" id="eln-op" value="" style="width:100px"></div>
-          <div class="tfield"><label>项目标签</label><input type="text" id="eln-proj" value="" style="width:140px" placeholder="Obsidian tag"></div>
+          <div class="tfield w-sm"><label>操作者</label><input type="text" id="eln-op" value=""></div>
+          <div class="tfield w-md"><label>项目标签</label><input type="text" id="eln-proj" value="" placeholder="Obsidian tag"></div>
         </div>
         <div id="eln-sections"></div>
         <div class="trow">

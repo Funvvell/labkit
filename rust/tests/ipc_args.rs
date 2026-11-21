@@ -345,6 +345,33 @@ fn db_save_sends_merge_contract_keys() {
         }
     }
 }
+/// Vault 契约：参数一律单个单词（Tauri 命令宏默认 camelCase，多单词参数前端极易写错）。
+/// vault_configure 缺 dir/enable 会静默配错目录；vault_resolve 缺 keep 会裁决反向。
+#[test]
+fn vault_commands_send_required_keys() {
+    let src = frontend_source();
+    let calls = invoke_calls(&src);
+    for (cmd, needs) in [
+        ("vault_configure", ["dir", "enable"]),
+        ("vault_resolve", ["id", "keep"]),
+    ] {
+        let got: Vec<&Vec<String>> = calls
+            .iter()
+            .filter(|(c, _)| c == cmd)
+            .map(|(_, k)| k)
+            .collect();
+        assert!(!got.is_empty(), "前端没有调用 {cmd}");
+        for keys in got {
+            for need in needs {
+                assert!(
+                    keys.iter().any(|k| k == need),
+                    "{cmd} 缺少参数 {need}，实际发送: {keys:?}"
+                );
+            }
+        }
+    }
+}
+
 /* ---------------- 通用契约：invoke 键名必须与 Rust 形参一一对应 ----------------
    背景：zotero_tag 的 Rust 形参是 tag_name（Tauri 默认 camelCase → tagName），前端却发 tag。
    运行时精确匹配取不到键，功能上线即失效，还被 .catch 吞成 toast。

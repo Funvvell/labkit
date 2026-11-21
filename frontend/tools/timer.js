@@ -7,7 +7,7 @@
         <div class="hint">每步名称 + 时长；开始后自动倒计时并推进，到点提示音 + 弹窗提醒。可暂停/跳步/重置。</div>
         <div id="tm-steps"></div>
         <div class="trow">
-          <div class="tfield"><label>步骤名</label><input type="text" id="tm-name" value="孵育" style="width:140px"></div>
+          <div class="tfield w-md"><label>步骤名</label><input type="text" id="tm-name" value="孵育"></div>
           <div class="tfield"><label>时长</label><input type="number" id="tm-dur" value="10" min="1"></div>
           <div class="tfield"><label>单位</label><select id="tm-unit"><option value="60" selected>分钟</option><option value="1">秒</option><option value="3600">小时</option></select></div>
           <button class="tbtn sec" id="tm-add">+ 添加步骤</button>

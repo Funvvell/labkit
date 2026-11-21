@@ -5,12 +5,12 @@ function lineChart(data,w,h,color,fill){
   const pts=data.map((v,i)=>`${(i/(n-1))*w},${h-6-(v/max)*(h-14)}`).join(' ');
   const area=`0,${h} ${pts} ${w},${h}`;
   const grid=[0.25,0.5,0.75].map(f=>`<line x1="0" y1="${h*f}" x2="${w}" y2="${h*f}" stroke="rgba(0,0,0,.06)" stroke-width="1"/>`).join('');
-  return `<svg viewBox="0 0 ${w} ${h}" height="${h}"><defs><linearGradient id="g${color.slice(1)}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".22"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>${grid}<polygon class="lc-area" points="${area}" fill="url(#g${color.slice(1)})"/><polyline class="lc-line" pathLength="1" points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${data.map((v,i)=>`<circle class="lc-dot" style="animation-delay:${0.2+i*0.07}s" cx="${(i/(n-1))*w}" cy="${h-6-(v/max)*(h-14)}" r="2.6" fill="#fff" stroke="${color}" stroke-width="1.8"/>`).join('')}</svg>`;
+  return `<svg class="lc-svg" viewBox="0 0 ${w} ${h}" role="img"><defs><linearGradient id="g${color.slice(1)}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".22"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>${grid}<polygon class="lc-area" points="${area}" fill="url(#g${color.slice(1)})"/><polyline class="lc-line" pathLength="1" points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${data.map((v,i)=>`<circle class="lc-dot" style="animation-delay:${0.2+i*0.07}s" cx="${(i/(n-1))*w}" cy="${h-6-(v/max)*(h-14)}" r="2.6" fill="#fff" stroke="${color}" stroke-width="1.8"/>`).join('')}</svg>`;
 }
 function pieChart(parts,size){
   let acc=0;const total=parts.reduce((s,p)=>s+p[1],0)||1;
   const stops=parts.map(([c,v])=>{const from=acc/total*360;acc+=v;const to=acc/total*360;return `${c} ${from}deg ${to}deg`}).join(',');
-  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:conic-gradient(${stops})"></div>`;
+  return `<div style="width:min(${size}px,100%);aspect-ratio:1;border-radius:50%;background:conic-gradient(${stops})"></div>`;
 }
 
 /* ===================== Dashboard 渲染 ===================== */

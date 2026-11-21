@@ -27,6 +27,8 @@ function mockInvoke(cmd, args) {
     case 'db_export': return ok('（浏览器模式请用导出 CSV）');
     case 'db_import': return ok(null);
     case 'db_reset': try{localStorage.removeItem(DB_KEY)}catch(e){};return ok(null);
+    /* 浏览器无磁盘访问：Vault 恒为未启用，设置页据此禁用整卡（其余 vault_* 走 default→null） */
+    case 'vault_status': return ok({enabled:false,dir:'',exists:false,files:0,errors:[],lastSync:'',conflicts:0,conflictList:[]});
     case 'init_engine': return ok('ready');
     case 'default_output_dir': return ok('~/LabKit_Export');
     case 'load_rois': return ok([]);

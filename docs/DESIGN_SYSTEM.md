@@ -41,16 +41,34 @@
 
 ## 2. 字体
 
-字体栈：`-apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif`（`--sans`）；
-数字与代码：`ui-monospace, "SF Mono", "JetBrains Mono", Consolas, monospace`（`--mono`）。
+**本地打包 + 系统中文**：拉丁/数字/希腊/数学符号用本地 woff2（`frontend/fonts/`，OFL 1.1，
+由 `tools/font-build/build_fonts.py` 子集化，来源与 sha256 见 `fonts/manifest.json`）；
+中文不打包，走系统字体。CSP `font-src 'self' data:` 下完全离线，无在线字体 CDN。
 
-| 层级 | 字号 / 字重 | 典型用途 |
+字体栈（`app.css` `:root`）：
+`--sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif`；
+`--mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace`。
+Inter 为变量字体（`font-weight: 100 900` 单文件覆盖全字重）。
+
+字号阶梯与行三档在 `css/type.css`（最后加载）：`--text-3xs:9 / 2xs:10 / xs:11 / sm:12 / md:13 /
+lg:15 / xl:18 / 2xl:22 / 3xl:26`（px），`--leading-tight:1.25 / normal:1.5 / relaxed:1.7`。
+**禁止半像素字号**（不同 DPI 渲染不一致），组件引用 token，不写新字面量。
+
+| 层级 | token / 字重 | 典型用途 |
 | --- | --- | --- |
-| 页面标题 | 22–26px / Bold | `content-head h1` |
-| 分区标题 | 15px / Bold | `section-head h2`、卡片标题 |
-| 正文 | 13px / Regular | 表格、列表、表单 |
-| 辅助信息 | 11px / Regular | 描述、时间戳、spec 标注 |
-| 数字 | 13px / `--mono` | 统计值、计数、金额（等宽对齐） |
+| 页面标题 | `--text-2xl`–`--text-3xl` / Bold | `content-head h1` |
+| 分区标题 | `--text-lg` / Bold | `section-head h2`、卡片标题 |
+| 正文 | `--text-md` / Regular | 表格、列表、表单 |
+| 辅助信息 | `--text-xs` / Regular | 描述、时间戳、spec 标注 |
+| 数字 | `--text-md` / `--mono` | 统计值、计数、金额 |
+
+数字排版：`body` 开 `tabular-nums lining-nums`（列对齐不跳动）；等宽上下文
+（`.tmono` / `.tbl td` / `.ttable td` / `.result-table td` / `kbd` 等）再加 `"zero" 1`
+斜杠零，批号里的 0 与 O 可区分。全局 `-webkit-font-smoothing: antialiased`。
+
+**期刊图例外**：出版图（plotter / qpcr-plots / figure）默认 Arial/Helvetica，
+单一来源 `QpcrPlots.JOURNAL_FONT`；figure 提供字体下拉。界面 UI 字体不用于出版图。
+孔板画布是 UI 编辑器，文字读 `--sans`，并在 `document.fonts.ready` 后重绘。
 
 ## 3. 按钮与状态
 
@@ -83,7 +101,13 @@
 - 工作台页：40px `workbench-tabs`（今日/任务/项目/实验/文献/试剂/报表/专注）+ 64px `content-head` + `scroll`。
 - 首页：`home-deck` 今日科研指挥台（摘要 + 今日重点 + 临近节点 + 最近工具），下方保留可编辑 Dashboard。
 - 工具库：`toolhub-bar` 搜索/筛选/最近 + 3 列工具卡（窄窗 2 列）；工具页 = 面包屑 + 紧凑标题 + sticky 工具壳。
-- 工具工作区：「左参数 / 中画布 / 右列表」三栏（crop / qpcr 范式）。
+- 工具工作区：「左参数 / 中画布 / 右列表」三栏（crop / qpcr 范式）。三栏宽度按容器
+  `clamp()` 收拢（`.ws-body` 是查询宿主），极窄容器（<680px）纵向堆叠、画布在上。
+- 自适应收口层 `css/adaptive.css` 最后加载：组件断点一律容器查询
+  （`.tool-wrap` / `.ws-body` / `#view-home` 为查询宿主），不绑窗口宽度；
+  固定列数网格改 `auto-fit`；台账表格外层横向滚动。
+- Dashboard 布局以 **4 列规范坐标**存储；渲染列数随容器宽度降为 4 / 2 / 1（阈值 900 / 560px）。
+  降列时禁止拖拽与改尺寸、编辑入口给出提示——1 列下宽度会归一，回写会毁掉用户布局。
 - 设置页：≥1080px 两栏，窄窗单栏；危险操作与普通数据操作分区。
 - 普通工具：统一壳层 `toolChrome`（返回 + 图标 + 标题 + 收藏/帮助）+ 输入区 + 结果区。
 - 工具卡：12px 圆角 + 轻边框；悬停只改边框/背景，不做大幅位移。

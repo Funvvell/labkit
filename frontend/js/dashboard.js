@@ -332,8 +332,10 @@ function bindCardActs(card,def){
 function rerenderCard(id){
   const card=document.querySelector('#dashGrid .wcard[data-w="'+id+'"]');if(!card)return;
   const n=activeLayout().find(x=>x.id===id);if(!n)return;
-  const def=WIDGETS[id],size={w:n.w,h:n.h};
-  card.dataset.size=n.w+'x'+n.h;
+  // 正文密度按**渲染尺寸**走：降列时卡片实际变窄，仍按 4 列规范尺寸渲染会挤爆
+  const r=_gsRender.get(id)||n;
+  const def=WIDGETS[id],size={w:r.w,h:r.h};
+  card.dataset.size=r.w+'x'+r.h;
   const tag=card.querySelector('.size-tag');if(tag)tag.textContent=sizeLabel(n.w+'x'+n.h);
   const body=card.querySelector('.card-body');
   if(body){body.innerHTML=def.body(size);if(def.render)def.render(body,size);if(def.after)def.after(body,size)}
@@ -344,6 +346,50 @@ function applyWidgetSize(id,w,h){
   const n=activeLayout().find(x=>x.id===id);if(!n)return;
   const s=snapSize(id,w,h);n.w=s.w;n.h=s.h;
   if(dashEdit)touchDraft();else{saveDash();buildDash();refreshHome()}
+}
+
+/* ---- 响应式列数：布局永远以 4 列规范坐标存储，渲染时按容器宽度降列 ----
+   写死 column:4 时，窄容器里 1 列卡只有百余像素，内容挤成一条；而 CSS 断点
+   只对回退网格生效，GridStack 根本不理。这里让引擎列数跟着容器走。
+   **降列模式下禁止拖拽/改尺寸**：1 列时所有宽度都会归一，回写会毁掉用户的布局。 */
+let _gsCols=4,_gsRender=new Map(),_dashColRO=null;
+function dashColsFor(w){return w>=900?4:w>=560?2:1}
+/* 4 列规范坐标 → N 列渲染坐标。按 y 再 x 排序后重新落位，保持视觉顺序。 */
+function renderCoords(L,cols){
+  const m=new Map();
+  if(cols>=4){L.forEach(n=>m.set(n.id,{x:n.x,y:n.y,w:n.w,h:n.h}));return m}
+  const scale=w=>Math.max(1,Math.min(cols,Math.round(w*cols/4)));
+  const occ=[];
+  const fits=(x,y,w,h)=>{if(x+w>cols)return false;for(let r=y;r<y+h;r++){const row=occ[r]||0;for(let c=x;c<x+w;c++)if(row&(1<<c))return false}return true};
+  const mark=(x,y,w,h)=>{for(let r=y;r<y+h;r++){occ[r]=occ[r]||0;for(let c=x;c<x+w;c++)occ[r]|=1<<c}};
+  L.slice().sort((a,b)=>a.y-b.y||a.x-b.x).forEach(n=>{
+    const w=scale(n.w);let x=Math.min(n.x,cols-w),y=n.y;
+    if(!fits(x,y,w,n.h)){
+      let done=false;
+      // 只往下找空位，绝不放到自己规范行之上——保持用户的阅读顺序
+      for(let yy=y;yy<y+400&&!done;yy++)for(let xx=0;xx<=cols-w;xx++)if(fits(xx,yy,w,n.h)){x=xx;y=yy;done=true;break}
+      if(!done){x=0;y=occ.length}
+    }
+    mark(x,y,w,n.h);
+    m.set(n.id,{x,y,w,h:n.h});
+  });
+  return m;
+}
+function dashColHint(){
+  const el=document.getElementById('dashColHint');
+  if(el)el.hidden=_gsCols>=4;
+}
+/* 容器宽度变化 → 目标列数变化时重排。编辑态先退出，避免草稿坐标被降列污染。 */
+function dashWatchCols(grid){
+  if(_dashColRO){try{_dashColRO.disconnect()}catch(e){}_dashColRO=null}
+  if(typeof ResizeObserver!=='function'||!grid.parentElement)return;
+  _dashColRO=new ResizeObserver(()=>{
+    const want=dashColsFor(grid.parentElement.clientWidth||grid.clientWidth||1000);
+    if(want===_gsCols)return;
+    if(dashEdit){exitDashEdit(false);toast('窗口变窄，卡片已自动重排；布局编辑已取消，请在更宽的窗口下编辑',5200);return}
+    buildDash();
+  });
+  _dashColRO.observe(grid.parentElement);
 }
 
 function buildDash(intro){
@@ -359,25 +405,31 @@ function buildDashGS(grid,intro){
   grid.classList.toggle('dash-edit',dashEdit);
   grid.classList.add('grid-stack');
   const L=activeLayout();
+  _gsCols=dashColsFor(grid.parentElement?grid.parentElement.clientWidth:grid.clientWidth||1000);
+  _gsRender=renderCoords(L,_gsCols);
+  dashColHint();dashWatchCols(grid);
   if(!L.length){grid.innerHTML='<div class="dash-empty">Dashboard 是空的 — 进入「编辑布局」后点「+ 添加卡片」挑几张放进来</div>';return}
+  const editable=dashEdit&&_gsCols>=4;
+  const sc=w=>Math.max(1,Math.min(_gsCols,Math.round(w*_gsCols/4)));
   grid.innerHTML=L.map((n,i)=>{
     const def=WIDGETS[n.id];if(!def||typeof def.body!=='function')return '';
+    const r=_gsRender.get(n.id)||n;
     const sizes=(def.sizes||[def.size]).map(parseSize).filter(Boolean);
-    const minW=Math.min(...sizes.map(p=>p.w)),maxW=Math.max(...sizes.map(p=>p.w));
+    const minW=sc(Math.min(...sizes.map(p=>p.w))),maxW=Math.max(minW,sc(Math.max(...sizes.map(p=>p.w))));
     const minH=Math.min(...sizes.map(p=>p.h)),maxH=Math.max(...sizes.map(p=>p.h));
-    return `<div class="grid-stack-item" gs-id="${n.id}" gs-x="${n.x}" gs-y="${n.y}" gs-w="${n.w}" gs-h="${n.h}" gs-min-w="${minW}" gs-max-w="${maxW}" gs-min-h="${minH}" gs-max-h="${maxH}">
-      <div class="grid-stack-item-content dash-card wcard${intro?' intro':''}" data-w="${n.id}" data-size="${n.w}x${n.h}"${dashEdit?' tabindex="0"':''} style="${intro?'animation-delay:'+Math.min(i*0.05,0.4)+'s':''}">
+    return `<div class="grid-stack-item" gs-id="${n.id}" gs-x="${r.x}" gs-y="${r.y}" gs-w="${r.w}" gs-h="${r.h}" gs-min-w="${minW}" gs-max-w="${maxW}" gs-min-h="${minH}" gs-max-h="${maxH}">
+      <div class="grid-stack-item-content dash-card wcard${intro?' intro':''}" data-w="${n.id}" data-size="${r.w}x${r.h}"${editable?' tabindex="0"':''} style="${intro?'animation-delay:'+Math.min(i*0.05,0.4)+'s':''}">
         <div class="card-inner">
-          ${cardHeadHTML(def,n.w+'x'+n.h)}
-          <div class="card-body">${def.body({w:n.w,h:n.h})}</div>
+          ${cardHeadHTML(def,r.w+'x'+r.h)}
+          <div class="card-body">${def.body({w:r.w,h:r.h})}</div>
         </div>
       </div></div>`;
   }).join('');
   const m=gridMetrics();
   _gs=window.GridStack.init({
-    column:4,cellHeight:m.row,margin:m.gap,float:true,animate:false,
+    column:_gsCols,cellHeight:m.row,margin:m.gap,float:true,animate:false,
     handle:'.card-grip',resizable:{handles:'se'},alwaysShowResizeHandle:true,
-    disableDrag:!dashEdit,disableResize:!dashEdit,
+    disableDrag:!editable,disableResize:!editable,
   },grid);
   _gs.on('change',onGsChange);
   _gs.on('dragstop',onGsDragStop);
@@ -388,21 +440,22 @@ function buildDashGS(grid,intro){
     const id=card.dataset.w,def=WIDGETS[id];
     dashRO.observe(card.querySelector('.card-body'));
     bindCardActs(card,def);
-    const n=activeLayout().find(x=>x.id===id);
+    const r=_gsRender.get(id)||activeLayout().find(x=>x.id===id);
     const wc=card.querySelector('[data-wc]');if(wc)wc.onclick=()=>{const cur=activeLayout().find(x=>x.id===id);applyWidgetSize(id,WCOLS[(WCOLS.indexOf(cur.w)+1)%WCOLS.length],cur.h)};
     const hc=card.querySelector('[data-hc]');if(hc)hc.onclick=()=>{const cur=activeLayout().find(x=>x.id===id);applyWidgetSize(id,cur.w,HROWS[(HROWS.indexOf(cur.h)+1)%HROWS.length])};
     const del=card.querySelector('[data-card-del]');
     if(del)del.onclick=()=>{removeWidget(id);if(dashEdit)touchDraft();else{saveDash();buildDash();refreshHome()}toast('已移除「'+def.title+'」，可从「+ 添加卡片」加回')};
     const cfg=card.querySelector('[data-cfg]');if(cfg)cfg.onclick=()=>widgetDialog(id);
     bindCardKeys(card);
-    if(def.after)def.after(card.querySelector('.card-body'),{w:n.w,h:n.h});
+    if(def.after)def.after(card.querySelector('.card-body'),{w:r.w,h:r.h});
   });
   if(intro)requestAnimationFrame(()=>requestAnimationFrame(()=>grid.querySelectorAll('.intro').forEach(c=>c.classList.remove('intro'))));
   queueResize();
 }
-/* 拖拽/缩放过程中：把引擎坐标同步进草稿，只标脏不重绘 */
+/* 拖拽/缩放过程中：把引擎坐标同步进草稿，只标脏不重绘。
+   降列模式下引擎坐标不是 4 列规范值，回写会毁掉布局，一律跳过。 */
 function onGsChange(ev,items){
-  if(!_gsReady||!_gs)return;
+  if(!_gsReady||!_gs||_gsCols<4)return;
   const L=activeLayout();
   (items||[]).forEach(it=>{const n=L.find(x=>x.id===it.id);if(n){n.x=it.x;n.y=it.y;n.w=it.w;n.h=it.h}});
   if(dashEdit)syncEditBar();
@@ -410,6 +463,7 @@ function onGsChange(ev,items){
 function onGsDragStop(){if(dashEdit)syncEditBar();queueResize()}
 /* 缩放结束：吸附到该卡声明的尺寸档，再按新档重渲染正文 */
 function onGsResizeStop(ev,el){
+  if(_gsCols<4)return;   // 降列模式下的引擎坐标不是规范值，回写会毁掉布局
   const node=el&&el.gridstackNode;if(!node)return;
   const id=node.id,s=snapSize(id,node.w,node.h);
   const n=activeLayout().find(x=>x.id===id);
@@ -422,7 +476,8 @@ function onGsResizeStop(ev,el){
 /* ---- 回退渲染器：GridStack 不可用时的旧顺序网格（保留一个版本周期） ---- */
 function buildDashFallback(grid,intro){
   if(dashRO){dashRO.disconnect();dashRO=null}
-  _gsReady=false;_gs=null;
+  _gsReady=false;_gs=null;_gsCols=4;_gsRender=new Map();
+  dashColHint();
   grid.classList.remove('grid-stack');
   grid.classList.toggle('dash-edit',dashEdit);
   const L=activeLayout();
@@ -561,6 +616,7 @@ function layoutDirty(){
 }
 function enterDashEdit(){
   if(dashEdit)return;
+  if(_gsCols<4){toast('窗口太窄，卡片已自动重排；请把窗口拉宽到 900px 以上再编辑布局',5200);return}
   wbMenuClose();
   dashEdit=true;dashDraft=dashLayout.map(x=>({...x}));
   syncEditBar();buildDash();refreshHome();
