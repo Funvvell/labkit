@@ -25,6 +25,7 @@ fn main() {
             "--info" => cmd_info(&args),
             "--export" => cmd_export(&args),
             "--tileprobe" => cmd_tileprobe(&args),
+            "--apply-update" => labkit::update::apply_update(&args),
             "--help" | "-h" => {
                 print_usage();
                 Ok(())
@@ -46,6 +47,7 @@ fn main() {
 }
 
 fn run_tauri() {
+    labkit::update::cleanup_stale();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -106,6 +108,8 @@ fn run_tauri() {
             labkit::commands::qpcr_save_session,
             labkit::commands::qpcr_export_csv,
             labkit::commands::app_info,
+            labkit::update::update_check,
+            labkit::update::update_install,
             labkit::commands::db_load,
             labkit::commands::db_save,
             labkit::commands::db_info,

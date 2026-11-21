@@ -76,6 +76,8 @@ invoke('app_info').then(info=>{
   const about=document.getElementById('aboutLine');
   if(about)about.textContent='科研工具箱 LabKit v'+info.version+' · Rust + Tauri · SDPC 解码 & qPCR 核心复用自 Rust 重构版';
 }).catch(()=>{});
+/* P6：主窗口启动 5s 后静默检查更新（失败不打扰；设置页可关闭） */
+if(IN_TAURI&&!WINDOW_MODE&&typeof updateAutoCheck==='function')setTimeout(()=>{updateAutoCheck()},5000);
 if(!WINDOW_MODE||WIN_LABEL==='tool-crop')ensureRoiDb();
 /* Restore the last qPCR run (wells + design) from the independent session file. */
 if(IN_TAURI&&(!WINDOW_MODE||WIN_LABEL==='tool-qpcr')){

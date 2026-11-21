@@ -42,6 +42,7 @@ async function renderSettings(){
   if(typeof renderZoteroSettings==='function')renderZoteroSettings();
   if(typeof renderPluginSettings==='function')renderPluginSettings();
   if(typeof renderVaultSettings==='function')renderVaultSettings();
+  if(typeof renderUpdateSettings==='function')renderUpdateSettings();
   applyDensity();
 }
 document.querySelectorAll('[data-density]').forEach(b=>b.onclick=()=>{

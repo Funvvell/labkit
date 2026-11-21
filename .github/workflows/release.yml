@@ -48,15 +48,37 @@ jobs:
           prerelease: false
           args: --bundles nsis
 
-      - name: Pack portable zip
+      # 应用内更新依赖三项资产：portable zip、裸 exe（直接替换用）、latest.json（版本 + sha256）。
+      - name: Pack portable zip + update assets
         shell: pwsh
         run: |
           $exe = "rust/target/release/labkit.exe"
           if (-not (Test-Path $exe)) { throw "labkit.exe not found after tauri build" }
           Compress-Archive -Path $exe -DestinationPath "LabKit-portable-win-x64.zip"
+          $ver = "${{ steps.ver.outputs.version }}"
+          $sha = (Get-FileHash -Path $exe -Algorithm SHA256).Hash.ToLower()
+          $size = (Get-Item $exe).Length
+          Copy-Item $exe "LabKit-win-x64.exe"
+          $manifest = [ordered]@{
+            version = $ver
+            notes = "更新内容见 CHANGELOG.md 与 GitHub Release 页面。安装包不含闭源 SDPC 解码组件：执行 pip install sdpc-for-python 后应用会自动探测解码目录。"
+            pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
+            platforms = [ordered]@{
+              "windows-x86_64" = [ordered]@{
+                url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/v$ver/LabKit-win-x64.exe"
+                sha256 = $sha
+                size = $size
+              }
+            }
+          }
+          $json = $manifest | ConvertTo-Json -Depth 5
+          [IO.File]::WriteAllText((Join-Path (Get-Location) "latest.json"), $json, (New-Object Text.UTF8Encoding($false)))
 
-      - name: Upload portable asset
+      - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.version }}
-          files: LabKit-portable-win-x64.zip
+          files: |
+            LabKit-portable-win-x64.zip
+            LabKit-win-x64.exe
+            latest.json

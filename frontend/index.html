@@ -338,6 +338,11 @@
                 <div class="divider"></div>
                 <div class="card-head"><h2>关于</h2></div>
                 <div class="sub" id="aboutLine">科研工具箱 LabKit v0.4.0 · Rust + Tauri · SDPC 解码 &amp; qPCR 核心复用自 Rust 重构版</div>
+                <div class="trow settings-trow" style="margin-top:10px">
+                  <button class="btn sec" id="btnUpdateCheck" type="button">检查更新</button>
+                  <span class="sub" id="updateStatus">当前版本读取中…</span>
+                </div>
+                <label class="settings-toggle"><input type="checkbox" id="setUpdateAuto"><span>启动时自动检查更新</span></label>
               </section>
             </div>
           </div>
@@ -615,6 +620,21 @@
       <div class="sub" style="margin-top:10px">示例数据可随时在「设置 → 清空示例数据」移除；你的选择会写入本地台账。</div>
     </div>
   </dialog>
+  <!-- P6：应用内更新（检查 / 下载 / 重启安装） -->
+  <dialog class="help-mask" id="updateMask" aria-label="软件更新" closedby="any" hidden>
+    <div class="help">
+      <h2 id="updTitle">发现新版本</h2>
+      <div class="sub" id="updMeta"></div>
+      <div class="upd-notes" id="updNotes"></div>
+      <div class="upd-bar" id="updBar" hidden><i id="updBarFill"></i></div>
+      <div class="sub" id="updMsg" hidden></div>
+      <div class="btn-row" style="margin-top:14px;flex-wrap:wrap">
+        <button class="btn pri" id="updInstall" type="button">立即更新并重启</button>
+        <button class="btn sec" id="updLater" type="button">稍后</button>
+        <button class="btn sec" id="updRelease" type="button">查看发布页</button>
+      </div>
+    </div>
+  </dialog>
   <div class="toast" id="toast"></div>
 </div>
 <!-- P0：内联脚本按原顺序拆分为 js/ 模块（classic script，零构建，file:// 可演示） -->
@@ -640,6 +660,7 @@
 <script src="js/zotero.js"></script>
 <script src="js/plugin-contract.js"></script>
 <script src="js/plugins.js"></script>
+<script src="js/update.js"></script>
 <script src="js/boot.js"></script>
 </body>
 </html>
