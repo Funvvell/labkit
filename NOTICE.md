@@ -53,6 +53,12 @@ LabKit（MIT）复用以下成熟开源项目。除注明外均以原样或最�
   serde_yaml_ng / serde_norway 停更于 2024 年、serde_yml 因 unsoundness 废弃，yaml-rust2 是唯一活跃维护的
   YAML 1.2 实现。传递依赖 **arraydeque**（MIT/Apache-2.0）、**hashlink**（MIT/Apache-2.0）、
   **encoding_rs**（Apache-2.0/MIT，本项目已直接依赖）。
+- **calamine** Copyright (c) Thomas Jarosch 等. https://github.com/tafia/calamine
+  — qPCR Excel（xlsx/xls）读取（`rust/src/qpcr/io_excel.rs`）。
+- **openreadout-qpcr / openreadout-core** Copyright (c) OpenReadout contributors.
+  https://github.com/openreadout/openreadout — qPCR 仪器文件解析（.eds/.rex/.ixo/RDML，`rust/src/qpcr/io_instrument.rs`）。
+  **本地补丁副本** `rust/vendor/openreadout-qpcr/`（v0.4.0，仅把 calamine 0.36 → 0.38 以修复 zip 安全公告），
+  双许可原文随源码保留；上游发布含同等升级的新版后应删除该补丁并回归 crates.io。
 
 ## SIL Open Font License 1.1（本地打包字体）
 - **Inter** Copyright (c) The Inter Project Authors (rsms). https://github.com/rsms/inter

@@ -3,6 +3,13 @@
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 版本单一来源：`rust/Cargo.toml` 与 `rust/tauri.conf.json`。
 
+## [Unreleased]
+
+### 安全（依赖公告修复）
+- **修复** Dependabot 7 项依赖公告：`calamine` 0.36 → 0.38（`zip` 8.6.0 → 9.8.1，修复 5 项 zip 公告，含 1 项 critical）、
+  `lru` 0.12.5 → 0.19.1；`openreadout-qpcr`（上游最新版仍锁 calamine 0.36）以 `rust/vendor/` 补丁副本升到 calamine 0.38，
+  上游发布同等升级后移除；`glib` 公告系 Linux GTK 构建路径（Windows 版从不编译该依赖），已在 GitHub 标记 `not_used` 关闭
+
 ## [0.4.0] - 2026-11-21 — 科研工作台重设计 / 多窗口 / 尺寸化 Dashboard / Zotero / 工具箱个性化 / 双市场扩展 / 应用内自更新
 
 ### 工具箱个性化 · 双市场扩展（0.4.0）
