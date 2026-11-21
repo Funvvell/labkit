@@ -2,7 +2,9 @@ name: Release LabKit Plugin
 
 on:
   push:
-    tags: ['v*']
+    # 安装端把 tag_name 原样当版本号拼资产 URL（LabKit plugins.rs resolve），
+    # 因此正式 tag 用裸版本号（如 1.1.0），与 manifest.version 一致。
+    tags: ['v*', '[0-9]*']
 
 permissions:
   contents: write
