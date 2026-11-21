@@ -18,8 +18,8 @@ const PRI_CLS={urgent:['紧急','urgent'],important:['重要','important'],norma
 function taskHTML(t,showKey){
   const [pn,pc]=PRI_CLS[t.pri]||PRI_CLS.normal;
   const proj=DB.projects.find(p=>p.id===t.proj);
-  return `<div class="task-item ${t.done?'done':''} ${showKey?'key':''}" data-task="${t.id}">
-    <input type="checkbox" class="task-check" data-check="${t.id}"${t.done?' checked':''} aria-label="${t.done?'恢复':'完成'}任务：${esc(t.name)}">
+  return `<div class="task-item ${t.done?'done':''} ${showKey?'key':''}" data-task="${esc(t.id)}">
+    <input type="checkbox" class="task-check" data-check="${esc(t.id)}"${t.done?' checked':''} aria-label="${t.done?'恢复':'完成'}任务：${esc(t.name)}">
     <div class="task-body">
       <div class="task-name">${esc(t.name)}</div>
       <div class="task-meta">
@@ -31,7 +31,7 @@ function taskHTML(t,showKey){
       </div>
     </div>
     <div class="task-act">
-      ${showKey?'':`<button data-tomorrow="${t.id}" title="转入明天"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M13 6L19 12L13 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`}
+      ${showKey?'':`<button data-tomorrow="${esc(t.id)}" title="转入明天"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12H19M13 6L19 12L13 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`}
     </div>
   </div>`;
 }
@@ -109,11 +109,11 @@ function setTaskState(t,st){
 }
 function boardCard(t){
   const i=DB.tasks.indexOf(t);
-  return `<div class="board-card" draggable="true" data-tcard="${t.id}">
+  return `<div class="board-card" draggable="true" data-tcard="${esc(t.id)}">
     <div class="n">${esc(t.name)}</div>
     <div class="task-meta"><span class="badge ${(PRI_CLS[t.pri]||PRI_CLS.normal)[1]}">${(PRI_CLS[t.pri]||PRI_CLS.normal)[0]}</span><span>${esc(t.due)}</span>${t.key?'<span class="badge important">重点</span>':''}</div>
     <div class="row-acts">
-      ${TSTATE.filter(([s])=>s!==t.state).map(([s,l])=>`<button class="mini-act" data-tstate="${t.id}|${s}">${l}</button>`).join('')}
+      ${TSTATE.filter(([s])=>s!==t.state).map(([s,l])=>`<button class="mini-act" data-tstate="${esc(t.id)}|${s}">${l}</button>`).join('')}
       <button class="mini-act" data-edit="task|${i}">编辑</button>
       <button class="mini-act danger" data-del="task|${i}">删除</button>
     </div></div>`;
@@ -143,7 +143,7 @@ function renderTaskCal(){
     const dt=new Date(d+'T00:00');
     const items=DB.tasks.filter(t=>taskOnDay(t,d));
     return `<div class="cal-col"><h3>${d===todayStr()?'今天':d.slice(5)} · 周${'日一二三四五六'[dt.getDay()]}<span class="cnt">${items.length}</span></h3>
-      ${items.map(t=>`<div class="cal-item${t.done?' done':''}"><label><input type="checkbox" data-check="${t.id}"${t.done?' checked':''}><span>${esc(t.name)}</span></label><div class="task-meta"><span class="badge ${(PRI_CLS[t.pri]||PRI_CLS.normal)[1]}">${(PRI_CLS[t.pri]||PRI_CLS.normal)[0]}</span>${isRecurring(t)?'<span class="badge normal">重复</span>':''}</div></div>`).join('')||'<div class="sub">无安排</div>'}</div>`;
+      ${items.map(t=>`<div class="cal-item${t.done?' done':''}"><label><input type="checkbox" data-check="${esc(t.id)}"${t.done?' checked':''}><span>${esc(t.name)}</span></label><div class="task-meta"><span class="badge ${(PRI_CLS[t.pri]||PRI_CLS.normal)[1]}">${(PRI_CLS[t.pri]||PRI_CLS.normal)[0]}</span>${isRecurring(t)?'<span class="badge normal">重复</span>':''}</div></div>`).join('')||'<div class="sub">无安排</div>'}</div>`;
   }).join('')}</div>`;
 }
 function bindBoardDnD(){
@@ -203,7 +203,7 @@ function renderProjects(){
   };
   setHTML('projCards',DB.projects.slice(0,2).map(p=>card(p)).join('')||'<div class="sub">还没有项目，点右上角新建</div>');
   document.getElementById('projGrid').innerHTML=DB.projects.map((p,i)=>`<div class="proj-card">${card(p,i)}
-    <div class="btn-row"><button class="btn sec" data-open-exp="${p.id}">实验列表</button><button class="btn sec" data-proj-note="${i}">项目笔记${p.note?' ●':''}</button></div></div>`).join('')||'<div class="sub">还没有项目</div>';
+    <div class="btn-row"><button class="btn sec" data-open-exp="${esc(p.id)}">实验列表</button><button class="btn sec" data-proj-note="${i}">项目笔记${p.note?' ●':''}</button></div></div>`).join('')||'<div class="sub">还没有项目</div>';
   document.querySelectorAll('[data-open-exp]').forEach(el=>el.onclick=()=>{document.getElementById('expFilterProj').value=el.dataset.openExp;renderExpTable();openView('experiments')});
   document.querySelectorAll('[data-proj-note]').forEach(el=>el.onclick=()=>projNoteModal(+el.dataset.projNote));
   bindRowActs();

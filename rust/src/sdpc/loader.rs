@@ -74,6 +74,11 @@ pub fn load_library() -> Result<Dll> {
     let old_cwd = std::env::current_dir().ok();
     let old_path = std::env::var("PATH").unwrap_or_default();
     let new_path = format!("{}{}{}", dir.display(), if cfg!(windows) { ";" } else { ":" }, old_path);
+    // PATH/CWD 是进程全局状态：持 DLL_LOCK 完成「改环境 → LoadLibrary → 恢复」，
+    // 避免与并发 FFI 调用竞态（dll() 的 OnceLock 只保证加载一次，不保证期间无他人）。
+    let _guard = crate::sdpc::ffi::DLL_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     std::env::set_var("PATH", &new_path);
 
     let load_result: std::result::Result<Library, String> = (|| {

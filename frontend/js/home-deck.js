@@ -27,7 +27,7 @@ function deckRecentRows(){
   return {recent,slides};
 }
 function deckTaskRow(t){
-  return `<div class="deck-task${t.done?' done':''}"><input type="checkbox" class="task-check" data-check="${t.id}"${t.done?' checked':''} aria-label="${t.done?'恢复':'完成'}任务：${esc(t.name)}"><span class="nm">${esc(t.name)}</span><span class="due">${esc(t.due||'')}</span></div>`;
+  return `<div class="deck-task${t.done?' done':''}"><input type="checkbox" class="task-check" data-check="${esc(t.id)}"${t.done?' checked':''} aria-label="${t.done?'恢复':'完成'}任务：${esc(t.name)}"><span class="nm">${esc(t.name)}</span><span class="due">${esc(t.due||'')}</span></div>`;
 }
 function renderHomeDeck(){
   const host=document.getElementById('homeDeck');

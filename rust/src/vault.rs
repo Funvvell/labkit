@@ -541,6 +541,9 @@ fn parse_md(k: &Kind, text: &str) -> Result<Value> {
     if id.is_empty() {
         return Err(AppError::Other("frontmatter 缺少 id".into()));
     }
+    if !crate::store::safe_id(id) {
+        return Err(AppError::Other("frontmatter id 含非法字符（引号 / 尖括号 / 反引号 / 空白），已跳过".into()));
+    }
     let mut rec = Map::new();
     rec.insert("id".into(), json!(id));
 

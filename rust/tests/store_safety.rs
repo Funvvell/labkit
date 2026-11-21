@@ -54,6 +54,36 @@ fn import_rejects_wrong_field_type() {
     );
 }
 
+/// 记录 id 会进前端 HTML 属性位：摄入边界拒绝可突破属性的字符（渲染侧另有 esc 双保险）。
+#[test]
+fn rejects_record_ids_that_can_break_html_attributes() {
+    let d = TempDir::new().unwrap();
+    let p = db(&d);
+    store::save_at(&p, &json!({"tasks":[{"id":"t1"}]})).unwrap();
+    for bad in [
+        r#"x" onmouseover="alert(1)"#,
+        "a'<b>",
+        "a`b",
+        "a b",
+        "a\nb",
+    ] {
+        assert!(
+            store::save_at(&p, &json!({"tasks":[{"id":bad}]})).is_err(),
+            "应拒写非法 id：{bad:?}"
+        );
+    }
+    let src = d.path().join("bad-id.json");
+    std::fs::write(&src, r#"{"tasks":[{"id":"x\" onload=\"alert(1)"}]}"#).unwrap();
+    assert!(store::import_at(&p, &src).is_err());
+    assert_eq!(
+        store::load_at(&p).unwrap().unwrap()["tasks"][0]["id"],
+        "t1",
+        "非法 id 导入不得覆盖既有台账"
+    );
+    // 常规 id（uid 产物 / Obsidian 手改）不受影响
+    store::save_at(&p, &json!({"tasks":[{"id":"task-m1abc_2-3"}]})).unwrap();
+}
+
 #[test]
 fn recover_reads_bak_without_clobbering_it_or_repairing_main_unlocked() {
     let d = TempDir::new().unwrap();

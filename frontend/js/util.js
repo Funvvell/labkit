@@ -23,6 +23,8 @@ function todayStr(){return dayISO(new Date())}
 function daysAgoISO(n){const d=new Date();d.setDate(d.getDate()-n);return dayISO(d)}
 function nowStamp(){const d=new Date();return dayISO(d)+'T'+pad2(d.getHours())+':'+pad2(d.getMinutes())}
 function uid(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+/* HTML 转义：所有用户/台账数据进 innerHTML（含属性位）必须过这里。 */
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 /* ===================== Native dialog helpers =====================
    统一管理 top-layer 浮层：优先 showModal()（焦点限制、Esc、焦点返回由浏览器负责），

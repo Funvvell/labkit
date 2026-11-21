@@ -21,7 +21,7 @@ function fmtRecAt(r){
   return rel+(t?' '+t+(end?'-'+end:''):'');
 }
 
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+/* esc() 已迁至 util.js（先于本文件加载） */
 /* 颜色值直接进 style 属性，只转义不够：攻击者仍可写 background:url(...) 把数据外传。
    故只放行十六进制、rgb()/hsl()、var(--token) 与纯字母命名色，其余回落。
    var(--…) 必须放行：提醒等处的颜色本就是语义 token（entities.js 的紧急度映射）。 */

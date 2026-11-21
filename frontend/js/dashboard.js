@@ -417,8 +417,8 @@ function buildDashGS(grid,intro){
     const sizes=(def.sizes||[def.size]).map(parseSize).filter(Boolean);
     const minW=sc(Math.min(...sizes.map(p=>p.w))),maxW=Math.max(minW,sc(Math.max(...sizes.map(p=>p.w))));
     const minH=Math.min(...sizes.map(p=>p.h)),maxH=Math.max(...sizes.map(p=>p.h));
-    return `<div class="grid-stack-item" gs-id="${n.id}" gs-x="${r.x}" gs-y="${r.y}" gs-w="${r.w}" gs-h="${r.h}" gs-min-w="${minW}" gs-max-w="${maxW}" gs-min-h="${minH}" gs-max-h="${maxH}">
-      <div class="grid-stack-item-content dash-card wcard${intro?' intro':''}" data-w="${n.id}" data-size="${r.w}x${r.h}"${editable?' tabindex="0"':''} style="${intro?'animation-delay:'+Math.min(i*0.05,0.4)+'s':''}">
+    return `<div class="grid-stack-item" gs-id="${esc(n.id)}" gs-x="${r.x}" gs-y="${r.y}" gs-w="${r.w}" gs-h="${r.h}" gs-min-w="${minW}" gs-max-w="${maxW}" gs-min-h="${minH}" gs-max-h="${maxH}">
+      <div class="grid-stack-item-content dash-card wcard${intro?' intro':''}" data-w="${esc(n.id)}" data-size="${r.w}x${r.h}"${editable?' tabindex="0"':''} style="${intro?'animation-delay:'+Math.min(i*0.05,0.4)+'s':''}">
         <div class="card-inner">
           ${cardHeadHTML(def,r.w+'x'+r.h)}
           <div class="card-body">${def.body({w:r.w,h:r.h})}</div>
@@ -484,7 +484,7 @@ function buildDashFallback(grid,intro){
   if(!L.length){grid.innerHTML='<div class="dash-empty">Dashboard 是空的 — 进入「编辑布局」后点「+ 添加卡片」挑几张放进来</div>';return}
   grid.innerHTML=L.map((n,i)=>{
     const def=WIDGETS[n.id];if(!def||typeof def.body!=='function')return '';
-    return `<div class="dash-card wcard w${n.w} h${n.h}${intro?' intro':''}" data-w="${n.id}" data-size="${n.w}x${n.h}"${dashEdit?' tabindex="0"':''} style="${intro?'animation-delay:'+Math.min(i*0.05,0.4)+'s':''}">
+    return `<div class="dash-card wcard w${n.w} h${n.h}${intro?' intro':''}" data-w="${esc(n.id)}" data-size="${n.w}x${n.h}"${dashEdit?' tabindex="0"':''} style="${intro?'animation-delay:'+Math.min(i*0.05,0.4)+'s':''}">
       <div class="card-inner">
         ${cardHeadHTML(def,n.w+'x'+n.h)}
         <div class="card-body">${def.body({w:n.w,h:n.h})}</div>

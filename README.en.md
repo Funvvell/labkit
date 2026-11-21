@@ -119,7 +119,7 @@ The frontend is **zero-build**: plain HTML/CSS/JS (classic scripts, ordered load
 
 ```
 frontend/            zero-build UI (index.html shell + css/ + js/ modules + tools/ + vendor/)
-rust/                Tauri 2 + Rust: SDPC FFI decode, TIFF export, qPCR parsing, disk notebook, 108 tests
+rust/                Tauri 2 + Rust: SDPC FFI decode, TIFF export, qPCR parsing, disk notebook, 219 tests
 tests/js/            node:test parity tests (vs OpenEpi/scipy/tableone) + shell unit tests
 rust/tests/          IPC naming-contract tests
 ```

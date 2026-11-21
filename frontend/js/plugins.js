@@ -534,7 +534,7 @@ function pluginInstalledCard(rec) {
     ? '<div class="pc-health">' + health.map(h => '<span class="pc-h ' + h.level + '">' + esc(h.text) + '</span>').join('') + '</div>'
     : '';
   return `<div class="plugin-card${rec.enabled ? '' : ' disabled'}">
-    <div class="pc-head"><span class="pc-ico">${kind === 'widget' ? toolIcon('') : toolIcon('')}</span><div style="min-width:0"><div class="pc-name">${esc(mf.name || rec.id)}</div>
+    <div class="pc-head"><span class="pc-ico">${toolIcon('')}</span><div style="min-width:0"><div class="pc-name">${esc(mf.name || rec.id)}</div>
     <div class="pc-meta">${esc(rec.id)}${rec.repo ? ' · ' + esc(rec.repo) : ''}</div></div></div>
     <div class="pc-desc">${esc(mf.description || '（无描述）')}</div>
     <div class="pc-tags">${tags.map(t => '<span class="pc-tag">' + esc(t) + '</span>').join('')}</div>

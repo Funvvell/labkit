@@ -10,7 +10,7 @@
 | plotly.min.js | plotly.js-dist-min | 2.35.2 | MIT |
 | fabric.min.js | fabric.js | 5.3.0 | MIT |
 | simple-statistics.min.js | simple-statistics | 7.8.3 | ISC |
-| arquero.min.js | arquero | 8.0.3 | BSD-3-Clause |
+| arquero.min.js | arquero | 8.14.1 | BSD-3-Clause |
 | seedrandom.min.js | seedrandom | 3.0.5 | MIT |
 | stdlib-stats.bundle.js | stdlib-js 统计子集 | 见 tools/vendor-build/package.json | Apache-2.0 |
 | markdown-table.bundle.js | markdown-table | 3.1.0 | MIT |

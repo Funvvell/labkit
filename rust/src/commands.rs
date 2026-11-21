@@ -21,6 +21,11 @@ use crate::model::{Roi, RoiStore};
 use crate::qpcr::model::{Design, QpcrAnalysis, QpcrRun, Well};
 use crate::render::texture::to_data_url;
 
+/// 中毒容忍锁：退出握手等关键路径不因别处 panic 连锁崩溃（同 store.rs 的模式）。
+fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 /// Process-wide decoder handle. The DLL is not thread-safe; a single worker
 /// thread owns every FFI call (see `decode::worker`). Tauri commands lock this
 /// mutex only to enqueue / drain messages — never to decode pixels.
@@ -68,7 +73,7 @@ impl AppState {
     }
 
     fn next_gen(&self) -> u64 {
-        let mut g = self.generation.lock().unwrap();
+        let mut g = lock(&self.generation);
         *g += 1;
         *g
     }
@@ -99,7 +104,7 @@ pub fn init_engine(state: tauri::State<'_, AppState>) -> Result<String, String> 
 /// Read a regular image file and return it as a PNG/JPEG data URL.
 /// Implemented in Rust on purpose: it bypasses the fs-plugin permission
 /// model entirely (a previous crash source) and handles large files.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn read_file_as_data_url(path: String) -> Result<String, String> {
     let p = PathBuf::from(&path);
     let mime = match p
@@ -344,18 +349,18 @@ pub fn qpcr_parse_csv_text(text: String, delimiter: String) -> Result<Vec<Well>,
     crate::qpcr::io_csv::parse_csv_text(&text, d).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn qpcr_parse_csv_file(path: String) -> Result<Vec<Well>, String> {
     crate::qpcr::io_csv::read_csv(&PathBuf::from(&path)).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn qpcr_parse_excel(path: String, sheet: Option<String>) -> Result<(Vec<Well>, String), String> {
     crate::qpcr::io_excel::read_excel(&PathBuf::from(&path), sheet.as_deref())
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn qpcr_parse_instrument(path: String) -> Result<(Vec<Well>, String), String> {
     crate::qpcr::io_instrument::read_instrument(&PathBuf::from(&path)).map_err(|e| e.to_string())
 }
@@ -365,7 +370,7 @@ pub fn qpcr_parse_pasted(text: String) -> Result<Vec<Well>, String> {
     crate::qpcr::io_manual::parse_pasted(&text).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn qpcr_analyze(run: QpcrRun) -> Result<QpcrAnalysis, String> {
     crate::qpcr::analyze(&run).map_err(|e| e.to_string())
 }
@@ -433,7 +438,7 @@ pub fn error_probe() -> Result<String, String> {
    参数一律单个单词：Tauri 命令宏默认 camelCase，多单词参数名前端极易写错
    （ROI 导出失败就是这么来的）。data / dest / src 两种命名法长得一样，天然安全。 */
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn db_load(app: tauri::AppHandle) -> Result<Option<serde_json::Value>, String> {
     let db = crate::store::db_path().map_err(|e| e.to_string())?;
     /* Vault 摄入必须在返回前完成——前端 DB 对象形状不变是硬契约，
@@ -462,7 +467,7 @@ pub fn db_load(app: tauri::AppHandle) -> Result<Option<serde_json::Value>, Strin
 /// P1 多窗口合并写：`changed` 为前端 diff 出的顶层键（缺省 = 整库写，旧契约兼容）；
 /// `origin` 为发起窗口标识，随 `db-changed` 广播，其它窗口据此重载重渲染。
 /// 锁内「读盘 → 仅覆盖 changed 键（_store 二级合并）→ 原子写 → rev+1」见 store::merge_save_at。
-#[tauri::command]
+#[tauri::command(async)]
 pub fn db_save(
     app: tauri::AppHandle,
     data: serde_json::Value,
@@ -524,7 +529,7 @@ pub fn db_export(dest: String) -> Result<String, String> {
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn db_import(app: tauri::AppHandle, src: String) -> Result<serde_json::Value, String> {
     let data = crate::store::import_from(std::path::Path::new(&src)).map_err(|e| e.to_string())?;
     // 整库替换：keys 为空 = 通知其它窗口全量重载
@@ -554,7 +559,7 @@ pub fn vault_status() -> Result<serde_json::Value, String> {
     crate::vault::status_at(&db).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn vault_configure(app: tauri::AppHandle, dir: String, enable: bool) -> Result<serde_json::Value, String> {
     let db = crate::store::db_path().map_err(|e| e.to_string())?;
     let rep = crate::vault::configure_at(&db, &dir, enable).map_err(|e| e.to_string())?;
@@ -564,7 +569,7 @@ pub fn vault_configure(app: tauri::AppHandle, dir: String, enable: bool) -> Resu
     serde_json::to_value(&rep).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn vault_sync(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     let db = crate::store::db_path().map_err(|e| e.to_string())?;
     let vault = crate::vault::active_dir_at(&db)
@@ -578,7 +583,7 @@ pub fn vault_sync(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     serde_json::to_value(&rep).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn vault_resolve(app: tauri::AppHandle, id: String, keep: String) -> Result<serde_json::Value, String> {
     let db = crate::store::db_path().map_err(|e| e.to_string())?;
     let vault = crate::vault::active_dir_at(&db)
@@ -601,19 +606,19 @@ pub fn vault_resolve(app: tauri::AppHandle, id: String, keep: String) -> Result<
 #[tauri::command]
 pub fn flush_ack(app: tauri::AppHandle, request_id: String, ok: bool, label: String) {
     let st = app.state::<AppState>();
-    if st.exit_request_id.lock().unwrap().as_deref() != Some(request_id.as_str()) {
+    if lock(&st.exit_request_id).as_deref() != Some(request_id.as_str()) {
         return;
     }
     if !ok {
-        let mut failed = st.exit_failed.lock().unwrap();
+        let mut failed = lock(&st.exit_failed);
         if !failed.contains(&label) {
             failed.push(label.clone());
         }
     }
-    st.pending_acks.lock().unwrap().remove(&label);
+    lock(&st.pending_acks).remove(&label);
     // 唤醒等待中的握手线程重新检查（无新依赖、无轮询 sleep）。
     // 先把 Sender 克隆出来，避免 MutexGuard 临时值活过 st。
-    let wake = st.exit_wake.lock().unwrap().clone();
+    let wake = lock(&st.exit_wake).clone();
     if let Some(tx) = wake {
         let _ = tx.send(());
     }
@@ -623,7 +628,7 @@ pub fn flush_ack(app: tauri::AppHandle, request_id: String, ok: bool, label: Str
 #[tauri::command]
 pub fn exit_decision(app: tauri::AppHandle, request_id: String, force: bool) {
     let st = app.state::<AppState>();
-    if st.exit_request_id.lock().unwrap().as_deref() != Some(request_id.as_str()) {
+    if lock(&st.exit_request_id).as_deref() != Some(request_id.as_str()) {
         return;
     }
     if force {
@@ -631,10 +636,10 @@ pub fn exit_decision(app: tauri::AppHandle, request_id: String, force: bool) {
         return;
     }
     st.exiting.store(false, Ordering::SeqCst);
-    *st.exit_request_id.lock().unwrap() = None;
-    st.pending_acks.lock().unwrap().clear();
-    st.exit_failed.lock().unwrap().clear();
-    *st.exit_wake.lock().unwrap() = None;
+    *lock(&st.exit_request_id) = None;
+    lock(&st.pending_acks).clear();
+    lock(&st.exit_failed).clear();
+    *lock(&st.exit_wake) = None;
 }
 
 /// 在 spawn_blocking 内运行：广播 flush-now → 等各窗回执（3s 上限）→
@@ -642,31 +647,31 @@ pub fn exit_decision(app: tauri::AppHandle, request_id: String, force: bool) {
 pub fn run_exit_handshake(app: tauri::AppHandle) {
     let st = app.state::<AppState>();
     let request_id = format!("exit-{}", st.exit_seq.fetch_add(1, Ordering::SeqCst));
-    *st.exit_request_id.lock().unwrap() = Some(request_id.clone());
-    st.exit_failed.lock().unwrap().clear();
+    *lock(&st.exit_request_id) = Some(request_id.clone());
+    lock(&st.exit_failed).clear();
 
     let labels: HashSet<String> = app.webview_windows().keys().cloned().collect();
-    *st.pending_acks.lock().unwrap() = labels;
+    *lock(&st.pending_acks) = labels;
 
     let (tx, rx) = std::sync::mpsc::channel::<()>();
-    *st.exit_wake.lock().unwrap() = Some(tx);
+    *lock(&st.exit_wake) = Some(tx);
     let _ = app.emit("flush-now", serde_json::json!({"requestId": request_id.clone()}));
 
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
     loop {
-        if st.pending_acks.lock().unwrap().is_empty() || std::time::Instant::now() >= deadline {
+        if lock(&st.pending_acks).is_empty() || std::time::Instant::now() >= deadline {
             break;
         }
         let _ = rx.recv_timeout(std::time::Duration::from_millis(200));
     }
-    *st.exit_wake.lock().unwrap() = None;
+    *lock(&st.exit_wake) = None;
 
     let pending: Vec<String> = {
-        let p = st.pending_acks.lock().unwrap();
+        let p = lock(&st.pending_acks);
         p.iter().cloned().collect()
     };
     let failed: Vec<String> = {
-        let mut f = st.exit_failed.lock().unwrap().clone();
+        let mut f = lock(&st.exit_failed).clone();
         for l in pending {
             if !f.contains(&l) {
                 f.push(l);

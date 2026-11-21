@@ -303,7 +303,7 @@ fn target_name(job: &ImgJob, opts: &ImgOptions, fmt: ImageFormat, index: usize) 
 
 // ---------------------------- Tauri 命令 ----------------------------
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn img_probe(path: String) -> Result<ImgProbe, String> {
     let p = Path::new(&path);
     let bytes = std::fs::metadata(p).map_err(|e| e.to_string())?.len();
@@ -316,7 +316,7 @@ pub fn img_probe(path: String) -> Result<ImgProbe, String> {
 }
 
 /// D2 拼图器导出：dataURL → 指定格式 + DPI 元数据 → 落盘。
-#[tauri::command]
+#[tauri::command(async)]
 pub fn img_encode(data_url: String, format: String, dpi: Option<u32>, path: String) -> Result<String, String> {
     let b64 = data_url.split(',').nth(1).ok_or("dataURL 格式无效")?;
     let bytes = base64::engine::general_purpose::STANDARD.decode(b64).map_err(|e| e.to_string())?;
@@ -361,7 +361,7 @@ pub fn img_rename_preview(jobs: Vec<ImgJob>, pattern: String, out_dir: String) -
     Ok(out)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn img_batch(app: tauri::AppHandle, jobs: Vec<ImgJob>, opts: ImgOptions) -> Result<Vec<ImgResult>, String> {
     if jobs.is_empty() {
         return Ok(vec![]);

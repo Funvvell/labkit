@@ -143,13 +143,13 @@ cargo tauri build                  # 出安装包
 frontend/            零构建前端（index.html 壳 + css/ + js/ 模块 + tools/ 20 工具 + vendor/ 开源库）
   js/toolbox.js      工具箱个性化数据层（分组/排序/隐藏/图标配色的覆盖层，纯函数可测）
   js/plugins.js      双市场扩展（工具扩展 / 卡片扩展）+ 类型门禁 + 扩展管理页
-rust/                Tauri 2 + Rust：SDPC FFI 解码、TIFF 导出、qPCR 解析、台账磁盘化、77+ 单测
+rust/                Tauri 2 + Rust：SDPC FFI 解码、TIFF 导出、qPCR 解析、台账磁盘化、219 单测
 tests/js/            node:test 对数测试（统计口径与 OpenEpi/scipy/tableone 对齐）+ 外壳单测
 rust/tests/          IPC 命名契约测试（保护前后端接口）
 ```
 
 - Rust 算法层与 IPC 契约稳定，前端交互迭代不触碰（契约测试保护）
-- 统计实现均与上游对数：`tests/js/stats.test.mjs` 等 153 个 node 用例 + 108 个 cargo 用例
+- 统计实现均与上游对数：`tests/js/stats.test.mjs` 等 248 个 node 用例 + 219 个 cargo 用例
 
 ## 🛠️ 开发指南
 

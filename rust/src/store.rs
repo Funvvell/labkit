@@ -100,7 +100,26 @@ fn validate(data: &Value) -> Result<()> {
             return Err(AppError::Other("台账字段 isDemo 必须是布尔，已拒绝写入".into()));
         }
     }
+    for k in ARR {
+        if let Some(Value::Array(items)) = o.get(*k) {
+            for rec in items {
+                if let Some(id) = rec.get("id").and_then(|v| v.as_str()) {
+                    if !safe_id(id) {
+                        return Err(AppError::Other(format!(
+                            "台账字段 {k} 含非法记录 id（不允许引号 / 尖括号 / 反引号 / 空白），已拒绝写入"
+                        )));
+                    }
+                }
+            }
+        }
+    }
     Ok(())
+}
+
+/// 记录 id 会进前端 HTML 属性位（渲染侧已统一 esc，这里是摄入边界的第二道闸）：
+/// 拒绝可突破属性 / 标签的字符。uid() 产物与 Obsidian 手改的常规 id 均不受影响。
+pub(crate) fn safe_id(id: &str) -> bool {
+    !id.is_empty() && !id.chars().any(|c| matches!(c, '"' | '\'' | '<' | '>' | '`') || c.is_whitespace())
 }
 
 fn parse(text: &str) -> Result<Value> {
