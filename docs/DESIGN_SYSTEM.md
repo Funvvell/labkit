@@ -98,9 +98,9 @@ lg:15 / xl:18 / 2xl:22 / 3xl:26`（px），`--leading-tight:1.25 / normal:1.5 / 
 ## 6. 布局范式
 
 - 侧栏三组：`工作台 / 工具库 / 资料与设置`；固定区在搜索框下方，空时不占位。
-- 工作台页：40px `workbench-tabs`（今日/任务/项目/实验/文献/试剂/报表/专注）+ 64px `content-head` + `scroll`。
+- 工作台页：不再使用顶部二级 tabs；直接 `64px content-head` + `scroll`，子页入口走侧栏 /「工作台 ▾」/ 固定区 / Ctrl+K。
 - 首页：`home-deck` 今日科研指挥台（摘要 + 今日重点 + 临近节点 + 最近工具），下方保留可编辑 Dashboard。
-- 工具库：`toolhub-bar` 搜索/筛选/最近 + 3 列工具卡（窄窗 2 列）；工具页 = 面包屑 + 紧凑标题 + sticky 工具壳。
+- 工具库：`toolhub-bar` 搜索/筛选/最近 + 3 列工具卡（窄窗 2 列）；工具页 = 标签栏（工具窗口）+ 共享来源条 + 面包屑 + 紧凑标题 + sticky 工具壳。
 - 工具工作区：「左参数 / 中画布 / 右列表」三栏（crop / qpcr 范式）。三栏宽度按容器
   `clamp()` 收拢（`.ws-body` 是查询宿主），极窄容器（<680px）纵向堆叠、画布在上。
 - 自适应收口层 `css/adaptive.css` 最后加载：组件断点一律容器查询
@@ -139,7 +139,32 @@ lg:15 / xl:18 / 2xl:22 / 3xl:26`（px），`--leading-tight:1.25 / normal:1.5 / 
   存量合并索引提示用 `--orange`。
 - **扩展管理页**：`.ext-grid` 两栏自适应；健康提示 `.pc-h.warn/.bad` 用 12% 淡底 + 语义色文字，不加大图标。
 
-## 9. 交互惯例
+## 9. 工具窗口标签页（tabs）
+
+新组件全部在 `frontend/css/tabs.css`（独立预算，≤12000 bytes，见 `tests/js/ui-contract.test.mjs`）。
+范式参考 VS Code 编辑器标签 / JupyterLab Lumino：**首个工具建窗、一工具一标签、单例、切走不销毁**；
+工具库是工具箱的基底页，不是标签；只有打开工具/工作区后才出现标签栏。
+
+- **标签栏**：`.tool-tabs` 固定 40px 高、`--bg` 底 + 1px `--hairline` 下边线；标签不换行，
+  `overflow-x:auto` 横向滚动（隐藏滚动条），溢出时右侧 `⋯` 菜单兜底。滚轮在标签栏上横滚。
+  工具库视图与无工具状态不显示标签栏。
+- **标签卡**：`.tt-tab` 高 32px、`min-width:88px` / `max-width:190px`、8px 上圆角；
+  激活态 `.on` 用 `--card` 同底 + 2px `--accent` 顶线（`::before`），非激活用 `--muted` 文字，
+  悬停只换 `--hover` 底，不位移。
+- **图标与关闭**：`.tt-ico` 15px（激活转 `--accent`），`.tt-x` 18px 独立按钮，悬停 16% `--red` 淡底；
+  **每个工具标签都可关闭**。
+- **拖拽指示**：`.drop-before` / `.drop-after` 用 `inset 2px 0` 的 `--accent` 竖线，拖拽中 `.dragging` 降到 55%；
+  工具标签之间同等可拖拽。
+- **键盘**：`role="tab"` + `aria-selected` + roving `tabindex`（仅激活标签为 0）；`←/→` 移动焦点，
+  `Enter/Space` 激活，`Delete` / `Backspace` 关闭；`Ctrl+Tab` / `Ctrl+1…9` / `Ctrl+W` / `Ctrl+Shift+T` 全局等价。
+- **pane 栈**：`#toolHost.tab-panes` > `.tool-pane[role="tabpanel"]`（一工具一个，含独立滚动），
+  首激活才渲染、切走保留 DOM / 输入 / 滚动位置、关闭即销毁；`#toolSource` 由所有标签共享。
+- **空态收口**：关闭最后一个工具时回到工具库基底页，工具窗口不关；浏览器演示同样回工具库。
+  右键「关闭全部」清空全部工具标签后也回到工具库，窗口继续存在。
+- **窗口**：工具窗口 `body.tab-mode` 下页头收紧（`min-height:56px`，标题 19px，副标题隐藏）；
+  `body.toolbox-mode` 横向内边距 24px。900px 最小宽下标签栏保持单行滚动。
+
+## 10. 交互惯例
 
 - 命令面板 Ctrl/⌘+K（拼音首字母可搜）；`?` 快捷键帮助；Esc 逐层关闭浮层。
 - 阻塞式浮层使用原生 `<dialog>` + `showModal()`：焦点限制、Esc、焦点返回和 top layer 交给浏览器；不要手写 `role="dialog"`、`aria-modal` 或焦点陷阱。
@@ -150,5 +175,6 @@ lg:15 / xl:18 / 2xl:22 / 3xl:26`（px），`--leading-tight:1.25 / normal:1.5 / 
 - **两种编辑模式共用「草稿 → 保存 / 取消」**：Dashboard 布局（`Ctrl+E`）与工具箱整理（`Esc` 取消）。
   改动只在点「保存」时落盘；保存前若盘上已被其他窗口改过，弹 `confirmModal` 让用户决定。
 - **隐藏 ≠ 失联**：隐藏的工具仍可被 Ctrl+K 搜到并打开，并标注「已隐藏」（对齐 VS Code `View: Open View`）。
-- **拖拽必须可键盘替代**：工具箱 `Alt+方向键`，Dashboard 卡片方向键 / `Shift+方向键`。
+- **拖拽必须可键盘替代**：工具箱 `Alt+方向键`，Dashboard 卡片方向键 / `Shift+方向键`，标签栏 `←/→` 移动焦点 + `Ctrl+Tab` 循环。
+- **标签单例**：同一工具只允许一个标签，重复打开只聚焦、不重建 DOM；关闭后重新打开按需重新挂载（输入由 `toolform:<id>` 恢复）。
 - 布局编辑：Homarr 式草稿 → 保存 / Esc 取消；卡片尺寸 1/2/4 列 × 1–4 行整数格。

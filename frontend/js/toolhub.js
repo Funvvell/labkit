@@ -189,17 +189,19 @@ function renderToolHub(){
     if(e.key==='Escape'&&inp.value){e.preventDefault();inp.value='';toolhubQ='';renderToolHub()}
   });
 })();
-/* P1：openTool 只改路由；渲染由 renderRoute → renderTool 完成（深链/刷新/前进后退同路径）。
-   设置「工具默认在新窗口打开」或工具窗口内再开工具 → 走独立窗口（保持窗口身份稳定）。 */
+/* P7：openTool 统一入口。
+   - 工具箱窗口 / 浏览器演示：改路由，由 renderRoute → renderTool 在 pane 内渲染，标签页切换；
+   - 桌面主窗：唤起/聚焦单实例「工具箱」窗口（tools），由它承载标签；
+   - 旧「每个工具一个独立窗口」仅保留给 ↗ / Ctrl 点击的显式分离。 */
 function openTool(id){
   const meta=(window.TOOL_META||[]).find(t=>t.id===id);
   if(!meta){toast('工具不存在');return}
-  /* 桌面版默认所有工具开独立窗口；设置 toolOpenInPage=true 才回退页内。
-     工具窗口内再开工具恒新窗；浏览器模式无 Tauri 仍走页内（file:// 可演示）。 */
-  if(IN_TAURI&&(WINDOW_MODE||!Store.settings().toolOpenInPage)){openToolWindow(id);return}
-  /* 内置工作区（图像裁剪 / qPCR）：直接打开对应视图，返回键走真实历史 */
-  if(meta.workspace){navigate(meta.id);return}
-  navigate('tool',id);
+  if(typeof TAB_MODE!=='undefined'&&TAB_MODE){
+    if(meta.workspace)navigate(meta.id);else navigate('tool',id);
+    return;
+  }
+  if(IN_TAURI){if(typeof openToolboxWindow==='function')openToolboxWindow(id);else openToolWindow(id);return}
+  if(meta.workspace)navigate(meta.id);else navigate('tool',id);
 }
 /* P1：工具独立窗口（Tauri 2 WebviewWindow，官方多窗口能力，零构建可用）。
    同 id 已存在 → 聚焦不新建；创建失败 → toast + 回退页内打开（浏览器模式永远页内）。
@@ -213,8 +215,8 @@ async function openToolWindow(id){
   const label='tool-'+String(id).replace(/_/g,'__').replace(/[^a-zA-Z0-9_-]/g,'-').slice(0,48);
   const url='index.html#/'+(meta.workspace?meta.id:'tool/'+id);
   const WW=window.__TAURI__.webviewWindow;
-  /* 回退必须直接页内导航：openTool 在窗口模式/默认新窗口设置下会再调 openToolWindow，形成递归 */
-  const fallback=()=>{toast('新窗口打开失败，已在页内打开');meta.workspace?navigate(meta.id):navigate('tool',id)};
+  /* 回退：按宿主模式走统一入口（工具窗口/主窗 → 工具箱；浏览器 → 页内标签），不递归本函数 */
+  const fallback=()=>{toast('新窗口打开失败，已改用工具标签');if(typeof TAB_MODE!=='undefined'&&TAB_MODE){meta.workspace?navigate(meta.id):navigate('tool',id)}else if(typeof openToolboxWindow==='function')openToolboxWindow(id)};
   const focusExisting=async()=>{
     const w=await WW.WebviewWindow.getByLabel(label);
     if(w){try{await w.setFocus();return true}catch(e){}}
@@ -237,56 +239,75 @@ async function openToolWindow(id){
     fallback();
   }
 }
-let _renderSeq=0;
-async function renderTool(id){
-  const meta=(window.TOOL_META||[]).find(t=>t.id===id);
-  if(!meta){toast('工具不存在');navigate('toolhub');return}
-  const seq=++_renderSeq;
+/* 当前激活工具：标签模式下由 tabs.js 给出；旧页内路径回退 _route.arg */
+function activeToolId(){
+  if(typeof tabsActiveId==='function'){const id=tabsActiveId();if(id)return id}
+  return _route.name==='tool'?_route.arg:null;
+}
+function activeToolHost(){
+  const h=typeof tabsActiveHost==='function'?tabsActiveHost():null;
+  return h||document.getElementById('toolHost');
+}
+function syncToolHeader(meta){
   setText('toolTitle',meta.name);
   setText('toolSub',meta.desc);
   const crumb=document.getElementById('toolCrumb');
   if(crumb)crumb.textContent='工具库 › '+(meta.group||'工具');
-  if(!WINDOW_MODE&&_route.name==='tool'&&_route.arg===id)document.title=meta.name+' · 科研工具箱 LabKit';
   const src=document.getElementById('toolSource');
   if(meta.source){src.innerHTML='<b>技术来源</b> · '+esc(meta.source)+' · <b>仅供科研使用，不用于临床诊断</b>';src.hidden=false;}
   else{src.hidden=true;src.textContent='';}
+}
+/* 激活标签即渲染：pane 首次创建才注入脚本；已渲染则只重同步页头/chrome（保留输入与结果）。 */
+async function renderTool(id){
+  const meta=(window.TOOL_META||[]).find(t=>t.id===id);
+  if(!meta){toast('工具不存在');navigate('toolhub');return}
+  const key=typeof tabKeyOf==='function'?tabKeyOf(id):'tool:'+id;
+  if(typeof tabsEnsure==='function')tabsEnsure(key);
+  if(typeof tabsActivate==='function')tabsActivate(key);
+  syncToolHeader(meta);
   Store.pushRecent(id);
   syncToolFav();
-  const host=document.getElementById('toolHost');
+  const pane=typeof tabsPane==='function'?tabsPane(key):null;
+  const host=pane?pane.host:document.getElementById('toolHost');
+  setupToolChrome(meta,host);
+  _formId=meta.persist!==false?id:null;
+  if(pane&&pane.rendered)return;
+  const token=pane?(++pane.token):0;
   host.innerHTML='<div class="tnote">加载中…</div>';
   try{
     for(const s of meta.scripts)await loadScript(s);
-    if(seq!==_renderSeq)return;   // 快速切换时丢弃过期渲染
+    if(pane&&(pane.token!==token||!pane.el.isConnected))return;   // 渲染途中被关闭/重置
     const fn=window.LabKitTools[id];
     if(typeof fn!=='function')throw new Error('工具未注册：'+id);
     host.innerHTML='';
     fn(host);
+    if(pane)pane.rendered=true;
     /* P2 统一壳：示例 / 导出指向 / 帮助抽屉 + 表单状态持久化 */
     setupToolChrome(meta,host);
     if(meta.persist!==false){formRestore(host,Store.get('toolform:'+id,null));_formId=id;}
-    else _formId=null;
   }catch(err){
-    if(seq!==_renderSeq)return;
+    if(pane&&pane.token!==token)return;
     host.innerHTML='<div class="terr">'+esc(err.message||String(err))+'</div>';
   }
 }
 function syncToolFav(){
   const b=document.getElementById('toolFav');if(!b)return;
-  const on=!!(_route.arg&&Store.isFav(_route.arg));
+  const id=activeToolId();
+  const on=!!(id&&Store.isFav(id));
   b.classList.toggle('on',on);
   b.textContent=on?'★ 已固定':'☆ 固定';
 }
 document.getElementById('toolFav').onclick=()=>{
-  if(!_route.arg)return;
-  const on=Store.toggleFav(_route.arg);
+  const id=activeToolId();if(!id)return;
+  const on=Store.toggleFav(id);
   shellRenderPins();renderToolHub();syncToolFav();
   toast(on?'已固定到侧栏':'已取消固定');
 };
-/* P1：工具页头「↗ 新窗口」；浏览器模式与工具窗口内隐藏（窗口身份保持稳定） */
+/* P1：工具页头「↗ 新窗口」；分离窗口内隐藏（窗口身份保持稳定），工具箱/浏览器保留 */
 (function(){
   const b=document.getElementById('toolNewWin');if(!b)return;
-  b.hidden=!IN_TAURI||WINDOW_MODE;
-  b.onclick=()=>{if(_route.arg)openToolWindow(_route.arg)};
+  b.hidden=!IN_TAURI||(typeof DETACHED_WIN!=='undefined'&&DETACHED_WIN);
+  b.onclick=()=>{const id=activeToolId();if(id)openToolWindow(id)};
 })();
 /* ---- P2：统一壳控件与表单持久化 ----
    表单快照按 id/name/序号 键控；恢复时派发 input/change 让工具自行重算。
@@ -319,10 +340,19 @@ function formRestore(host,map){
     else{live.dispatchEvent(new Event('input',{bubbles:true}));live.dispatchEvent(new Event('change',{bubbles:true}));}
   }
 }
-function _onFormEvt(){
+function _onFormEvt(e){
   if(!_formId)return;
+  /* 只在当前激活 pane 上保存：后台标签的 DOM 不接收用户输入，
+     但工具脚本可能在隐藏 pane 里派发事件，不能误写到别的工具键。 */
+  const pane=e.target&&e.target.closest?e.target.closest('[data-tab-pane]'):null;
+  if(!pane||!pane.classList.contains('active'))return;
+  const id=pane.dataset.tabPane;
+  if(!id)return;
   clearTimeout(_formT);
-  _formT=setTimeout(()=>{if(_formId)Store.set('toolform:'+_formId,formSnapshot(_toolHostEl))},600);
+  _formT=setTimeout(()=>{
+    const host=pane.querySelector('.tool-host');
+    if(host&&pane.isConnected)Store.set('toolform:'+id,formSnapshot(host));
+  },600);
 }
 _toolHostEl.addEventListener('input',_onFormEvt);
 _toolHostEl.addEventListener('change',_onFormEvt);
@@ -333,13 +363,13 @@ function setupToolChrome(meta,host){
   document.getElementById('toolHelpBody').innerHTML='<h3>'+esc(meta.name)+'</h3><p>'+esc(meta.help||meta.desc)+'</p>'+(meta.source?'<div class="tnote"><b>技术来源</b> · '+esc(meta.source)+' · <b>仅供科研使用，不用于临床诊断</b></div>':'');
 }
 document.getElementById('toolExample').onclick=()=>{
-  const f=_toolHostEl.__lkExample;
+  const f=activeToolHost().__lkExample;
   if(typeof f==='function')f();else toast('该工具未提供一键示例');
 };
 document.getElementById('toolReset').onclick=()=>{
-  if(!_route.arg)return;
-  Store.set('toolform:'+_route.arg,null);
-  renderTool(_route.arg);
+  const id=activeToolId();if(!id)return;
+  Store.set('toolform:'+id,null);
+  if(typeof tabsRerender==='function')tabsRerender(id);else renderTool(id);
   toast('已重置为初始状态');
 };
 document.getElementById('toolHelpBtn').onclick=()=>{
@@ -347,9 +377,10 @@ document.getElementById('toolHelpBtn').onclick=()=>{
 };
 document.getElementById('toolExports').addEventListener('click',e=>{
   const b=e.target.closest('[data-texport]');if(!b)return;
-  const meta=(window.TOOL_META||[]).find(t=>t.id===_route.arg);
+  const id=activeToolId();
+  const meta=(window.TOOL_META||[]).find(t=>t.id===id);
   const x=meta&&meta.exports&&meta.exports[+b.dataset.texport];if(!x)return;
-  const btn=_toolHostEl.querySelector('#'+x.btn);
+  const btn=activeToolHost().querySelector('#'+x.btn);
   if(btn)btn.click();else toast('导出按钮未就绪，请先运行计算');
 });
 /* ===================== 工具箱整理模式 =====================

@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 const cssFiles = ['frontend/css/app.css', 'frontend/css/lab.css', 'frontend/css/toolbox.css',
-  'frontend/css/adaptive.css', 'frontend/css/type.css', 'frontend/tools/tools.css'];
+  'frontend/css/tabs.css', 'frontend/css/adaptive.css', 'frontend/css/type.css', 'frontend/tools/tools.css'];
 const allCss = cssFiles.map(read).join('\n');
 const typeCss = read('frontend/css/type.css');
 const appCss = read('frontend/css/app.css');

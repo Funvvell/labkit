@@ -6,6 +6,10 @@ const GLOBAL_KEYS = [
   ['Alt + F', '固定 / 取消固定当前页面或工具'],
   ['Alt + ← / →', '后退 / 前进（路由历史）'],
   ['Ctrl/⌘ + E', '编辑首页布局（首页）'],
+  ['Ctrl/⌘ + W', '关闭当前工具标签'],
+  ['Ctrl/⌘ + Tab', '下一个 / 上一个工具标签'],
+  ['Ctrl/⌘ + 1…9', '跳到第 N 个工具标签'],
+  ['Ctrl/⌘ + Shift + T', '重新打开已关闭的工具标签'],
   ['?', '打开 / 关闭本帮助'],
   ['Esc', '关闭面板 / 帮助 / 菜单 / 退出布局编辑'],
 ];
@@ -46,12 +50,26 @@ function keysInit() {
   window.addEventListener('keydown', e => {
     const tag = (e.target.tagName || '').toLowerCase();
     const typing = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable;
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); paletteToggle(); return; }
-    if ((e.ctrlKey || e.metaKey) && e.key === ',') { e.preventDefault(); navigate('settings'); return; }
+    const mod = e.ctrlKey || e.metaKey;
+    const tabArea = typeof TAB_MODE !== 'undefined' && TAB_MODE && typeof isToolArea === 'function' && isToolArea(_route.name);
+    if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); paletteToggle(); return; }
+    if (mod && e.key === ',') {
+      e.preventDefault();
+      if (typeof TOOLBOX_WIN !== 'undefined' && TOOLBOX_WIN) { toast('设置在主窗口打开'); return; }
+      navigate('settings'); return;
+    }
+    /* P7 标签页快捷键：只在工具区生效，输入框内保留 Ctrl+W 的标签关闭语义（同 VS Code） */
+    if (tabArea && mod && !e.altKey) {
+      if (e.key === 'w' || e.key === 'W') { e.preventDefault(); tabsCloseActive(); return; }
+      if (e.key === 'Tab') { e.preventDefault(); if (typeof tabsCycle === 'function') tabsCycle(e.shiftKey ? -1 : 1); return; }
+      if (e.shiftKey && (e.key === 't' || e.key === 'T')) { e.preventDefault(); if (typeof tabsReopen === 'function') tabsReopen(); return; }
+      if (!e.shiftKey && /^[1-9]$/.test(e.key)) { e.preventDefault(); if (typeof tabsJump === 'function') tabsJump(+e.key); return; }
+    }
     if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); history.back(); return; }
     if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); history.forward(); return; }
     if (e.altKey && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); togglePinCurrent(); return; }
     if (e.key === 'Escape') {
+      if (typeof tabCtxClose === 'function') tabCtxClose();
       if (typeof pinCtxClose === 'function') pinCtxClose();
       if (paletteIsOpen()) { paletteClose(); return; }
       if (helpIsOpen()) { helpClose(); return; }

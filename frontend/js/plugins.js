@@ -18,6 +18,9 @@ function pluginMarketSlot() {
 }
 /* 已挂载的市场面板：hostEl → { kind, opts }。动作完成后按 kind 重绘已打开的入口。 */
 const PLUGIN_MOUNTS = new Map();
+/* 所有索引请求串行排队：启动深链、页面进入、单个市场刷新可能同时触发，
+   并发 TLS 握手在 Steam++ 等本地中间人下不稳定。 */
+let _pluginIndexChain = Promise.resolve();
 
 function pluginCfg() {
   const p = Store.settings().plugins;
@@ -209,7 +212,13 @@ function pluginIndexSave(kind, slot) {
 }
 /** 拉一个市场的索引。raw 条目整份落缓存（两份索引可能指向同一个 plugins.json），
     过滤留给 pluginFilterIndex，避免把 both 条目二次污染。 */
-async function pluginFetchIndex(kind, refresh) {
+function pluginFetchIndex(kind, refresh) {
+  const next = () => pluginFetchIndexNow(kind, refresh);
+  const task = _pluginIndexChain.then(next, next);
+  _pluginIndexChain = task.then(() => undefined, () => undefined);
+  return task;
+}
+async function pluginFetchIndexNow(kind, refresh) {
   const k = pluginNormalizeKind(kind);
   if (k !== 'tool' && k !== 'widget') return null;
   const m = PluginMarkets[k];
@@ -258,7 +267,11 @@ async function pluginFetchIndex(kind, refresh) {
   return m.items;
 }
 async function pluginFetchAll(refresh) {
-  await Promise.all(['tool', 'widget'].map(k => pluginFetchIndex(k, refresh)));
+  /* 串行拉取：Steam++ 等本地 TLS 中间人只需同时处理一条握手，避免两条并发
+     请求偶发一条失败；单个市场失败已在 pluginFetchIndex 内隔离。 */
+  for (const k of ['tool', 'widget']) {
+    await pluginFetchIndex(k, refresh);
+  }
 }
 
 /* ---------------- 安装 / 管理动作 ---------------- */

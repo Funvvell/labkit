@@ -64,20 +64,17 @@ const Store = {
         moved = true;
       }
     } catch (e) { /* 迁移失败保留旧 favs，不删键 */ }
-    /* 工具打开方式反转：旧 toolNewWindow=false（显式页内）→ 新 toolOpenInPage=true；
-       旧 true / 未设置无需迁移（新默认即新窗口）。旧键置 null 墓碑，随合并写清盘。 */
+    /* P7 工具打开方式：所有工具统一进「工具箱」窗口的标签页，旧开关下线。
+       toolOpenInPage / toolNewWindow 置 null 墓碑（null 是多窗口合并写的删除标记），
+       不保留任何「默认页内 / 默认新窗」分支。 */
     try {
       const s = this.settings();
-      if (Object.prototype.hasOwnProperty.call(s, 'toolNewWindow')) {
-        if (s.toolNewWindow === false) {
-          const next = Object.assign({}, s, { toolOpenInPage: true, toolNewWindow: null });
-          this.set('settings', next); moved = true;
-        } else {
-          const next = Object.assign({}, s); delete next.toolNewWindow;
-          this.set('settings', next); moved = true;
-        }
+      if (Object.prototype.hasOwnProperty.call(s, 'toolNewWindow')
+        || Object.prototype.hasOwnProperty.call(s, 'toolOpenInPage')) {
+        this.set('settings', Object.assign({}, s, { toolNewWindow: null, toolOpenInPage: null }));
+        moved = true;
       }
-    } catch (e) { /* 迁移失败保留旧键，不影响新默认 */ }
+    } catch (e) { /* 迁移失败保留旧键，不影响标签页默认 */ }
     if (moved) saveDB();
     return moved;
   },

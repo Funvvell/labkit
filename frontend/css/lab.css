@@ -1,32 +1,8 @@
 /* LabKit · lab.css — 2026 工作台重设计的新组件层。
-   只放新增结构（工作台 tabs、首页指挥台、工具库筛选、面包屑）；
+   只放新增结构（首页指挥台、工具库筛选、面包屑）；
    既有组件的修改留在 app.css / tools.css，避免级联层层覆盖。 */
 
-/* ============ 工作台二级导航 ============ */
-.workbench-tabs{
-  height:40px;flex:0 0 40px;display:flex;align-items:center;gap:12px;
-  padding:0 var(--pad-x);background:color-mix(in srgb,var(--card) 76%,transparent);
-  border-bottom:1px solid var(--hairline);position:relative;z-index:24;
-}
-.wb-tabs-label{font-size:var(--text-2xs);font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);flex:0 0 auto}
-.wb-tabs-track{display:flex;align-items:center;gap:2px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
-.wb-tabs-track::-webkit-scrollbar{display:none}
-.wb-tab{
-  height:26px;padding:0 10px;border-radius:6px;font-size:var(--text-sm);color:var(--muted);
-  white-space:nowrap;transition:background .12s,color .12s;
-}
-.wb-tab:hover{background:var(--hover);color:var(--ink-2)}
-.wb-tab.active{
-  background:var(--card);color:var(--ink);font-weight:650;
-  box-shadow:0 1px 2px rgba(0,0,0,.06),inset 0 0 0 1px var(--hairline);
-}
-.wb-command{
-  height:26px;display:flex;align-items:center;gap:6px;padding:0 8px;border-radius:6px;
-  color:var(--muted);flex:0 0 auto;
-}
-.wb-command:hover{background:var(--hover);color:var(--ink-2)}
-.wb-command svg{width:14px;height:14px}
-.wb-command kbd{font-size:9px}
+/* ============ 工作台二级导航已移除：入口统一到侧栏 + 工作台菜单 ============ */
 
 /* ============ 首页 · 今日科研指挥台 ============ */
 .home-deck{
@@ -195,7 +171,6 @@ body:is([data-view="tasks"],[data-view="focus"],[data-view="projects"],[data-vie
   .home-deck{grid-template-columns:minmax(250px,.8fr) minmax(0,1.4fr)}
   .deck-lead{padding:15px 16px}
   .deck-panel{padding:12px 11px}
-  .wb-tabs-label{display:none}
 }
 @media (max-width:980px){
   .home-deck{grid-template-columns:1fr}
@@ -205,8 +180,6 @@ body:is([data-view="tasks"],[data-view="focus"],[data-view="projects"],[data-vie
 @media (max-width:860px){
   .tool-page-head{flex-wrap:wrap;height:auto;flex-basis:auto;padding-top:8px;padding-bottom:8px}
   .tool-head-actions{margin-left:40px}
-  .wb-command{display:none}
-  .wb-tab{padding:0 8px}
 }
 
 /* ============ 深色模式的指挥台与筛选条 ============ */
@@ -217,5 +190,3 @@ body:is([data-view="tasks"],[data-view="focus"],[data-view="projects"],[data-vie
     linear-gradient(145deg,color-mix(in srgb,var(--accent) 7%,var(--card)) 0%,var(--card) 72%);
 }
 :root[data-theme="dark"] .toolhub-bar{background:var(--bg)}
-:root[data-theme="dark"] .wb-tab.active{box-shadow:0 1px 2px rgba(0,0,0,.38),inset 0 0 0 1px var(--hairline)}
-:root[data-theme="dark"] .wb-command kbd{border-color:var(--line)}

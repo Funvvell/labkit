@@ -230,12 +230,22 @@ if(setNameEl){
   setNameEl.value=Store.settings().name||'';
   setNameEl.onchange=()=>{Store.setSetting('name',setNameEl.value.trim());if(typeof setGreet==='function')setGreet();toast('称呼已更新');};
 }
-/* 工具默认新窗口；勾选本项则改为页内打开（仅桌面版；浏览器模式恒页内） */
-const setToolOpenInPageEl=document.getElementById('setToolOpenInPage');
-if(setToolOpenInPageEl){
-  setToolOpenInPageEl.checked=!!Store.settings().toolOpenInPage;
-  setToolOpenInPageEl.disabled=!IN_TAURI;
-  setToolOpenInPageEl.title=IN_TAURI?'默认所有工具在新窗口打开；开启后改为页内打开。工具卡 ↗ / Ctrl+点击 / 中键仍可随时开新窗口':'浏览器演示模式无多窗口，恒为页内打开';
-  setToolOpenInPageEl.onchange=()=>{Store.setSetting('toolOpenInPage',setToolOpenInPageEl.checked);toast(setToolOpenInPageEl.checked?'工具将默认在页内打开':'工具将默认在新窗口打开');};
+/* P7：工具统一进工具箱标签页；这里只保留「启动恢复」与「打开工具箱」入口 */
+const setRestoreTabsEl=document.getElementById('setRestoreTabs');
+if(setRestoreTabsEl){
+  setRestoreTabsEl.checked=Store.settings().restoreTabs!==false;
+  setRestoreTabsEl.onchange=()=>{
+    Store.setSetting('restoreTabs',!!setRestoreTabsEl.checked);
+    toast(setRestoreTabsEl.checked?'下次启动会恢复工具标签页':'下次启动不恢复工具标签页，点工具时重新开窗');
+  };
+}
+const btnOpenToolbox=document.getElementById('btnOpenToolbox');
+if(btnOpenToolbox){
+  btnOpenToolbox.disabled=!IN_TAURI;
+  btnOpenToolbox.title=IN_TAURI?'打开/聚焦工具窗口':'浏览器演示模式无独立工具窗口，工具直接在页内以标签打开';
+  btnOpenToolbox.onclick=()=>{
+    if(!IN_TAURI){toast('浏览器演示模式已在页内以标签打开工具');return}
+    if(typeof openToolboxWindow==='function')openToolboxWindow(null);
+  };
 }
 applyTheme();

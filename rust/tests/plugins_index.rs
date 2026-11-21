@@ -16,6 +16,14 @@ fn entry(id: &str, kind: &str) -> p::IndexEntry {
 }
 
 #[test]
+fn net_hint_explains_proxy_certificate_and_dns() {
+    assert!(p::net_hint_text("invalid peer certificate: UnknownIssuer").contains("TLS"));
+    assert!(p::net_hint_text("error trying to connect: dns error").contains("DNS"));
+    assert!(p::net_hint_text("operation timed out").contains("超时"));
+    assert!(p::net_hint_text("error sending request for url (...)").contains("网络"));
+}
+
+#[test]
 fn index_file_maps_kind_to_filename() {
     assert_eq!(p::index_file("tool").unwrap(), "tools.json");
     assert_eq!(p::index_file("widget").unwrap(), "widgets.json");

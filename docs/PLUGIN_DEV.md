@@ -148,6 +148,7 @@ LabKit.registerWidget({
 - `<目录>/tools.json` 返回 **404** 才回退到 `<目录>/plugins.json`（存量合并索引）；
   网络错误、限流、JSON 解析失败直接报错，不静默降级成空市场。
 - 回退命中时市场面板会显示「索引来自存量合并文件」。
+- 客户端会读取 Windows 系统代理，并使用 Windows 证书库校验 HTTPS。Steam++ / 代理若用自签根证书解密 `raw.githubusercontent.com`，必须把该根证书加入 Windows「受信任的根证书颁发机构」，否则会报 TLS `UnknownIssuer`；这与索引 404 不是同一类错误。
 
 类型推断顺序：`manifest.kind` > 安装市场 > 索引条目 `kind` > `tool`。
 包内没有声明单一类型时记为 `legacy`，扩展管理页显示「旧式合并包」。

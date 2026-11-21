@@ -42,7 +42,6 @@ function navKeyFor(name) { return name === 'tool' ? 'toolhub' : name; }
 function shellSyncNav(name) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelector(`.nav-item[data-nav="${navKeyFor(name)}"]`)?.classList.add('active');
-  document.querySelectorAll('.wb-tab').forEach(b => b.classList.toggle('active', b.dataset.nav === name));
   const kind = name === 'tool' ? 'tool' : 'page', id = name === 'tool' ? _route.arg : name;
   document.querySelector(`.pin-item[data-pin-kind="${kind}"][data-pin-id="${id}"]`)?.classList.add('active');
   if (NAV_HOME_MAP.includes(name) && !Store.isPinned('page', name))
@@ -215,7 +214,14 @@ function shellInit() {
       return;
     }
     const nav = e.target.closest('[data-nav]');
-    if (nav) { navigate(nav.dataset.nav); return; }
+    if (nav) {
+      /* 桌面主窗：工具库入口直接唤起工具箱窗口（工具都在那里以标签打开） */
+      if (nav.dataset.nav === 'toolhub' && typeof MAIN_DESKTOP !== 'undefined' && MAIN_DESKTOP) {
+        if (typeof openToolboxWindow === 'function') openToolboxWindow(null);
+        return;
+      }
+      navigate(nav.dataset.nav); return;
+    }
     const tw = e.target.closest('[data-tool-window]');
     if (tw) { e.preventDefault(); openToolWindow(tw.dataset.toolWindow); return; }
     const tl = e.target.closest('[data-tool-link]');
@@ -244,5 +250,4 @@ function shellInit() {
   });
   document.getElementById('sideSearch').onclick = paletteOpen;
   const bs = document.getElementById('btnSearch'); if (bs) bs.onclick = paletteOpen;   // 标题栏搜索（P0 重写时曾遗漏，P1 恢复）
-  const wc = document.getElementById('wbCommand'); if (wc) wc.onclick = paletteOpen;
 }

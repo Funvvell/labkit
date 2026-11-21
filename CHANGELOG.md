@@ -5,6 +5,27 @@
 
 ## [Unreleased]
 
+### 工作台导航
+- **变更** 移除工作台顶部重复的 8 个二级 tabs（今日 / 任务 / 项目 / 实验 / 文献 / 试剂 / 报表 / 专注）；工作台子页统一由侧栏、「工作台 ▾」菜单、固定区和 Ctrl+K 进入，顶部 40px 还给内容区
+- **变更** `router.js` 不再控制 `#workbenchTabs` 显隐，`shell.js` 不再同步 `.wb-tab.active`；侧栏高亮、工作台菜单、深链与固定区行为不变
+
+### 插件索引
+- **修复** `reqwest` 显式启用 `system-proxy`，并改用 `rustls-tls-native-roots` 信任 Windows 证书库；解决 Steam++ 等本地加速器用自签根证书解密 `raw.githubusercontent.com` 时，插件索引报 TLS `UnknownIssuer` 的问题
+- **改进** 插件索引网络错误改为可执行提示：区分 TLS 证书、DNS、超时、连接失败，并附请求 URL；HTTP 403 补充代理/网络拦截提示
+- **改进** 启动时工具/卡片两个市场改为串行拉取，避免 Steam++ 等本地 TLS 中间人在并发握手时偶发一条失败；单个市场失败仍独立显示
+
+### 工具窗口多标签页
+- **新增** **首个工具建窗、后续同窗开标签**：桌面版点开第一个工具才新建 `tools` 窗口，窗口先只含该工具；之后在主窗点其他工具都进入同一窗口作为新标签，不再弹第二个窗口；同一工具单例，重复打开仅聚焦且保留输入、滚动与渲染状态（参照 VS Code / Obsidian / JupyterLab Lumino）
+- **新增** 标签栏：拖拽排序、中键 / ✕ 关闭、`Ctrl+Tab`、`Ctrl+1…9`、`Ctrl+W`、`Ctrl+Shift+T`、右键「关闭其他 / 关闭右侧 / 全部关闭」、滚轮横向滚动与溢出菜单
+- **变更** 工具库改为**工具箱基底页、不占标签**；只有打开工具/工作区后才出现标签栏；关闭最后一个工具或「关闭全部」都回到工具库，工具窗口不关
+- **新增** 标签结构随台账持久化（`Store('tooltabs')`），重启按 `restoreTabs` 设置恢复；历史存档中的 `lib:toolhub` 自动丢弃
+- **变更** 主窗点工具改为唤起 / 聚焦工具窗口；工具卡「↗」/ Ctrl/⌘+点击 / 中键仍分离为 `tool-<id>` 单工具窗
+- **变更** 浏览器演示模式无多窗口，工具在同页以标签页切换；关掉最后一个工具回到工具库基底页
+- **变更** 下线设置 `toolOpenInPage` / `toolNewWindow`，迁移时置 null 墓碑；旧 `tool-*` 窗口能力保留
+- **新增** 文件 `frontend/js/tabs.js`（状态纯函数 + 标签栏 DOM + pane 栈 + 跨窗口聚焦协议）与 `frontend/css/tabs.css`（独立样式层）
+- **新增** 能力声明：`rust/capabilities/default.json` 放行 `tools` 窗口与 `core:event:allow-emit / allow-listen / allow-unlisten`、`core:window:allow-unminimize`
+- **新增** 测试：`tool-tabs`（10 例，标签模型、末尾回工具库）、`tool-window`（8 例，首建复用与迁移）、`ui-contract` 标签语义与样式预算断言
+
 ### 安全（依赖公告修复）
 - **修复** Dependabot 7 项依赖公告：`calamine` 0.36 → 0.38（`zip` 8.6.0 → 9.8.1，修复 5 项 zip 公告，含 1 项 critical）、
   `lru` 0.12.5 → 0.19.1；`openreadout-qpcr`（上游最新版仍锁 calamine 0.36）以 `rust/vendor/` 补丁副本升到 calamine 0.38，

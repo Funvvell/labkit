@@ -6,6 +6,12 @@ const IN_TAURI = !!(window.__TAURI_INTERNALS__ || window.__TAURI__);
    label !== 'main' 即窗口模式：精简初始化、隐藏返回键、标题栏显示工具名。 */
 const WIN_LABEL = IN_TAURI ? (window.__TAURI__.window.getCurrentWindow().label) : 'main';
 const WINDOW_MODE = IN_TAURI && WIN_LABEL !== 'main';
+/* P7 工具箱标签页：独立 tools 窗口承载全部工具/工作区标签；
+   主窗只负责唤起它；浏览器演示在主窗内用同一套标签引擎。 */
+const TOOLBOX_WIN = IN_TAURI && WIN_LABEL === 'tools';
+const DETACHED_WIN = IN_TAURI && /^tool-/.test(WIN_LABEL);
+const MAIN_DESKTOP = IN_TAURI && WIN_LABEL === 'main';
+const TAB_MODE = !IN_TAURI || TOOLBOX_WIN;
 function lkWin() { return window.__TAURI__ && window.__TAURI__.window; }
 async function invoke(cmd, args = {}) {
   if (IN_TAURI) {

@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="vendor/gridstack.min.css">
 <link rel="stylesheet" href="css/lab.css">
 <link rel="stylesheet" href="css/toolbox.css">
+<link rel="stylesheet" href="css/tabs.css">
 <!-- 自适应收口层：必须最后加载，且 app/lab/toolbox 有字节预算，响应式规则集中在这里 -->
 <link rel="stylesheet" href="css/adaptive.css">
 <link rel="stylesheet" href="css/type.css">
@@ -57,20 +58,13 @@
 
     <!-- ============ Content ============ -->
     <main class="content">
-      <nav class="workbench-tabs" id="workbenchTabs" aria-label="工作台导航">
-        <span class="wb-tabs-label">工作台</span>
-        <div class="wb-tabs-track">
-          <button class="wb-tab active" data-nav="home">今日</button>
-          <button class="wb-tab" data-nav="tasks">任务</button>
-          <button class="wb-tab" data-nav="projects">项目</button>
-          <button class="wb-tab" data-nav="experiments">实验</button>
-          <button class="wb-tab" data-nav="literature">文献</button>
-          <button class="wb-tab" data-nav="labres">试剂</button>
-          <button class="wb-tab" data-nav="reports">报表</button>
-          <button class="wb-tab" data-nav="focus">专注</button>
+      <!-- 工具标签栏：工具库是基底页、不占标签；打开工具/工作区后才出现标签 -->
+      <div class="tool-tabs" id="toolTabs" hidden>
+        <div class="tool-tabs-track" id="toolTabsTrack" role="tablist" aria-label="工具标签页"></div>
+        <div class="tool-tabs-actions">
+          <button type="button" class="tt-more" id="toolTabsMenu" title="标签页操作" aria-label="标签页操作">⋯</button>
         </div>
-        <button class="wb-command" id="wbCommand" title="打开命令面板 (Ctrl+K)"><svg viewBox="0 0 24 24" fill="none"><circle cx="10.8" cy="10.8" r="6.2" stroke="currentColor" stroke-width="1.9"/><path d="M15.4 15.4L20 20" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg><kbd>Ctrl K</kbd></button>
-      </nav>
+      </div>
       <!-- VIEW: Home Dashboard -->
       <section class="view active" id="view-home">
         <div class="content-head">
@@ -275,7 +269,10 @@
                 <div class="trow settings-trow">
                   <label class="tfield">问候称呼<input type="text" id="setName" placeholder="研究者"></label>
                   <label class="tfield">主题<div class="seg" id="themeSeg"><button data-theme="light">浅色</button><button data-theme="dark">深色</button><button data-theme="system">跟随系统</button></div></label>
-                  <label class="settings-toggle"><input type="checkbox" id="setToolOpenInPage"><span>默认在页内打开工具</span></label>
+                  <label class="settings-toggle"><input type="checkbox" id="setRestoreTabs"><span>启动时恢复上次的工具标签页</span></label>
+                </div>
+                <div class="btn-row" style="margin-top:10px;flex-wrap:wrap">
+                  <button class="btn sec" id="btnOpenToolbox" type="button">打开工具窗口</button>
                 </div>
                 <div class="sub">称呼用于首页问候与新建记录的默认负责人；图表与裁图画布保持纸面白色，符合期刊投稿要求。</div>
                 <div class="divider"></div>
@@ -578,7 +575,9 @@
           <button class="tbtn sec" id="toolHelpBtn">帮助与来源</button>
         </div>
         <div class="tool-help" id="toolHelp" hidden><div class="th-in" id="toolHelpBody"></div></div>
-        <div class="scroll"><div class="tool-wrap"><div class="tech-source" id="toolSource" hidden></div><div id="toolHost"></div></div></div>
+        <div class="tech-source" id="toolSource" hidden></div>
+        <!-- 标签 pane 栈：每个工具一个独立滚动区，切走保留 DOM 与状态 -->
+        <div id="toolHost" class="tab-panes"></div>
       </section>
     </main>
   </div>
@@ -646,6 +645,7 @@
 <script src="js/stats.js"></script>
 <script src="js/router.js"></script>
 <script src="js/toolhub.js"></script>
+<script src="js/tabs.js"></script>
 <script src="js/shell.js"></script>
 <script src="js/palette.js"></script>
 <script src="js/keys.js"></script>

@@ -85,6 +85,4 @@ function deckBind(){
       openSlidePath(s.path);
     }
   });
-  const wc=document.getElementById('wbCommand');
-  if(wc)wc.onclick=paletteOpen;
 }

@@ -469,6 +469,40 @@ fn http(secs: u64) -> Result<reqwest::Client, String> {
         .map_err(|e| format!("HTTP 客户端初始化失败：{e}"))
 }
 
+/// 把底层网络错误翻译成用户能执行的中文提示（纯文本，便于单测）。
+/// Steam++ / 代理会用自己的根证书解密 HTTPS；reqwest 若只带内置 webpki 根证书，
+/// 会报 `UnknownIssuer`，与“索引文件不存在”完全不是一回事。
+pub fn net_hint_text(raw: &str) -> &'static str {
+    let low = raw.to_ascii_lowercase();
+    if low.contains("certificate")
+        || low.contains("unknownissuer")
+        || low.contains("unknown issuer")
+        || low.contains("invalid peer certificate")
+        || low.contains("tls")
+        || low.contains("handshake")
+    {
+        "TLS 证书校验失败：当前网络可能由 Steam++ / 代理解密；请把其根证书加入 Windows 证书库，或临时关闭该加速器后重试"
+    } else if low.contains("dns") || low.contains("resolve") || low.contains("name or service") {
+        "DNS 解析失败：请检查网络、hosts 或代理的 DNS 设置"
+    } else if low.contains("timed out") || low.contains("timeout") {
+        "请求超时：请检查系统代理、防火墙，或稍后重试"
+    } else if low.contains("connect") || low.contains("connection") {
+        "无法连接：请检查系统代理、防火墙或 GitHub 的网络可达性"
+    } else {
+        "网络请求失败：请检查系统代理与网络连接"
+    }
+}
+
+/// 统一网络错误：保留原始错误便于排查，但前面给出可执行的原因。
+fn net_error(url: &str, e: &reqwest::Error) -> String {
+    let raw = e.to_string();
+    format!("请求失败：{}（原始错误：{}；URL：{}）", net_hint_text(&raw), raw, url)
+}
+
+fn json_error(url: &str, e: &reqwest::Error) -> String {
+    format!("响应解析失败：{e}（URL：{url}；可能是代理返回了非 JSON 拦截页）")
+}
+
 fn cache() -> &'static Mutex<HashMap<String, (Instant, serde_json::Value)>> {
     static C: OnceLock<Mutex<HashMap<String, (Instant, serde_json::Value)>>> = OnceLock::new();
     C.get_or_init(|| Mutex::new(HashMap::new()))
@@ -496,14 +530,14 @@ async fn get_json(url: &str, token: Option<&str>, secs: u64) -> Result<serde_jso
             req = req.header("Authorization", format!("Bearer {t}"));
         }
     }
-    let r = req.send().await.map_err(|e| format!("请求失败：{e}"))?;
+    let r = req.send().await.map_err(|e| net_error(url, &e))?;
     let status = r.status();
     if !status.is_success() {
-        return Err(format!("HTTP {status}（GitHub 未鉴权限流 60 次/时，可在设置页填 PAT）"));
+        return Err(format!("HTTP {status}（GitHub 未鉴权限流 60 次/时，可在设置页填 PAT；若为 403，也可能是代理/网络拦截）"));
     }
     r.json::<serde_json::Value>()
         .await
-        .map_err(|e| format!("响应解析失败：{e}"))
+        .map_err(|e| json_error(url, &e))
 }
 
 /// 拉一个索引文件；404 返回 Ok(None) 供上层回退，其余错误（网络/限流/解析）直接冒泡——
@@ -519,18 +553,18 @@ async fn load_index(url: &str, refresh: bool) -> Result<Option<serde_json::Value
         .get(url)
         .send()
         .await
-        .map_err(|e| format!("请求失败：{e}"))?;
+        .map_err(|e| net_error(url, &e))?;
     let status = r.status();
     if status == reqwest::StatusCode::NOT_FOUND {
         return Ok(None);
     }
     if !status.is_success() {
-        return Err(format!("HTTP {status}（GitHub 未鉴权限流 60 次/时，可在设置页填 PAT）"));
+        return Err(format!("HTTP {status}（GitHub 未鉴权限流 60 次/时，可在设置页填 PAT；若为 403，也可能是代理/网络拦截）"));
     }
     let v = r
         .json::<serde_json::Value>()
         .await
-        .map_err(|e| format!("响应解析失败：{e}"))?;
+        .map_err(|e| json_error(url, &e))?;
     remember(url, &v);
     Ok(Some(v))
 }

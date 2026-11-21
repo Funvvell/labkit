@@ -49,6 +49,29 @@ document.querySelectorAll('#refSeg button').forEach(b=>b.onclick=()=>{
 /* 配置变更自动重算（防抖 500ms） */
 let qTimer=0;
 function scheduleQ(){clearTimeout(qTimer);qTimer=setTimeout(()=>{if(qState.wells.length)runQpcr(true);},500);}
+/* P7：会话恢复改为「首次激活 qPCR 标签时执行一次」（工具箱窗口不提前在隐藏视图里
+   渲染 0 尺寸图表；专用 tool-qpcr 窗口仍在 boot 直接调用）。幂等，重复调用无副作用。 */
+let _qpcrSessionRestored=false;
+function qpcrRestoreSession(){
+  if(_qpcrSessionRestored)return;
+  _qpcrSessionRestored=true;
+  try{
+    invoke('qpcr_load_session').then(run=>{
+      if(!run||!run.wells||!run.wells.length)return;
+      afterWells(run.wells);
+      const d=run.design||{};
+      if(d.reference_targets&&d.reference_targets.length)qState.refSet=new Set(d.reference_targets);
+      if(d.calibrator_sample)qState.calibrator=d.calibrator_sample;
+      if(d.ref_strategy)qState.refStrategy=d.ref_strategy;
+      if(d.efficiency)qState.eff={...d.efficiency};
+      const gi=document.getElementById('groupInput');
+      if(gi)gi.value=Object.entries(d.sample_groups||{}).map(([k,v])=>k+'='+v).join('\n');
+      document.querySelectorAll('#refSeg button').forEach(b=>b.classList.toggle('active',b.dataset.ref===qState.refStrategy));
+      renderQConfig();
+      scheduleQ();
+    }).catch(()=>{});
+  }catch(e){}
+}
 document.getElementById('calibratorSel').onchange=e=>{qState.calibrator=e.target.value;scheduleQ();};
 ['cvTh','sdTh'].forEach(id=>document.getElementById(id).addEventListener('input',scheduleQ));
 document.getElementById('groupInput').addEventListener('input',scheduleQ);

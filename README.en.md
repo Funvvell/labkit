@@ -53,7 +53,8 @@ Every tool shares one chrome: **load example / reset / help & provenance drawer 
 - **Ctrl+K command palette** over tools, pages and global actions, with pinyin-initial fuzzy matching
 - **Lean sidebar + custom pins**: home / tool library / settings stay resident; tasks, projects, experiments, literature, lab resources, reports and focus live behind a single **Workbench ▾** entry on the dashboard. Pin any frequent entry to the sidebar (header ☆ / menu ☆ / tool star / Alt+F), drag to reorder, right-click to rename (same pattern as Obsidian Bookmarks / Trigger.dev Favorites)
 - **Never stranded**: even with every home card removed, the Workbench ▾ menu, Ctrl+K and hash deep links still reach every page
-- **Independent tool windows**: on desktop every tool (including crop / qPCR) **opens in its own window by default**; reopening the same tool focuses its window; size & position are remembered (official window-state plugin). Enable "Open tools in page" in Settings to switch back; the card ↗ / Ctrl/⌘+click / middle-click always opens a new window. Closing the main window exits the app: a `flush-now` broadcast collects save acknowledgements from every window first; on failure/timeout a dialog lets you force-quit or cancel. The notebook syncs across windows with **merge writes + event broadcast** — disjoint keys never clobber each other (same-key concurrent edits: last write wins)
+- **Tool window tabs**: on desktop the **tool window** is created by the first tool you open and initially contains only that tool; opening other tools from the main window afterwards adds **new tabs to the same window** (Tauri label `tools`), following the VS Code / Obsidian / JupyterLab Lumino tab model: one tab per tool, reopening focuses the existing tab and keeps its inputs and scroll position; **the library is the window's base page, not a tab** — the tab bar appears only after a tool/workspace is opened, and closing the last tool or using "Close all" returns to the library without closing the window; tabs can be drag-reordered, closed with middle-click or ✕, bulk-closed from the context menu, cycled with `Ctrl+Tab`, jumped to with `Ctrl+1…9`. The tab set is saved with the notebook and restored on restart; legacy `lib:toolhub` entries are discarded. The card ↗ / Ctrl/⌘+click / middle-click still detaches a single tool into its own window (label `tool-<id>`). Closing the main window exits the app: a `flush-now` broadcast collects save acknowledgements from every window first; on failure/timeout a dialog lets you force-quit or cancel. The notebook syncs across windows with **merge writes + event broadcast** — disjoint keys never clobber each other (same-key concurrent edits: last write wins)
+- **Browser demo** has no multi-window: tools switch as tabs inside the same page; the library stays the base page and closing the last tool returns to it without ending the session
 - **Hash deep links** (`#/tool/tests`), refresh-restore, back/forward
 - Pins & recents, global shortcut registry with `?` help overlay
 - **Dark mode** (light / dark / system); charts and crop canvas stay paper-white for journal submission
@@ -105,6 +106,10 @@ The frontend is **zero-build**: plain HTML/CSS/JS (classic scripts, ordered load
 | `Ctrl+K` | command palette (tools / pages / actions) |
 | `Ctrl+,` | settings |
 | `Alt+←` / `Alt+→` | back / forward |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | tool window: next / previous tab |
+| `Ctrl+1…9` | tool window: jump to tab N |
+| `Ctrl+W` | tool window: close the current tool tab; closing the last tool returns to the library without closing the window |
+| `Ctrl+Shift+T` | reopen the most recently closed tool tab |
 | `?` | shortcut help overlay |
 | `Esc` | close panels / drawers |
 
@@ -119,7 +124,7 @@ The frontend is **zero-build**: plain HTML/CSS/JS (classic scripts, ordered load
 
 ```
 frontend/            zero-build UI (index.html shell + css/ + js/ modules + tools/ + vendor/)
-rust/                Tauri 2 + Rust: SDPC FFI decode, TIFF export, qPCR parsing, disk notebook, 219 tests
+rust/                Tauri 2 + Rust: SDPC FFI decode, TIFF export, qPCR parsing, disk notebook, 220 tests
 tests/js/            node:test parity tests (vs OpenEpi/scipy/tableone) + shell unit tests
 rust/tests/          IPC naming-contract tests
 ```

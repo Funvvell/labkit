@@ -3,7 +3,11 @@
 // 交互参照 IT-Tools / Rubick：↑↓ 选择、Enter 打开、Esc 关闭、点击遮罩关闭。
 let _palOpen = false, _palItems = [], _palSel = 0;
 /* 页面索引来自 PAGE_META（shell.js）——侧栏固定项 / 工作台菜单 / 命令面板单一来源 */
-function palViews() { return Object.entries(PAGE_META).map(([id, m]) => [id, m.name, m.desc, m.py]); }
+function palViews() {
+  /* 工具箱窗口是单一用途标签宿主：页面导航会跳到一个没有首页的视图，直接不索引页面。 */
+  if (typeof TOOLBOX_WIN !== 'undefined' && TOOLBOX_WIN) return [];
+  return Object.entries(PAGE_META).map(([id, m]) => [id, m.name, m.desc, m.py]);
+}
 function paletteIndex() {
   const items = [];
   /* 隐藏的工具仍然进索引（VS Code 的「View: Open View」同款：藏起来不等于失联），
@@ -28,7 +32,12 @@ function paletteIndex() {
     ['new-task', '新建任务', '动作 · 任务中心', 'xjrw xinjian renwu', () => { navigate('tasks'); setTimeout(() => entityModal('task'), 80); }],
     ['new-exp', '新建实验', '动作 · 实验台账', 'xjsy xinjian shiyan', () => { navigate('experiments'); setTimeout(() => entityModal('exp'), 80); }],
     ['pin-current', '固定 / 取消固定当前页面', '动作 · 侧栏固定区 · Alt+F', 'gd guding dingzhu altf', () => togglePinCurrent()],
-    ['tool-new-window', '在新窗口打开当前工具', '动作 · 独立工具窗口', 'xcxck dakai dangqian gongju', () => { if (_route.name === 'tool' && _route.arg) openToolWindow(_route.arg); else toast('当前不在工具页；也可在工具卡上 Ctrl/⌘+点击'); }],
+    ['tool-new-window', '在新窗口打开当前工具', '动作 · 分离为单工具窗口', 'xcxck dakai dangqian gongju', () => { const id = (typeof activeToolId === 'function' ? activeToolId() : null); if (id) openToolWindow(id); else toast('当前不在工具页；也可在工具卡上 Ctrl/⌘+点击'); }],
+    ...(typeof TAB_MODE !== 'undefined' && TAB_MODE ? [
+      ['tab-next', '切换到下一个工具标签', '动作 · 工具标签 · Ctrl+Tab', 'qiehuan xiayige biaoqian', () => { if (typeof tabsCycle === 'function') tabsCycle(1); }],
+      ['tab-close', '关闭当前工具标签', '动作 · 工具标签 · Ctrl+W', 'guanbi dangqian biaoqian', () => { if (typeof tabsCloseActive === 'function') tabsCloseActive(); }],
+      ['tab-reopen', '重新打开已关闭的标签', '动作 · 工具标签 · Ctrl+Shift+T', 'chongxin dakai biaoqian', () => { if (typeof tabsReopen === 'function') tabsReopen(); }],
+    ] : []),
     ['focus-start', '开始专注', '动作 · 首页计时卡片', 'kszz kaishi zhuanzhu', () => { navigate('home'); setTimeout(() => { const c = document.querySelector('#dashGrid [data-w="focus"]'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); else toast('专注计时卡片已被移除，可在「+ 添加卡片」中加回'); }, 80); }],
     ['dash-edit', '编辑首页布局', '动作 · Ctrl+E', 'bjbj bianji buju', () => { navigate('home'); setTimeout(() => document.getElementById('btnDashEdit')?.click(), 80); }],
     ['toolbox-edit', '自定义工具分组', '动作 · 工具库「整理分组」· 新建 / 重命名 / 排序 / 隐藏', 'zdy gz fl fenzu fenlei zidingyi zhengli toolbox group', () => { navigate('toolhub'); setTimeout(() => { document.querySelector('#toolhubTabs [data-thtab="tools"]')?.click(); document.getElementById('btnToolboxEdit')?.click(); }, 80); }],

@@ -2,8 +2,10 @@
 // 深链（#/tool/epi2x2）、前进/后退、刷新恢复；openView 保留为兼容入口。
 /* ===================== 页面路由 ===================== */
 const VIEW_MAP = { home: 'view-home', tasks: 'view-tasks', focus: 'view-focus', projects: 'view-projects', experiments: 'view-experiments', literature: 'view-literature', labres: 'view-labres', reports: 'view-reports', settings: 'view-settings', crop: 'view-crop', qpcr: 'view-qpcr', toolhub: 'view-toolhub', plugins: 'view-plugins', tool: 'view-tool' };
+const TOOL_AREA_VIEWS = ['tool', 'toolhub', 'crop', 'qpcr'];
 let _route = { name: 'home', arg: null };
 let _navDepth = 0;       // 本会话 push 过的次数：决定返回键能否 history.back()
+function isToolArea(name) { return TOOL_AREA_VIEWS.includes(name); }
 
 function parseHash(h) {
   const s = (h || '').replace(/^#\/?/, '');
@@ -24,18 +26,28 @@ function applyView(name) {
   if (typeof WINDOW_MODE === 'undefined' || !WINDOW_MODE) {
     if (name !== 'tool') document.title = '科研工具箱 LabKit';
   }
-  const wbPages = ['home', 'tasks', 'focus', 'projects', 'experiments', 'literature', 'labres', 'reports'];
-  const tabs = document.getElementById('workbenchTabs');
-  if (tabs) tabs.hidden = !wbPages.includes(name);
+  if (typeof tabsBarSync === 'function') tabsBarSync(name);
   if (typeof shellSyncNav === 'function') shellSyncNav(name);
 }
 /* 视图切换同步生效；淡入由 CSS .view.active 动画承担（reduced-motion 全局已关动画）。
    不用 View Transitions API：其更新回调异步等渲染帧，低帧率/无头环境下视图会卡在半路，
    且并发 skipTransition 会取消 DOM 更新回调（P1 实测踩坑）。 */
 function renderRoute(r) {
+  /* 桌面主窗不承载工具页：工具区深链 / 工具库入口 → 唤起工具箱窗口，主窗回首页。
+     工具箱窗口反向收口：非工具区路由回落工具库。 */
+  if (typeof MAIN_DESKTOP !== 'undefined' && MAIN_DESKTOP && isToolArea(r.name)) {
+    const id = r.name === 'tool' ? r.arg : (r.name === 'crop' || r.name === 'qpcr' ? r.name : null);
+    if (typeof openToolboxWindow === 'function') openToolboxWindow(id);
+    history.replaceState(null, '', '#/home');
+    r = { name: 'home', arg: null };
+  } else if (typeof TOOLBOX_WIN !== 'undefined' && TOOLBOX_WIN && !isToolArea(r.name)) {
+    history.replaceState(null, '', '#/toolhub');
+    r = { name: 'toolhub', arg: null };
+  }
   _route = r;
   applyView(r.name);
-  if (r.name === 'tool' && r.arg) renderTool(r.arg);   // toolhub.js：注入脚本并渲染，不再改路由
+  if (r.name === 'tool' && r.arg) renderTool(r.arg);   // toolhub.js：pane 内注入脚本并渲染
+  else if (typeof tabsActivateRoute === 'function') tabsActivateRoute(r);
   if (r.name === 'plugins') {
     /* 先同步画一遍已装列表（浏览器演示模式不联网，靠这一步出内容），再拉索引 */
     if (typeof renderExtPage === 'function') renderExtPage();

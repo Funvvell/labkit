@@ -27,7 +27,9 @@ tauri-plugin-notification = "2"
 tauri-plugin-window-state = "2"
 # P3 Zotero / P4 插件市场：Rust 侧 HTTP 单一信任边界（Zotero 丢弃浏览器形态请求）。
 # reqwest MIT/Apache-2.0；rustls 避免 Windows 上的 OpenSSL 依赖。
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+# system-proxy：Windows 系统代理（Clash / Steam++ 等）默认生效；native-roots：
+# 信任 Windows 证书库，兼容 Steam++ 等本地加速器的 TLS 中间人证书。
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-native-roots", "system-proxy"] }
 url = "2"
 
 # --- Reused core: SDPC decode + export + qPCR (unchanged) ---

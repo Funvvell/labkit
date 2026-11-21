@@ -1,0 +1,74 @@
+/* LabKit · tabs.css — 工具箱多标签页（新组件层，不占 app.css / lab.css 预算）
+   范式参考 VS Code 编辑器标签与 Obsidian 固定标签：激活标签与内容同底、上方 2px 强调线、
+   非激活文字降级；标签栏可横向溢出滚动，不换行、不挤压内容。 */
+.tool-tabs{
+  flex:0 0 40px;display:flex;align-items:stretch;gap:4px;
+  padding:6px var(--pad-x) 0;background:var(--bg);
+  border-bottom:1px solid var(--hairline);position:relative;z-index:14;
+}
+.tool-tabs[hidden]{display:none}
+.tool-tabs-track{
+  flex:1;min-width:0;display:flex;align-items:flex-end;gap:2px;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+  scroll-behavior:smooth;
+}
+.tool-tabs-track::-webkit-scrollbar{display:none}
+.tt-tab{
+  position:relative;display:flex;align-items:center;gap:6px;
+  height:32px;min-width:88px;max-width:190px;padding:0 5px 0 9px;
+  border:1px solid transparent;border-bottom:0;border-radius:8px 8px 0 0;
+  color:var(--muted);font-size:var(--text-xs);white-space:nowrap;
+  cursor:pointer;user-select:none;
+}
+.tt-tab:hover{background:var(--hover);color:var(--ink-2)}
+.tt-tab:focus-visible{outline:2px solid var(--accent);outline-offset:-1px}
+.tt-tab.on{
+  background:var(--card);color:var(--ink);
+  border-color:var(--hairline);box-shadow:inset 0 -1px 0 var(--hairline);
+}
+.tt-tab.on::before{
+  content:"";position:absolute;left:8px;right:8px;top:0;height:2px;
+  border-radius:0 0 2px 2px;background:var(--accent);
+}
+.tt-tab.on::after{
+  content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:var(--card);
+}
+.tt-tab.dragging{opacity:.55}
+.tt-tab.drop-before{box-shadow:inset 2px 0 0 var(--accent)}
+.tt-tab.drop-after{box-shadow:inset -2px 0 0 var(--accent)}
+.tt-ico{width:15px;height:15px;flex:0 0 15px;display:flex;align-items:center;justify-content:center;color:var(--ink-2)}
+.tt-ico svg{width:15px;height:15px}
+.tt-tab.on .tt-ico{color:var(--accent)}
+.tt-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.tt-x{
+  width:18px;height:18px;flex:0 0 18px;border-radius:5px;border:0;
+  display:flex;align-items:center;justify-content:center;color:var(--muted);
+  font-size:13px;line-height:1;background:none;
+}
+.tt-x:hover{background:color-mix(in srgb,var(--red) 16%,transparent);color:var(--red)}
+.tool-tabs-actions{display:flex;align-items:center;flex:0 0 auto;padding-bottom:4px}
+.tt-more{
+  width:28px;height:26px;border-radius:7px;border:0;background:none;
+  color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:15px;
+}
+.tt-more:hover{background:var(--hover);color:var(--ink)}
+.tt-more:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+/* pane 栈：每个工具一个独立滚动区，切走保留 DOM 与滚动位置 */
+#toolHost.tab-panes{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.tool-pane{display:none;flex:1;min-height:0}
+.tool-pane.active{display:flex}
+.tool-host{min-height:0}
+#view-tool #toolSource{margin:2px 0 0;padding:0 var(--pad-x)}
+
+/* 工具箱窗口：页头收紧，把高度让给内容（标签栏已承担标题职责） */
+body.tab-mode .tool-page-head{min-height:56px;padding-top:4px;padding-bottom:4px}
+body.tab-mode .tool-heading h1{font-size:19px}
+body.tab-mode .tool-heading .sub{display:none}
+body.toolbox-mode .tool-page-head{--pad-x:24px}
+body.toolbox-mode .tool-chrome,body.toolbox-mode .tool-help{--pad-x:24px}
+
+/* 标签栏在窄容器下保持可滚动，不包成多行 */
+@media (prefers-reduced-motion: reduce){
+  .tool-tabs-track{scroll-behavior:auto}
+}

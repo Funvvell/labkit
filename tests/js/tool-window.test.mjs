@@ -1,6 +1,6 @@
-// 多窗口退出 + 默认新窗口单测（纯前端逻辑，vm context 隔离，不依赖 Tauri runtime）。
-// 覆盖：toolOpenInPage 默认值与反转、WINDOW_MODE 恒新窗、浏览器页内回退、
-//       label 转义不撞名、旧 toolNewWindow 设置迁移、flush 幂等（changed=[] 早退）。
+// 工具箱多标签页 + 多窗口单测（纯前端逻辑，vm context 隔离，不依赖 Tauri runtime）。
+// 覆盖：主窗只唤起 tools 窗口、工具箱/浏览器页内路由、分离窗口保留、
+//       label 转义、旧 toolOpenInPage / toolNewWindow 设置墓碑迁移。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -17,7 +17,7 @@ const el = () => ({
 });
 
 /** 每个测试独立 context：classic script 顶层 const 不能在同一 global 里重复声明。 */
-function ctx({ inTauri = false, windowMode = false, db = null } = {}) {
+function ctx({ inTauri = false, label = 'main', db = null } = {}) {
   const sandbox = {
     console,
     setTimeout, clearTimeout, Promise, Date, Math, JSON, Object, Array, String, Number,
@@ -59,8 +59,7 @@ function ctx({ inTauri = false, windowMode = false, db = null } = {}) {
   sandbox.applyTheme = () => { };
   sandbox.applyDensity = () => { };
   sandbox.parseHash = h => ({ name: (h || '').replace(/^#\/?/, '') || 'home', arg: null });
-  sandbox.navigate = name => { sandbox.__nav = name; };
-  sandbox.openToolWindow = id => { sandbox.__win = id; };
+  sandbox.navigate = (name, arg) => { sandbox.__nav = { name, arg: arg || null }; };
   sandbox.renderToolHub = () => { };
   sandbox.shellRenderCats = () => { };
   sandbox.shellRenderPins = () => { };
@@ -72,11 +71,34 @@ function ctx({ inTauri = false, windowMode = false, db = null } = {}) {
   sandbox.TOOL_META = [];
   if (inTauri) {
     sandbox.__TAURI_INTERNALS__ = { invoke() { } };
+    const wins = [];
+    const registry = new Map();
+    let ackCb = null;
+    class WebviewWindow {
+      constructor(id, opts) {
+        wins.push({ id, opts }); this._id = id; registry.set(id, this);
+        this.focused = 0;
+      }
+      static async getByLabel(label) { return registry.get(label) || null; }
+      once() { }
+      async show() { }
+      async unminimize() { }
+      async setFocus() { this.focused++; }
+    }
     sandbox.__TAURI__ = {
-      window: { getCurrentWindow: () => ({ label: windowMode ? 'tool-primer' : 'main' }) },
-      webviewWindow: { WebviewWindow: class { static getByLabel() { return null; } } },
-      event: { listen: () => Promise.resolve() },
+      window: { getCurrentWindow: () => ({ label, close: () => Promise.resolve() }) },
+      webviewWindow: { WebviewWindow },
+      event: {
+        listen: (name, cb) => { if (name === 'labkit:toolbox-ack') ackCb = cb; return Promise.resolve(() => { }); },
+        emit: (name, payload) => {
+          sandbox.__emit = { name, payload };
+          if (name === 'labkit:toolbox-open' && ackCb) ackCb({ payload: { nonce: payload.nonce } });
+          return Promise.resolve();
+        },
+      },
     };
+    sandbox.__wins = wins;
+    sandbox.__registry = registry;
   }
   const c = vm.createContext(sandbox);
   return {
@@ -86,71 +108,89 @@ function ctx({ inTauri = false, windowMode = false, db = null } = {}) {
   };
 }
 
-/** 加载 bridge + store + toolbox + toolhub，返回 openTool 探针。
-    toolbox.js 必须排在 toolhub.js 之前（index.html 同序）：toolhub 求值期即会渲染一次。 */
-function openToolHarness(opts) {
+/** 加载 bridge + store + toolbox + toolhub + tabs，返回 openTool 探针。 */
+function harness(opts) {
   const h = ctx(opts);
   h.run('frontend/js/bridge.js');
   h.run('frontend/js/store.js');
   h.run('frontend/js/toolbox.js');
   h.run('frontend/js/toolhub.js');
+  h.run('frontend/js/tabs.js');
   h.c.TOOL_META = [
     { id: 'primer', name: '引物', scripts: [] },
     { id: 'crop', name: '裁剪', workspace: true, scripts: [] },
   ];
-  // toolhub.js 定义了 openToolWindow 本体；在其后覆盖为探针，避免真去建窗。
-  h.c.openToolWindow = id => { h.c.__win = id; };
+  h.c.__openToolboxWindow = h.c.openToolboxWindow;
+  h.c.openToolboxWindow = id => { h.c.__box = id === undefined ? null : id; };
   const call = id => {
-    h.c.__win = null; h.c.__nav = null;
+    h.c.__box = '__none__'; h.c.__nav = null;
     h.eval(`openTool(${JSON.stringify(id)})`);
-    return { win: h.c.__win, nav: h.c.__nav };
+    return { box: h.c.__box === '__none__' ? null : h.c.__box, nav: h.c.__nav };
   };
   return { ...h, call };
 }
 
-test('桌面主窗：工具默认开新窗口（含 workspace 工具）', () => {
-  const h = openToolHarness({ inTauri: true });
-  assert.equal(h.eval('Store.settings().toolOpenInPage'), undefined, '默认未设置 = 新窗口');
-  assert.deepEqual(h.call('primer'), { win: 'primer', nav: null });
-  assert.deepEqual(h.call('crop'), { win: 'crop', nav: null }, 'workspace 工具默认也新窗口');
+test('桌面主窗：所有工具（含 workspace）都唤起工具箱窗口，不直接建工具窗', () => {
+  const h = harness({ inTauri: true });
+  assert.deepEqual(h.call('primer'), { box: 'primer', nav: null });
+  assert.deepEqual(h.call('crop'), { box: 'crop', nav: null });
 });
 
-test('勾选 toolOpenInPage=true：不新开窗口（页内回退）', () => {
-  const h = openToolHarness({ inTauri: true });
-  h.eval("Store.setSetting('toolOpenInPage', true)");
-  assert.deepEqual(h.call('primer'), { win: null, nav: 'tool' });
-  assert.deepEqual(h.call('crop'), { win: null, nav: 'crop' });
+test('工具箱窗口：工具与工作区都在页内标签路由打开', () => {
+  const h = harness({ inTauri: true, label: 'tools' });
+  assert.equal(h.eval('TOOLBOX_WIN'), true);
+  assert.deepEqual(h.call('primer'), { box: null, nav: { name: 'tool', arg: 'primer' } });
+  assert.deepEqual(h.call('crop'), { box: null, nav: { name: 'crop', arg: null } });
 });
 
-test('工具窗口内再开工具：恒新窗口，不受设置影响', () => {
-  const h = openToolHarness({ inTauri: true, windowMode: true });
-  h.eval("Store.setSetting('toolOpenInPage', true)");
-  assert.deepEqual(h.call('primer'), { win: 'primer', nav: null });
+test('浏览器演示：页内标签路由，不尝试建窗', () => {
+  const h = harness({ inTauri: false });
+  assert.deepEqual(h.call('primer'), { box: null, nav: { name: 'tool', arg: 'primer' } });
+  assert.deepEqual(h.call('crop'), { box: null, nav: { name: 'crop', arg: null } });
 });
 
-test('浏览器演示：始终页内，不尝试开窗口', () => {
-  const h = openToolHarness({ inTauri: false });
-  assert.deepEqual(h.call('primer'), { win: null, nav: 'tool' });
+test('分离工具窗口内再开工具：回到工具箱，不叠加第二个分离窗', () => {
+  const h = harness({ inTauri: true, label: 'tool-primer' });
+  assert.equal(h.eval('DETACHED_WIN'), true);
+  assert.deepEqual(h.call('crop'), { box: 'crop', nav: null });
 });
 
-test('窗口 label 转义：下划线不与非下划线撞名、超长截断', () => {
-  const mk = id => 'tool-' + String(id).replace(/_/g, '__').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 48);
-  assert.notEqual(mk('x-plug-tool_a'), mk('x-plug-tool-a'));
-  assert.equal(mk('x-' + 'p'.repeat(80)).length, 5 + 48, '超长被截断');
+test('openToolWindow 仍创建 tool-* 分离窗口，label 转义不撞名', async () => {
+  const h = harness({ inTauri: true });
+  h.c.TOOL_META = [{ id: 'x_plug-tool/a', name: '插件工具', scripts: [] }];
+  await h.eval("openToolWindow('x_plug-tool/a')");
+  const w = h.c.__wins[h.c.__wins.length - 1];
+  assert.equal(w.id, 'tool-x__plug-tool-a');
+  assert.equal(w.opts.url, 'index.html#/tool/x_plug-tool/a');
+  assert.equal(w.opts.visible, false, 'visible:false 防白窗');
 });
 
-test('旧 toolNewWindow=false 迁移为 toolOpenInPage=true（显式页内偏好保留）', () => {
-  const h = ctx({ db: { _store: { settings: { name: '研究者', toolNewWindow: false } }, tasks: [] } });
+test('openToolboxWindow：首次为工具建 tools 窗口，第二次复用并只发标签事件', async () => {
+  const h = harness({ inTauri: true });
+  await h.eval("__openToolboxWindow('primer')");
+  assert.equal(h.c.__wins.length, 1, '首次只建一个窗口');
+  assert.equal(h.c.__wins[0].id, 'tools');
+  assert.equal(h.c.__wins[0].opts.url, 'index.html#/tool/primer', 'url 直达该工具');
+  assert.equal(h.c.__wins[0].opts.visible, false);
+  const w = h.c.__registry.get('tools');
+  await h.eval("__openToolboxWindow('crop')");
+  assert.equal(h.c.__wins.length, 1, '第二次不得再建窗');
+  assert.equal(h.c.__emit.name, 'labkit:toolbox-open');
+  assert.equal(h.c.__emit.payload.id, 'crop', '复用窗口只发标签事件');
+  assert.equal(w.focused, 1, '复用前先聚焦已有窗口');
+});
+
+test('旧 toolOpenInPage / toolNewWindow 均置 null 墓碑，其它设置保留', () => {
+  const h = ctx({ db: { _store: { settings: { name: '研究者', toolOpenInPage: true, toolNewWindow: false } }, tasks: [] } });
   h.run('frontend/js/store.js');
   const s = h.eval('(Store.migrateLegacy(), Store.settings())');
-  assert.equal(s.toolOpenInPage, true);
+  assert.equal(s.toolOpenInPage, null);
+  assert.equal(s.toolNewWindow, null);
   assert.equal(s.name, '研究者', '其它设置不受影响');
-  assert.equal(s.toolNewWindow, null, '旧键置 null 墓碑（随合并写清盘）');
 });
 
-test('旧 toolNewWindow=true / 未设置：不产生 toolOpenInPage（新默认即新窗口）', () => {
-  const h = ctx({ db: { _store: { settings: { toolNewWindow: true } }, tasks: [] } });
+test('新默认：restoreTabs 未设置时视为恢复（!== false）', () => {
+  const h = ctx({ db: { _store: {}, tasks: [] } });
   h.run('frontend/js/store.js');
-  const s = h.eval('(Store.migrateLegacy(), Store.settings())');
-  assert.equal(s.toolOpenInPage, undefined);
+  assert.equal(h.eval('Store.settings().restoreTabs'), undefined);
 });
