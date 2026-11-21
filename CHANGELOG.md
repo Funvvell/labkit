@@ -3,7 +3,7 @@
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 版本单一来源：`rust/Cargo.toml` 与 `rust/tauri.conf.json`。
 
-## [Unreleased] — 科研工作台重设计 / 多窗口 / 尺寸化 Dashboard / Zotero / 工具箱个性化 / 双市场扩展
+## [0.4.0] - 2026-11-21 — 科研工作台重设计 / 多窗口 / 尺寸化 Dashboard / Zotero / 工具箱个性化 / 双市场扩展 / 应用内自更新
 
 ### 工具箱个性化 · 双市场扩展（0.4.0）
 - **新增** **工具箱可个性化**：工具库页「整理」进入草稿模式——分组新建 / 重命名 / 改色改图标 / 删除 / 拖拽排序，
@@ -55,6 +55,25 @@
 - **新增** `reqwest` / `tauri-plugin-window-state` 依赖与 `rust/src/zotero.rs` / `rust/src/plugins.rs`；插件资产走只读自定义协议 `labkit-plugin`
 - **新增** 测试：`pins` / `db-merge` / `dash-layout` / `shell-nav` / `zotero-map` / `plugin-manifest` / `store_merge` / `zotero_state` / `plugins_install`
 - **文档** `docs/DESIGN_SYSTEM.md`、`docs/PLUGIN_DEV.md`、`ecosystem/` 索引与模板仓库本地副本；NOTICE 补署名
+
+### 应用内自更新
+- **新增** 设置页「检查更新」+ 启动静默检查（可关）：拉取 GitHub Release `latest.json`（HTTPS + 主机白名单 + 重定向复验 + 体积上限），更新弹窗带下载进度条
+- **新增** 下载流式 SHA-256 + MZ 魔数校验，半包自动清理；helper 进程等旧进程退出后自替换 exe 并重启，**替换前复验 SHA-256**（堵 TOCTOU 换包）
+- **新增** 便携版 / NSIS 均支持（可写目录探测，不可写时降级「查看发布页」）；浏览器演示模式恒为「已是最新」
+- **变更** `release.yml` 增发裸 exe（`LabKit-win-x64.exe`）与 `latest.json`（version/sha256/size）
+- **新增** 测试：`rust/tests/update_flow.rs`（清单解析 / 白名单 / 版本比较 / helper 复验换包拒绝）
+
+### 安全与稳定性（review 修复批次）
+- **修复** 台账 / 布局 id 进 HTML 属性位统一 `esc()`；`db_import` 与 Vault 摄入在 Rust 侧拒绝含引号 / 尖括号 / 反引号 / 空白的记录 id（XSS 双保险）；`esc` 迁至 `util.js`
+- **安全** capabilities 删除前端零使用的 fs 三项权限；SECURITY.md 注明 `unsafe-eval` 回退边界
+- **优化** 14 个重 IPC 命令（台账读写 / Vault / qPCR 解析分析 / 图片批处理等）改 async，不再阻塞主线程
+- **修复** 退出握手 18 处 Mutex 改中毒容忍锁；SDPC DLL 加载全程持 `DLL_LOCK`，消除 PATH/CWD 进程级突变竞态
+- **工程** README 测试数更新（248 node / 219 cargo）；arquero 版本更正 8.14.1；dependabot 补 npm 生态；新增恶意 id 渲染突破守卫（node）与非法 id 拒写（cargo）测试
+
+### 扩展生态仓库上线
+- **新增** 索引仓库 `Funvvell/labkit-plugins`（tools.json / widgets.json / legacy plugins.json）与两个模板仓库
+  `Funvvell/labkit-plugin-template`（工具）/ `Funvvell/labkit-plugin-template-widget`（卡片）公开发布
+- **新增** 模板仓库 Release workflow（tag 即版本号，资产 manifest.json / main.js / styles.css 与安装端 sha256 校验对齐）+ MIT LICENSE
 
 ## [0.3.0] - 2026-11-19
 
