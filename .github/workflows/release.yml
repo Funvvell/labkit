@@ -36,7 +36,7 @@ jobs:
           "version=$v" >> $env:GITHUB_OUTPUT
 
       - name: Build & publish NSIS installer
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -75,7 +75,7 @@ jobs:
           [IO.File]::WriteAllText((Join-Path (Get-Location) "latest.json"), $json, (New-Object Text.UTF8Encoding($false)))
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.ver.outputs.version }}
           files: |
