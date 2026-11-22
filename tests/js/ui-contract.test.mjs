@@ -61,7 +61,14 @@ test('工具标签页：tablist 语义 + 每工具独立 pane + 工具库不占�
   assert.ok(tabsJs.includes('tabpanel'), 'pane 需 tabpanel 语义');
   assert.ok(!/role="dialog"/.test(tabsJs), '不得手写 dialog 语义');
   const router = read('frontend/js/router.js');
-  assert.ok(router.includes('openToolboxWindow(id)'), '主窗工具深链需唤起工具窗口');
+  const shell = read('frontend/js/shell.js');
+  assert.ok(router.includes('function mainDesktopToolId'), '主窗工具路由必须收口到单一判定函数');
+  assert.ok(router.includes('openToolboxWindow(id)'), '主窗具体工具/工作区深链需唤起工具窗口');
+  assert.ok(!router.includes('MAIN_DESKTOP && isToolArea(r.name)'), '「全部工具」不得被整段重定向到独立窗口');
+  assert.ok(router.includes("r.name === 'tool' && r.arg"), '仅具体工具才唤窗');
+  assert.ok(router.includes("r.name === 'crop' || r.name === 'qpcr'"), '工作区仍由工具窗口承载');
+  assert.ok(router.includes("history.replaceState(null, '', '#/toolhub')"), '唤窗后主窗落回工具库');
+  assert.ok(!shell.includes('openToolboxWindow'), '侧栏「全部工具」必须留在主窗页内');
   assert.ok(router.includes('tabsBarSync(name)'), '标签栏显隐需跟随视图');
 });
 

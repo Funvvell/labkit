@@ -215,11 +215,8 @@ function shellInit() {
     }
     const nav = e.target.closest('[data-nav]');
     if (nav) {
-      /* 桌面主窗：工具库入口直接唤起工具箱窗口（工具都在那里以标签打开） */
-      if (nav.dataset.nav === 'toolhub' && typeof MAIN_DESKTOP !== 'undefined' && MAIN_DESKTOP) {
-        if (typeof openToolboxWindow === 'function') openToolboxWindow(null);
-        return;
-      }
+      /* 「全部工具」是主窗里的普通页面（侧栏保留、无标签栏）；
+         只有具体工具/工作区才由 openTool 交给工具窗口承载。 */
       navigate(nav.dataset.nav); return;
     }
     const tw = e.target.closest('[data-tool-window]');

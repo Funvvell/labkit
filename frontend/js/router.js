@@ -32,14 +32,24 @@ function applyView(name) {
 /* 视图切换同步生效；淡入由 CSS .view.active 动画承担（reduced-motion 全局已关动画）。
    不用 View Transitions API：其更新回调异步等渲染帧，低帧率/无头环境下视图会卡在半路，
    且并发 skipTransition 会取消 DOM 更新回调（P1 实测踩坑）。 */
+/* 主窗工具路由收口：工具库（toolhub）就是主窗里的普通页面，不再外弹；
+   只有「某一个工具」或工作区（crop/qpcr）才交给工具窗口承载。
+   返回 null → 留在主窗页内渲染。 */
+function mainDesktopToolId(r) {
+  if (typeof MAIN_DESKTOP === 'undefined' || !MAIN_DESKTOP || !r) return null;
+  if (r.name === 'tool' && r.arg) return r.arg;
+  if (r.name === 'crop' || r.name === 'qpcr') return r.name;
+  return null;
+}
 function renderRoute(r) {
-  /* 桌面主窗不承载工具页：工具区深链 / 工具库入口 → 唤起工具箱窗口，主窗回首页。
+  /* 主窗：具体工具/工作区深链 → 唤起工具窗口，主窗落在工具库页；
+     工具库本身（含侧栏「全部工具」、首页「管理工具」）留在主窗页内。
      工具箱窗口反向收口：非工具区路由回落工具库。 */
-  if (typeof MAIN_DESKTOP !== 'undefined' && MAIN_DESKTOP && isToolArea(r.name)) {
-    const id = r.name === 'tool' ? r.arg : (r.name === 'crop' || r.name === 'qpcr' ? r.name : null);
+  const id = mainDesktopToolId(r);
+  if (id) {
     if (typeof openToolboxWindow === 'function') openToolboxWindow(id);
-    history.replaceState(null, '', '#/home');
-    r = { name: 'home', arg: null };
+    history.replaceState(null, '', '#/toolhub');
+    r = { name: 'toolhub', arg: null };
   } else if (typeof TOOLBOX_WIN !== 'undefined' && TOOLBOX_WIN && !isToolArea(r.name)) {
     history.replaceState(null, '', '#/toolhub');
     r = { name: 'toolhub', arg: null };
