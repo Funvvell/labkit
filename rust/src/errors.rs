@@ -13,8 +13,17 @@ pub enum AppError {
     #[error("文件路径无法用 GBK 编码（含 DLL 不支持的字符）：{0}")]
     GbkEncode(String),
 
-    #[error("无法打开切片（文件损坏或非 SDPC 格式）：{0}")]
+    #[error("无法打开切片（文件损坏或格式不支持）：{0}")]
     OpenFailed(PathBuf),
+
+    #[error("WSI 读取失败：{0}")]
+    Wsi(String),
+
+    #[error("不支持的切片格式：{0}")]
+    UnsupportedFormat(String),
+
+    #[error("图像编码失败：{0}")]
+    Encode(String),
 
     #[error("SDPC 元数据解析失败：{0}")]
     Parse(String),

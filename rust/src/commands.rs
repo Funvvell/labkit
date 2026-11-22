@@ -118,7 +118,21 @@ pub fn read_file_as_data_url(path: String) -> Result<String, String> {
         Some("webp") => "image/webp",
         Some("gif") => "image/gif",
         Some("bmp") => "image/bmp",
-        Some("tif") | Some("tiff") => "image/tiff",
+        // Chromium cannot render TIFF, so decode it here and re-encode as PNG.
+        Some("tif") | Some("tiff") => {
+            if !p.exists() {
+                return Err("文件不存在".into());
+            }
+            if std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0) > 512 * 1024 * 1024 {
+                return Err("普通图片通道不支持超过 512 MB 的 TIFF，请用切片引擎打开".into());
+            }
+            let img = image::open(&p).map_err(|e| format!("TIFF 解码失败: {e}"))?;
+            let mut buf = std::io::Cursor::new(Vec::new());
+            img.write_to(&mut buf, image::ImageFormat::Png)
+                .map_err(|e| format!("PNG 编码失败: {e}"))?;
+            let b64 = base64::engine::general_purpose::STANDARD.encode(buf.into_inner());
+            return Ok(format!("data:image/png;base64,{b64}"));
+        }
         _ => return Err("不支持的图片格式（png/jpg/webp/gif/bmp/tiff）".into()),
     };
     if !p.exists() {
@@ -129,18 +143,70 @@ pub fn read_file_as_data_url(path: String) -> Result<String, String> {
     Ok(format!("data:{mime};base64,{b64}"))
 }
 
+/// First-run bootstrap: fetch the official `sdpc-for-python` wheel from PyPI,
+/// verify SHA-256 and extract the vendor DLLs into the user cache. No Python
+/// or pip is required; progress is emitted as `labkit:sdpc-download`.
+#[tauri::command]
+pub async fn ensure_sdpc_decoder(app: tauri::AppHandle) -> Result<String, String> {
+    use tauri::Emitter;
+    let handle = tauri::async_runtime::spawn_blocking(move || {
+        crate::sdpc::ensure_decoder(|p| {
+            let _ = app.emit(
+                "labkit:sdpc-download",
+                serde_json::json!({
+                    "stage": p.stage,
+                    "received": p.received,
+                    "total": p.total,
+                }),
+            );
+        })
+        .map(|p| p.to_string_lossy().into_owned())
+    });
+    match handle.await {
+        Ok(Ok(dir)) => Ok(dir),
+        Ok(Err(e)) => Err(e.to_string()),
+        Err(e) => Err(format!("下载任务异常: {e}")),
+    }
+}
+
 /// Queue a slide open on the decoder worker. The worker's `Opened` response
 /// (info + thumbnail) arrives via `poll_decoder`; the worker caches the
-/// reader, so the DLL handle is opened exactly once per slide.
+/// reader, so the handle is opened exactly once per slide.
 #[tauri::command]
 pub fn enqueue_open(state: tauri::State<'_, AppState>, path: String) -> Result<u64, String> {
-    // Guard: only .sdpc files may reach the closed-source decoder DLL.
-    if !path.to_lowercase().ends_with(".sdpc") {
-        return Err("仅支持 .sdpc 切片文件；普通图片请直接选择图片格式打开".into());
+    let p = PathBuf::from(&path);
+    let supported = p.is_dir()
+        || p.extension()
+            .and_then(|e| e.to_str())
+            .map(|e| {
+                matches!(
+                    e.to_ascii_lowercase().as_str(),
+                    "sdpc"
+                        | "svs"
+                        | "tif"
+                        | "tiff"
+                        | "ndpi"
+                        | "vms"
+                        | "vmu"
+                        | "mrxs"
+                        | "scn"
+                        | "bif"
+                        | "czi"
+                        | "zvi"
+                        | "dcm"
+                        | "vsi"
+                        | "avs"
+                        | "j2k"
+                        | "j2c"
+                )
+            })
+            .unwrap_or(false);
+    if !supported {
+        return Err("不支持的切片格式；普通图片请直接选择图片文件".into());
     }
     let h = state.handle()?;
     let gen = state.next_gen();
-    h.open(PathBuf::from(&path), gen);
+    h.open(p, gen);
     Ok(gen)
 }
 
@@ -225,13 +291,19 @@ pub fn poll_decoder(
             DecodeResponse::Opened {
                 path,
                 info,
+                meta,
                 thumb,
+                label,
+                macro_img,
                 gen,
             } => serde_json::json!({
                 "kind": "opened",
                 "path": path.to_string_lossy(),
                 "info": info,
+                "meta": meta,
                 "thumb_url": to_data_url(&thumb).ok(),
+                "label_url": label.as_ref().and_then(|i| to_data_url(i).ok()),
+                "macro_url": macro_img.as_ref().and_then(|i| to_data_url(i).ok()),
                 "gen": gen,
             }),
             DecodeResponse::TileReady { key, img, gen } => serde_json::json!({
@@ -309,10 +381,13 @@ pub fn export_rois(
     rois: Vec<Roi>,
     output_dir: String,
     mag_label: Option<String>,
+    format: Option<crate::export::ExportFormat>,
+    jpeg_quality: Option<u8>,
 ) -> Result<u64, String> {
     let h = state.handle()?;
     let gen = state.next_gen();
-    let opts = crate::export::ExportOptions::new(PathBuf::from(&output_dir), mag_label);
+    let opts = crate::export::ExportOptions::new(PathBuf::from(&output_dir), mag_label)
+        .with_format(format.unwrap_or_default(), jpeg_quality.unwrap_or(95));
     *state.export_cancel.lock().map_err(|e| e.to_string())? = Some(opts.cancel.clone());
     h.start_export(rois, opts, gen);
     Ok(gen)

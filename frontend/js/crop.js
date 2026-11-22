@@ -11,6 +11,10 @@ let exporting=false;       /* an export job is in flight (button becomes cancel)
 let exportFailed=0;        /* 首个失败原因，导出结束时一并提示，不再只报一个数字 */
 let exportFirstErr='';
 let roiDb=[], roiDbReady=false;  /* persisted ROIs of ALL slides, backend format */
+let slideMeta=null;             /* engine / vendor / mpp / label-macro from Rust */
+let decoderReady=false, decoderPromise=null;
+let exportFmt='tiff', exportQuality=95, exportFmtLabel='TIFF';
+const WSI_RE=/\.(sdpc|svs|ndpi|vms|vmu|mrxs|scn|bif|czi|zvi|dcm|vsi|avs|j2k|j2c|tif|tiff)$/i;
 const stage=document.getElementById('stage'); const frame=document.getElementById('slideFrame');
 const viewport=document.getElementById('viewport');
 const slideImg=document.getElementById('slideImg'); const roiLayer=document.getElementById('roiLayer');
@@ -32,6 +36,93 @@ function setSlide(src,name){
   const fileEl=document.getElementById('cropFile');
   fileEl.textContent=(name||'切片')+' · 已载入预览';
   fileEl.title=name||'切片';
+}
+/* ---- 切片元数据 / label / macro ---- */
+function fmtInt(n){n=Number(n)||0;return n.toLocaleString('en-US')}
+function renderSlideMeta(meta,info){
+  const el=document.getElementById('cropMeta');if(!el)return;
+  meta=meta||{};info=info||{};
+  el.hidden=false;
+  const fmt=document.getElementById('cmFormat');
+  const props=meta.properties||{};
+  const propText=Object.keys(props).map(k=>k+' = '+props[k]).join('\n');
+  fmt.textContent=meta.format||'WSI';
+  fmt.title=[meta.engine||'',meta.vendor?('厂商 '+meta.vendor):'',propText].filter(Boolean).join('\n');
+  document.getElementById('cmDims').textContent=fmtInt(info.full_w)+' × '+fmtInt(info.full_h)+' px';
+  const mpp=meta.mppX||meta.mppY||info.mpp;
+  document.getElementById('cmMpp').textContent=mpp?(+mpp).toFixed(3).replace(/\.?0+$/,'')+' µm/px':'mpp 未知';
+  document.getElementById('cmMag').textContent=meta.objectivePower?(+meta.objectivePower)+'×':'倍率未知';
+  document.getElementById('cmLevels').textContent=(meta.levelCount||(info.levels?info.levels.length:0))+' 层金字塔';
+  const vendor=document.getElementById('cmVendor');
+  vendor.textContent=meta.vendor?('厂商 '+meta.vendor):'';
+  updateDpiNote();
+}
+function clearSlideMeta(){
+  const el=document.getElementById('cropMeta');if(el)el.hidden=true;
+  renderAssoc(null,null);
+  slideMeta=null;
+}
+function renderAssoc(labelUrl,macroUrl){
+  const wrap=document.getElementById('cropAssoc');if(!wrap)return;
+  const l=document.getElementById('assocLabel'),m=document.getElementById('assocMacro');
+  const li=document.getElementById('assocLabelImg'),mi=document.getElementById('assocMacroImg');
+  if(labelUrl&&li){li.src=labelUrl;l.hidden=false}else{l.hidden=true;if(li)li.removeAttribute('src')}
+  if(macroUrl&&mi){mi.src=macroUrl;m.hidden=false}else{m.hidden=true;if(mi)mi.removeAttribute('src')}
+  wrap.hidden=!(labelUrl||macroUrl);
+  l.onclick=labelUrl?()=>showImagePreview(labelUrl,'切片标签图'):null;
+  m.onclick=macroUrl?()=>showImagePreview(macroUrl,'切片宏观图'):null;
+}
+function showImagePreview(url,title){
+  const mask=document.createElement('dialog');mask.className='modal-mask';mask.setAttribute('aria-label',title);
+  const box=document.createElement('div');box.className='roi-modal';box.style.width='auto';box.style.maxWidth='82vw';
+  box.innerHTML='<h4>'+title+'</h4><img alt="preview" style="max-width:100%;max-height:70vh;display:block;border-radius:8px;margin:8px 0">'
+    +'<div class="btn-row"><button class="btn sec" id="pv_close">关闭</button></div>';
+  box.querySelector('img').src=url;
+  mask.appendChild(box);document.body.appendChild(mask);
+  const close=()=>{closeLayer(mask);if(mask.parentNode)mask.remove()};
+  box.querySelector('#pv_close').onclick=close;
+  mask.addEventListener('click',e=>{if(e.target===mask)close()});
+  openLayer(mask);
+}
+function exportDpiSummary(){
+  const mpp=slideInfo&&slideInfo.mpp;
+  if(mpp)return '导出将写入 '+Math.round(25400/mpp)+' dpi（按 mpp '+mpp+' µm/px 换算）。';
+  return '该切片没有 mpp，导出文件不写 DPI 标签。';
+}
+function updateDpiNote(){
+  const el=document.getElementById('expDpiNote');if(!el)return;
+  el.textContent=exportDpiSummary();
+}
+async function ensureSdpcDecoder(){
+  if(decoderReady)return true;
+  const panel=document.getElementById('cropDllHelp');if(panel)panel.hidden=false;
+  const title=document.getElementById('cropDllTitle'),msg=document.getElementById('cropDllMsg');
+  if(title)title.textContent='正在准备 SDPC 解码组件';
+  if(msg)msg.textContent='首次打开 .sdpc 需要下载约 62 MB 的厂商解码组件（来自 PyPI 官方包，SHA-256 校验，之后离线可用）。';
+  const retry=document.getElementById('cropDllRetry');if(retry)retry.hidden=true;
+  const bar=document.getElementById('cropDllBar');if(bar)bar.style.width='0%';
+  const pct=document.getElementById('cropDllPct');if(pct)pct.textContent='0%';
+  if(!decoderPromise){
+    decoderPromise=invoke('ensure_sdpc_decoder')
+      .then(()=>{decoderReady=true;if(panel)panel.hidden=true;toast('SDPC 解码组件已就绪');return true})
+      .catch(e=>{if(title)title.textContent='SDPC 解码组件下载失败';if(msg)msg.textContent=String(e);if(retry)retry.hidden=false;throw e})
+      .finally(()=>{decoderPromise=null});
+  }
+  return decoderPromise;
+}
+if(IN_TAURI&&window.__TAURI__&&window.__TAURI__.event&&window.__TAURI__.event.listen){
+  window.__TAURI__.event.listen('labkit:sdpc-download',ev=>{
+    const p=(ev&&ev.payload)||{};const bar=document.getElementById('cropDllBar');const pctEl=document.getElementById('cropDllPct');
+    const msg=document.getElementById('cropDllMsg');
+    let pct=0;
+    if(p.stage==='download'&&p.total>0)pct=Math.min(100,Math.round(p.received*100/p.total));
+    else if(p.stage==='verify')pct=100;
+    else if(p.stage==='extract')pct=100;
+    else if(p.stage==='done')pct=100;
+    if(bar)bar.style.width=pct+'%';
+    if(pctEl)pctEl.textContent=p.stage==='checking'?'检查组件…':(p.stage==='download'?pct+'%':(p.stage==='verify'?'校验中…':(p.stage==='extract'?'解压中…':'完成')));
+    if(msg&&p.stage==='download'&&p.total>0)msg.textContent='正在下载解码组件：'+(p.received/1048576).toFixed(1)+' / '+(p.total/1048576).toFixed(1)+' MB';
+  }).catch(()=>{});
 }
 /* ---- ROI 会话持久化（~/.liver_portal_crop/session_rust.json，跨切片合并） ---- */
 async function ensureRoiDb(){
@@ -547,14 +638,16 @@ setInterval(async()=>{
   if(!IN_TAURI||(!slideSrc&&!pendingOpen&&!exporting))return;
   try{
     const evs=await invoke('poll_decoder',{max:64});
-    (evs||[]).forEach(ev=>{
+    (evs||[]).forEach(async ev=>{
       if(ev.kind==='opened'&&pendingOpen&&ev.gen===pendingOpen.gen&&ev.thumb_url){
         const p=pendingOpen.path;pendingOpen=null;
         currentSlidePath=p;
-        slideInfo=ev.info;clearTiles();
+        slideInfo=ev.info;slideMeta=ev.meta||null;clearTiles();
         autoCalcFrame();  /* 照抄 Python file_controller：切片打开后按当前倍率/比例 + 新 mpp 重算框尺寸 */
+        renderSlideMeta(slideMeta,slideInfo);
+        renderAssoc(ev.label_url||null,ev.macro_url||null);
         setSlide(ev.thumb_url,p.split(/[\\/]/).pop());
-        toast('切片已打开：'+ev.info.full_w+'×'+ev.info.full_h+(ev.info.mpp?(' · '+ev.info.mpp+' µm/px'):''));
+        toast('切片已打开：'+ev.info.full_w+'×'+ev.info.full_h+(ev.info.mpp?(' · '+ev.info.mpp+' µm/px'):'')+(slideMeta&&slideMeta.format?(' · '+slideMeta.format):''));
       }else if(ev.kind==='export'&&ev.event&&ev.event.FileDone){
         const fd=ev.event.FileDone;
         if(fd.result&&fd.result.Err){exportFailed++;if(!exportFirstErr)exportFirstErr=(fd.name?fd.name+'：':'')+fd.result.Err;}
@@ -571,13 +664,26 @@ setInterval(async()=>{
         if(f.cancelled)toast('导出已取消');
         else if(f.failed&&!f.ok)toast('导出失败：'+(exportFirstErr||'共 '+f.failed+' 个区域失败'),6000);
         else if(f.failed)toast('导出完成：成功 '+f.ok+' · 失败 '+f.failed+'（'+exportFirstErr+'）',6000);
-        else toast('导出完成：成功 '+f.ok+' 个 TIFF');
-        if(!f.cancelled&&typeof notifyPush==='function')notifyPush('裁剪导出完成：成功 '+f.ok+' 个 TIFF'+(f.failed?' · 失败 '+f.failed:''),null);
+        else toast('导出完成：成功 '+f.ok+' 个 '+exportFmtLabel);
+        if(!f.cancelled&&typeof notifyPush==='function')notifyPush('裁剪导出完成：成功 '+f.ok+' 个 '+exportFmtLabel+(f.failed?' · 失败 '+f.failed:''),null);
         exportFailed=0;exportFirstErr='';
       }else if(ev.kind==='error'){
-        if(pendingOpen){pendingOpen=null;toast('打开失败：'+ev.err);
-          /* P4：缺解码组件时给获取指引（DLL 不随包再分发） */
-          if(/DecodeSdpcDll|解码组件|未找到/.test(ev.err)){const h=document.getElementById('cropDllHelp');if(h)h.hidden=false;}
+        if(pendingOpen){
+          const po=pendingOpen;pendingOpen=null;
+          /* Plain TIFF falls back to the image channel when it is not a pyramid. */
+          if(po.fallback&&/\.tif{1,2}$/i.test(po.path)){
+            try{currentSlidePath='';slideInfo=null;slideMeta=null;clearTiles();clearSlideMeta();
+              const u=await invoke('read_file_as_data_url',{path:po.path});
+              setSlide(u,po.path.split(/[\\/]/).pop());return;
+            }catch(fe){toast('打开失败：'+fe);return}
+          }
+          toast('打开失败：'+ev.err);
+          if(/DecodeSdpcDll|SDPC 解码组件|下载 SDPC|未找到解码组件/i.test(ev.err)){
+            const h=document.getElementById('cropDllHelp');if(h)h.hidden=false;
+            const t=document.getElementById('cropDllTitle');if(t)t.textContent='SDPC 解码组件未就绪';
+            const m=document.getElementById('cropDllMsg');if(m)m.textContent=ev.err;
+            const r=document.getElementById('cropDllRetry');if(r)r.hidden=false;
+          }
         }
         else toast('解码提示：'+ev.err);
       }
@@ -620,15 +726,32 @@ async function openSlidePath(p){
   await ensureRoiDb();
   persistRois();  /* flush the previous slide's ROIs before switching */
   rememberSlide(p);
-  if(p.toLowerCase().endsWith('.sdpc')){
-    toast('正在解码 SDPC 切片…');
-    /* Async open on the decoder worker: the DLL handle is opened once and
-       cached there; metadata + thumbnail arrive via poll_decoder. */
-    const gen=await invoke('enqueue_open',{path:p});
-    pendingOpen={path:p,gen};
+  const low=p.toLowerCase();
+  if(low.endsWith('.sdpc')){
+    clearTiles();currentSlidePath='';slideInfo=null;clearSlideMeta();
+    try{await ensureSdpcDecoder()}catch(e){return}   /* first open downloads the vendor DLL once */
+    try{
+      /* Async open on the decoder worker: the DLL handle is opened once and
+         cached there; metadata + thumbnail arrive via poll_decoder. */
+      const gen=await invoke('enqueue_open',{path:p});
+      pendingOpen={path:p,gen,fallback:false};
+      toast('正在解码 SDPC 切片…');
+    }catch(e){toast('打开失败：'+e)}
     return;
   }
-  currentSlidePath=''; slideInfo=null; clearTiles();
+  if(WSI_RE.test(low)){
+    clearTiles();currentSlidePath='';slideInfo=null;clearSlideMeta();
+    try{
+      const gen=await invoke('enqueue_open',{path:p});
+      pendingOpen={path:p,gen,fallback:/\.tif{1,2}$/.test(low)};
+      toast('正在读取切片…');
+      return;
+    }catch(e){
+      if(!/\.tif{1,2}$/.test(low)){toast('打开失败：'+e);return}
+      /* a plain TIFF is not a pyramid — fall through to the image channel */
+    }
+  }
+  currentSlidePath=''; slideInfo=null; clearTiles(); clearSlideMeta();
   const url=await invoke('read_file_as_data_url',{path:p});
   setSlide(url,p.split(/[\\/]/).pop());
 }
@@ -641,10 +764,21 @@ function rememberSlide(p){
   if(activeLayout().some(w=>w.id==='slides'))renderSlidesCard();
 }
 document.getElementById('cropDllHelpClose').onclick=()=>{document.getElementById('cropDllHelp').hidden=true;};
+document.getElementById('cropDllRetry').onclick=()=>{ensureSdpcDecoder().catch(()=>{})};
 document.getElementById('btnOpenSlide').onclick=async()=>{
   if(IN_TAURI){
     try{
-      const p=await window.__TAURI__.dialog.open({filters:[{name:'SDPC 切片',extensions:['sdpc']},{name:'图片',extensions:['png','jpg','jpeg','tif','tiff']}]});
+      const p=await window.__TAURI__.dialog.open({filters:[
+        {name:'切片（全部支持格式）',extensions:['sdpc','svs','ndpi','vms','vmu','mrxs','scn','bif','czi','zvi','dcm','vsi','avs','j2k','j2c','tif','tiff']},
+        {name:'SDPC 数字切片',extensions:['sdpc']},
+        {name:'Aperio / 通用 TIFF',extensions:['svs','tif','tiff']},
+        {name:'Hamamatsu',extensions:['ndpi','vms','vmu']},
+        {name:'3DHISTECH MIRAX',extensions:['mrxs']},
+        {name:'Zeiss',extensions:['czi','zvi']},
+        {name:'DICOM WSI',extensions:['dcm']},
+        {name:'ARGOS / Huron / Leica / Ventana',extensions:['avs','scn','bif']},
+        {name:'图片',extensions:['png','jpg','jpeg','bmp']}
+      ]});
       if(!p)return;
       await openSlidePath(p);
     }catch(e){toast('打开失败：'+e)}
@@ -653,18 +787,94 @@ document.getElementById('btnOpenSlide').onclick=async()=>{
   }
 };
 const picker=document.createElement('input');picker.type='file';picker.id='filePicker';
-picker.accept='.sdpc,image/*';picker.style.display='none';document.body.appendChild(picker);
-picker.onchange=e=>{const f=e.target.files[0];if(f){slideInfo=null;clearTiles();currentSlidePath='';setSlide(URL.createObjectURL(f),f.name)}};
+picker.accept='.sdpc,.svs,.ndpi,.vms,.vmu,.mrxs,.scn,.bif,.czi,.zvi,.dcm,.vsi,.avs,.j2k,.j2c,.tif,.tiff,.png,.jpg,.jpeg,.bmp';
+picker.style.display='none';document.body.appendChild(picker);
+async function openDroppedFile(f){
+  if(!f)return;
+  if(IN_TAURI&&f.path){await openSlidePath(f.path);return}
+  if(f.type&&f.type.startsWith('image/')){slideInfo=null;clearSlideMeta();clearTiles();currentSlidePath='';setSlide(URL.createObjectURL(f),f.name);return}
+  toast('浏览器预览模式只支持图片；切片文件请在桌面版中拖入');
+}
+picker.onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)openDroppedFile(f).catch(err=>toast('打开失败：'+err))};
 stage.addEventListener('dragover',e=>{e.preventDefault();stage.style.outline='2px dashed var(--accent)'});
 stage.addEventListener('dragleave',()=>stage.style.outline='');
-stage.addEventListener('drop',e=>{e.preventDefault();stage.style.outline='';const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')){slideInfo=null;clearTiles();currentSlidePath='';setSlide(URL.createObjectURL(f),f.name)}});
+stage.addEventListener('drop',e=>{e.preventDefault();stage.style.outline='';openDroppedFile(e.dataTransfer.files[0]).catch(err=>toast('打开失败：'+err));});
 
 function updateExportButtons(){
   ['btnExport','btnPreviewExport'].forEach(id=>{
     const b=document.getElementById(id);
     const tn=[...b.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());
-    if(tn)tn.textContent=exporting?'取消导出':(id==='btnExport'?'导出 TIFF':'预览并导出');
+    if(tn)tn.textContent=exporting?'取消导出':(id==='btnExport'?'导出':'预览并导出');
   });
+}
+function openExportDialog(){
+  if(!currentSlidePath){toast('请先打开一个切片再导出');return}
+  const dlg=document.getElementById('exportDlg');if(!dlg)return;
+  updateDpiNote();
+  const row=document.getElementById('expQualityRowWrap');
+  if(row)row.hidden=exportFmt!=='jpeg';
+  const q=document.getElementById('expQuality');if(q)q.value=exportQuality;
+  const qv=document.getElementById('expQualityVal');if(qv)qv.textContent=exportQuality;
+  document.querySelectorAll('#expFmt button').forEach(x=>x.classList.toggle('active',x.dataset.fmt===exportFmt));
+  openLayer(dlg);
+}
+function currentSlideLabel(){
+  if(currentSlidePath){const p=String(currentSlidePath).split(/[\\/]/);return p[p.length-1]||'当前切片'}
+  const el=document.getElementById('cropFile');
+  return ((el&&el.textContent)||'当前切片').split(' · ')[0];
+}
+/* 导出选项独立小窗：主窗/分离的裁剪窗都能打开；窗口只负责选格式、质量和目录，
+   结果通过 labkit:export-options 事件回传给发起它的裁剪窗口。 */
+let exportWindowBusy=false;
+async function openExportWindow(){
+  if(!currentSlidePath){toast('请先打开一个切片再导出');return}
+  if(exportWindowBusy)return;
+  if(!IN_TAURI){openExportDialog();return}
+  const WW=window.__TAURI__&&window.__TAURI__.webviewWindow;
+  if(!WW||typeof WW.WebviewWindow!=='function'){openExportDialog();return}
+  exportWindowBusy=true;
+  const owner=(typeof WIN_LABEL==='string')?WIN_LABEL:'main';
+  const label='export-options';
+  const params=new URLSearchParams({
+    format:exportFmt,
+    quality:String(exportQuality),
+    count:String(rois.length),
+    owner,
+    theme:document.documentElement.dataset.theme==='dark'?'dark':'light',
+    slide:currentSlideLabel(),
+    dpiNote:exportDpiSummary(),
+  });
+  const url=new URL('export.html',location.href).href+'?'+params.toString();
+  const fallback=()=>{toast('独立导出窗口打开失败，已回退页内弹窗');openExportDialog()};
+  try{
+    const old=await WW.WebviewWindow.getByLabel(label);
+    if(old){try{await old.destroy()}catch(e){}}
+    const win=new WW.WebviewWindow(label,{
+      url,title:'导出设置 · LabKit',
+      width:380,height:360,
+      resizable:false,maximizable:false,minimizable:false,
+      visible:true,center:true,decorations:false,alwaysOnTop:true,
+      skipTaskbar:true,dragDropEnabled:false,shadow:true,
+    });
+    win.once('tauri://error',fallback);
+  }catch(e){fallback()}finally{exportWindowBusy=false}
+}
+async function performExport(dirOverride){
+  try{
+    if(!currentSlidePath){toast('请先打开一个切片再导出');return}
+    let dir=typeof dirOverride==='string'&&dirOverride?dirOverride:null;
+    if(!dir){
+      dir=await window.__TAURI__.dialog.open({directory:true,title:'选择导出文件夹'});
+      if(!dir)return;
+    }
+    const mapped=rois.map(r=>({id:String(Date.now())+Math.random().toString(16).slice(2),slide_path:currentSlidePath,x:r.x,y:r.y,w:r.w,h:r.h,angle:0,created_at:''}));
+    /* Tauri v2 的命令参数按 camelCase 匹配（宏默认 rename_all="camelCase"，
+       且查表是精确匹配、没有 snake_case 回退）。这里必须写 outputDir/magLabel，
+       写成 output_dir 会让命令直接报 "missing required key outputDir"。 */
+    await invoke('export_rois',{rois:mapped,outputDir:String(dir),magLabel:mag+'x',format:exportFmt,jpegQuality:exportQuality});
+    exporting=true;exportFailed=0;updateExportButtons();
+    toast('已提交导出 '+rois.length+' 个区域（'+exportFmtLabel+'）到 '+String(dir).split(/[\\/]/).pop()+'（再点一次可取消）');
+  }catch(e){toast('导出失败：'+e)}
 }
 async function doExport(){
   if(exporting){
@@ -672,21 +882,41 @@ async function doExport(){
     return;
   }
   if(!rois.length){toast('请先创建至少一个 ROI');return}
-  if(IN_TAURI){
-    try{
-      if(!currentSlidePath){toast('请先打开一个 .sdpc 切片再导出');return}
-      const dir=await window.__TAURI__.dialog.open({directory:true});
-      if(!dir)return;
-      const mapped=rois.map(r=>({id:String(Date.now())+Math.random().toString(16).slice(2),slide_path:currentSlidePath,x:r.x,y:r.y,w:r.w,h:r.h,angle:0,created_at:''}));
-      /* Tauri v2 的命令参数按 camelCase 匹配（宏默认 rename_all="camelCase"，
-         且查表是精确匹配、没有 snake_case 回退）。这里必须写 outputDir/magLabel，
-         写成 output_dir 会让命令直接报 "missing required key outputDir"。 */
-      await invoke('export_rois',{rois:mapped,outputDir:String(dir),magLabel:mag+'x'});
-      exporting=true;exportFailed=0;updateExportButtons();
-      toast('已提交导出 '+rois.length+' 个区域到 '+String(dir).split(/[\\/]/).pop()+'（再点一次可取消）');
-    }catch(e){toast('导出失败：'+e)}
-  }else{toast('浏览器预览模式：导出 '+rois.length+' 个 ROI（真实导出需 Tauri + SDPC DLL）')}
+  if(!currentSlidePath){toast('请先打开一个切片再导出');return}
+  if(IN_TAURI)openExportWindow().catch(e=>{toast('独立导出窗口打开失败，已回退页内弹窗');openExportDialog()});
+  else toast('浏览器预览模式：导出 '+rois.length+' 个 ROI（真实导出需 Tauri 切片引擎）');
+}
+if(IN_TAURI&&window.__TAURI__&&window.__TAURI__.event&&window.__TAURI__.event.listen){
+  try{
+    const pending=window.__TAURI__.event.listen('labkit:export-options',ev=>{
+      const p=(ev&&ev.payload)||{};
+      const owner=(typeof WIN_LABEL==='string')?WIN_LABEL:'main';
+      if(p.owner&&p.owner!==owner)return;
+      if(!currentSlidePath||!rois.length){toast('导出设置所属的裁剪窗口已没有可导出区域');return}
+      if(exporting){toast('导出正在进行，请先取消或等待完成');return}
+      if(['tiff','png','jpeg'].includes(p.format)){
+        exportFmt=p.format;
+        exportFmtLabel=exportFmt==='jpeg'?'JPEG':(exportFmt==='png'?'PNG':'TIFF');
+      }
+      const quality=parseInt(p.quality,10);
+      if(Number.isFinite(quality))exportQuality=Math.min(100,Math.max(60,quality));
+      performExport(typeof p.outputDir==='string'?p.outputDir:'');
+    });
+    if(pending&&typeof pending.catch==='function')pending.catch(()=>{});
+  }catch(e){}
 }
 document.getElementById('btnExport').onclick=doExport;
 document.getElementById('btnPreviewExport').onclick=doExport;
+document.getElementById('expCancel').onclick=()=>document.getElementById('exportDlg').close();
+document.getElementById('expOk').onclick=()=>{document.getElementById('exportDlg').close();performExport();};
+document.querySelectorAll('#expFmt button').forEach(b=>b.onclick=()=>{
+  exportFmt=b.dataset.fmt||'tiff';
+  exportFmtLabel=exportFmt==='jpeg'?'JPEG':(exportFmt==='png'?'PNG':'TIFF');
+  document.querySelectorAll('#expFmt button').forEach(x=>x.classList.toggle('active',x===b));
+  const row=document.getElementById('expQualityRowWrap');if(row)row.hidden=exportFmt!=='jpeg';
+});
+document.getElementById('expQuality').oninput=e=>{
+  exportQuality=parseInt(e.target.value)||95;
+  document.getElementById('expQualityVal').textContent=exportQuality;
+};
 

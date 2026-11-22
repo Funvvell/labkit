@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::export::{ExportEvent, ExportOptions};
 use crate::model::Roi;
 use crate::sdpc::{RgbImage, RgbaImage, SlideInfo};
+use crate::slide::SlideMeta;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TileKey {
@@ -48,7 +49,10 @@ pub enum Response {
     Opened {
         path: PathBuf,
         info: SlideInfo,
+        meta: SlideMeta,
         thumb: RgbImage,
+        label: Option<RgbImage>,
+        macro_img: Option<RgbImage>,
         gen: u64,
     },
     TileReady { key: TileKey, img: RgbImage, gen: u64 },

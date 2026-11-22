@@ -15,6 +15,7 @@
 <!-- 自适应收口层：必须最后加载，且 app/lab/toolbox 有字节预算，响应式规则集中在这里 -->
 <link rel="stylesheet" href="css/adaptive.css">
 <link rel="stylesheet" href="css/type.css">
+<link rel="stylesheet" href="css/crop.css">
 <script src="vendor/gridstack-all.js"></script>
 <script src="tools/registry.js"></script>
 </head>
@@ -353,16 +354,23 @@
           <div class="ws-tool"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2" fill="#007AFF"/><path d="M9 7V5.5C9 4.67 9.67 4 10.5 4H13.5C14.33 4 15 4.67 15 5.5V7" stroke="#007AFF" stroke-width="1.8"/><path d="M3 12H21" stroke="white" stroke-width="1.6"/></svg>图像裁剪</div>
           <div class="ws-file" id="cropFile">未打开切片 · 点击「打开切片」或拖入图片</div>
           <button class="btn-primary" id="btnOpenSlide"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4V15M8 11L12 15L16 11M5 19H19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>打开切片</button>
-          <button class="btn-primary" id="btnExport"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" stroke="white" stroke-width="1.9"/><path d="M3 15L9 10L15 15L18 12L21 15" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>导出 TIFF</button>
+          <button class="btn-primary" id="btnExport"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" stroke="white" stroke-width="1.9"/><path d="M3 15L9 10L15 15L18 12L21 15" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>导出</button>
+        </div>
+        <div class="crop-meta" id="cropMeta" hidden>
+          <span class="cm-badge" id="cmFormat">—</span>
+          <span class="cm-item" id="cmDims">—</span>
+          <span class="cm-item" id="cmMpp">—</span>
+          <span class="cm-item" id="cmMag">—</span>
+          <span class="cm-item" id="cmLevels">—</span>
+          <span class="cm-item cm-dim" id="cmVendor"></span>
         </div>
         <div class="tech-source ws" id="cropSource"></div>
-        <!-- P4：SDPC 解码组件缺失时的获取指引（DLL 不随包再分发） -->
+        <!-- SDPC 解码组件：首次打开自动下载，无需 Python / pip -->
         <div class="tool-help dll-help" id="cropDllHelp" hidden>
-          <h3>缺少 SDPC 解码组件</h3>
-          <p>浏览 .sdpc 切片需要厂商闭源解码库 DecodeSdpcDll.dll。出于许可考虑，本软件不随包分发该 DLL；安装开源 Python 包装后即可自动探测：</p>
-          <p class="tmono" style="margin:6px 0">pip install sdpc-for-python</p>
-          <p>应用会依次探测：随包目录 → 环境变量 SDPC_DLL_DIR → Python site-packages 中的 sdpc/WINDOWS/dll。安装后重新打开切片即可；其余 19 个工具与台账功能不受影响。普通图片（png/jpg/tif）裁剪无需该组件。</p>
-          <button class="tbtn sec" id="cropDllHelpClose">知道了</button>
+          <h3 id="cropDllTitle">正在准备 SDPC 解码组件</h3>
+          <p id="cropDllMsg">首次打开 .sdpc 需要下载约 62 MB 的厂商解码组件（来自 PyPI 官方包，SHA-256 校验，之后离线可用）。</p>
+          <div class="dl-track"><div class="dl-bar" id="cropDllBar"></div></div>
+          <div class="dl-row"><span id="cropDllPct">0%</span><button class="tbtn sec" id="cropDllRetry">重试</button><button class="tbtn sec" id="cropDllHelpClose">取消</button></div>
         </div>
         <div class="ws-body">
           <aside class="panel left">
@@ -419,6 +427,10 @@
               </div>
               <canvas id="tileCanvas" class="tile-canvas hidden"></canvas>
               <div class="mini-nav hidden" id="miniNav"><img id="miniImg" alt="nav" draggable="false" /><div class="viewbox" style="left:0;top:0;width:0;height:0"></div></div>
+              <div class="crop-assoc hidden" id="cropAssoc">
+                <button class="assoc-item" id="assocLabel" title="查看标签图"><img id="assocLabelImg" alt="label" /><span>标签</span></button>
+                <button class="assoc-item" id="assocMacro" title="查看宏观图"><img id="assocMacroImg" alt="macro" /><span>宏观</span></button>
+              </div>
             </div>
           </div>
 
@@ -429,6 +441,19 @@
             <button class="wide-btn" id="btnPreviewExport"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" stroke="white" stroke-width="1.9"/><path d="M3 15L9 10L15 15L18 12L21 15" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>预览并导出</button>
           </aside>
         </div>
+        <dialog class="export-dialog" id="exportDlg" aria-label="导出设置">
+          <h3>导出 ROI</h3>
+          <div class="field-title">格式</div>
+          <div class="seg-ctl exp-fmt" id="expFmt">
+            <button data-fmt="tiff" class="active">TIFF</button><button data-fmt="png">PNG</button><button data-fmt="jpeg">JPEG</button>
+          </div>
+          <div id="expQualityRowWrap" hidden>
+            <div class="field-title">JPEG 质量 <span id="expQualityVal">95</span></div>
+            <input type="range" id="expQuality" min="60" max="100" step="1" value="95">
+          </div>
+          <p class="sub" id="expDpiNote">DPI 将按切片 mpp 自动写入；无 mpp 时省略。</p>
+          <div class="btn-row"><button class="btn sec" id="expCancel">取消</button><button class="btn pri" id="expOk">开始导出</button></div>
+        </dialog>
       </section>
 
       <!-- VIEW: qPCR workspace -->

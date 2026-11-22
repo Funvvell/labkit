@@ -6,7 +6,7 @@
 
 **本地优先的科研工作台 · Local-first research toolbox**
 
-台账工作台 · 20 个科研工具 · SDPC 全切片浏览与 ROI 裁剪 · qPCR ΔΔCt 分析
+台账工作台 · 20 个科研工具 · 病理全切片浏览与 ROI 裁剪（SDPC / SVS / NDPI / MRXS / CZI…）· qPCR ΔΔCt 分析
 
 [![Release](https://img.shields.io/github/v/release/Funvvell/labkit?style=flat-square&label=Latest)](https://github.com/Funvvell/labkit/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
@@ -40,7 +40,7 @@
 | --- | --- |
 | 统计与数据 | 2×2 表分析（OpenEpi）· 样本量与功效（OpenEpi）· 快速假设检验（t/χ²/Fisher/MWU/Wilcoxon/方差齐性/相关）· Table 1 基线表 · 随机化与盲法 · 数据清洗与交叉表 · APA7 统计报告串 |
 | 实验计算 | 实验计算器（配液/离心/铺板/MOI）· 引物工作台（NN 热力学 Tm）· **qPCR 分析工作区**（ΔΔCt/Pfaffl/geNorm）· 孔板布局编辑器 · Protocol 计时器 · 实验记录→Markdown · 试剂/仪器台账 |
-| 写作与图 | 数据绘图器（期刊预设 300/600dpi）· Figure 拼图器 · 图片批处理（Rust 并行）· **图像裁剪工作区**（SDPC WSI + ROI + TIFF）· 报告规范清单（PRISMA/STROBE/CONSORT/MIQE）· 表格格式互转 |
+| 写作与图 | 数据绘图器（期刊预设 300/600dpi）· Figure 拼图器 · 图片批处理（Rust 并行）· **图像裁剪工作区**（SDPC / SVS / NDPI / MRXS 等 WSI + ROI + TIFF/PNG/JPEG）· 报告规范清单（PRISMA/STROBE/CONSORT/MIQE）· 表格格式互转 |
 
 每个工具统一壳层：**载入示例 / 重置 / 帮助与来源抽屉 / 导出条**；输入与配置**自动持久化**（切页、重启不丢）；
 **跨工具数据流**：数据清洗 → 检验 / 绘图 / Table 1，检验结果 → APA 报告串（跨重启可载入）。
@@ -73,9 +73,13 @@
 
 ### 病理图像工作区
 
-- SDPC 全切片金字塔浏览（LRU tile 缓存、导航缩略图、滚轮切层），支持 120,000×80,000+ px 切片
-- ROI 框选 / 组织检测辅助 / 全分辨率 TIFF 批量导出（DPI 标签保留）
+- 统一 WSI 引擎（纯 Rust [`wsi-rs`](https://crates.io/crates/wsi-rs)，MIT/Apache-2.0），**不依赖 OpenSlide 外部 DLL**
+- 全切片金字塔浏览（LRU tile 缓存、导航缩略图、滚轮切层），支持 120,000×80,000+ px 切片
+- 支持格式：**SDPC**（厂商 DLL）、Aperio `.svs`、Hamamatsu `.ndpi` / `.vms` / `.vmu`、3DHISTECH `.mrxs`、Leica `.scn`、Ventana `.bif`、ARGOS `.avs`、Zeiss `.czi` / `.zvi`、Olympus `.vsi`（含 `.ets` 伴生文件）、DICOM WSI `.dcm`（或整个目录）、JPEG 2000 `.j2k` / `.j2c`、OME-TIFF 及普通 `.tif` / `.tiff`
+- 打开切片后显示格式 / 厂商 / 尺寸 / mpp / 倍率 / 金字塔层数，并提取 label 与 macro 标签图
+- ROI 框选 / 组织检测辅助 / 全分辨率批量导出 **TIFF / PNG / JPEG**（按 mpp 写入 DPI；JPEG 可选质量）
 - 普通图片（png/jpg/tif）裁剪**无需**任何额外组件
+- **SDPC 下载即用**：首次打开 `.sdpc` 自动从 PyPI 拉取官方 `sdpc-for-python` wheel（约 62 MB，SHA-256 校验），只解出 `WINDOWS/dll` 到用户缓存；**不需要 Python / pip**，之后离线可用
 
 ## 🚀 快速开始
 
@@ -83,15 +87,10 @@
 
 [Releases](https://github.com/Funvvell/labkit/releases) 下载 `LabKit_*.exe`（NSIS 安装包）或 `LabKit-portable-win-x64.zip`（免安装）。
 
-**SDPC 解码组件（可选）**：出于许可考虑，安装包**不含**厂商闭源 `DecodeSdpcDll.dll`。
-需要浏览 `.sdpc` 切片时执行：
-
-```bash
-pip install sdpc-for-python
-```
-
-应用会自动探测解码目录（随包目录 → `SDPC_DLL_DIR` 环境变量 → Python site-packages）。
-缺失时裁剪页会显示获取指引；其余 19 个工具与台账功能不受影响。
+**SDPC 解码组件（下载即用）**：出于许可考虑，安装包**不含**厂商闭源 `DecodeSdpcDll.dll`。
+首次打开 `.sdpc` 时应用会自动下载官方 `sdpc-for-python` wheel 并校验 SHA-256，
+解压到 `%USERPROFILE%\.liver_portal_crop\decoders\sdpc`，无需 Python / pip；下载失败会在裁剪页显示进度与重试按钮。
+也可手动设置 `SDPC_DLL_DIR`，或把 `sdpc\WINDOWS\dll` 放到 exe 同目录，完全离线部署。
 
 ### 方式二：Web 演示（零安装）
 
@@ -99,6 +98,8 @@ pip install sdpc-for-python
 统计/绘图/写作类工具完整可用；SDPC 解码与磁盘备份需桌面版。
 
 ### 方式三：源码运行
+
+需要 **Rust 1.99+**（`rust-toolchain.toml` 固定 stable）。
 
 ```bash
 git clone https://github.com/Funvvell/labkit.git
@@ -149,7 +150,7 @@ frontend/            零构建前端（index.html 壳 + css/ + js/ 模块 + tool
   js/toolbox.js      工具箱个性化数据层（分组/排序/隐藏/图标配色的覆盖层，纯函数可测）
   js/tabs.js         工具窗口标签模型与 pane 栈（状态纯函数 + 标签栏 DOM + 跨窗聚焦协议）
   js/plugins.js      双市场扩展（工具扩展 / 卡片扩展）+ 类型门禁 + 扩展管理页
-rust/                Tauri 2 + Rust：SDPC FFI 解码、TIFF 导出、qPCR 解析、台账磁盘化、220 单测
+rust/                Tauri 2 + Rust：WSI 统一读取（wsi-rs + SDPC FFI）、TIFF/PNG/JPEG 导出、qPCR 解析、台账磁盘化、220 单测
 tests/js/            node:test 对数测试（统计口径与 OpenEpi/scipy/tableone 对齐）+ 外壳单测
 rust/tests/          IPC 命名契约测试（保护前后端接口）
 ```

@@ -41,6 +41,12 @@ LabKit（MIT）复用以下成熟开源项目。除注明外均以原样或最�
   P2 Dashboard 自由拼接网格：`frontend/vendor/gridstack-all.js` + `gridstack.min.css`（v14.1.1，UMD 原样引入），许可文本 `frontend/vendor/gridstack-LICENSE.txt`。
 
 ## MIT / Apache-2.0 双许可（Rust crates）
+- **wsi-rs** Copyright (c) wsi-rs contributors. https://github.com/wsi-rs/wsi-rs — 纯 Rust 全切片读取器
+  （SVS / NDPI / MRXS / SCN / BIF / AVS / VMS / VSI / CZI / DICOM / OME-TIFF），`rust/src/slide/mod.rs` 的统一读取层。
+- **png** Copyright (c) png-rs contributors. https://github.com/image-rs/image-png — 导出 PNG 与 pHYs（DPI）标签。
+- **j2k / j2k-native** (MIT OR Apache-2.0) — NDPI / DICOM 的 JPEG 2000 码流解码（经 wsi-rs 调用）。
+- **jxr / jxr-native** (MIT OR Apache-2.0) — Zeiss CZI 的 JPEG XR 码流解码（经 wsi-rs 调用）。
+- **zip** Copyright (c) zip-rs contributors. https://github.com/zip-rs/zip2 — 解包 SDPC wheel（仅首次下载时使用）。
 - **image** Copyright (c) PistonDevelopers. https://github.com/image-rs/image — D3 图片批处理编解码/缩放。
 - **rayon** Copyright (c) Niko Matsakis. https://github.com/rayon-rs/rayon — D3 并行批处理。
 - **tiff** Copyright (c) PistonDevelopers. https://github.com/image-rs/image-tiff — TIFF IFD/DPI 标签读写。
@@ -87,8 +93,9 @@ LabKit（MIT）复用以下成熟开源项目。除注明外均以原样或最�
   引用：Dean AG, Sullivan KM, Soe MM. OpenEpi: Open Source Epidemiologic Statistics for Public Health. www.openepi.com.
 - **sdpc-for-python / sdpc-win**（JWonderLand / Jiawen Li 等，https://pypi.org/project/sdpc-for-python/ ）—
   Python 包装层 PyPI 元数据声明 MIT；**其内嵌的 `DecodeSdpcDll.dll` 为扫描仪厂商专有闭源二进制，
-  无独立开源许可文本覆盖，本仓库与 Release 安装包均不再分发该 DLL**。
-  用户自行 `pip install sdpc-for-python` 后由应用运行时探测加载（`rust/src/sdpc/loader.rs`）。
+  无独立开源许可文本覆盖，本仓库与 Release 安装包均不分发该 DLL**。
+  应用在首次打开 `.sdpc` 时从 PyPI 官方包自动下载 wheel、校验 SHA-256，仅解出 `WINDOWS/dll`
+  到用户缓存（`rust/src/sdpc/download.rs`）；也可用 `SDPC_DLL_DIR` 指向本地副本。不再需要 `pip install`。
 - **PRISMA 2020** 清单 — CC-BY 4.0。Page MJ, et al. BMJ 2021;372:n71. https://www.prisma-statement.org
 - **STROBE / CONSORT / MIQE** 清单条目 — 依各自声明用于学术自查工具，保留出处链接。
 

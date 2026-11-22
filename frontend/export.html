@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>导出设置 · LabKit</title>
+<link rel="stylesheet" href="css/export.css">
+</head>
+<body>
+<div class="win">
+  <header class="bar" data-tauri-drag-region>
+    <span class="mark" aria-hidden="true"></span>
+    <span class="tt">导出设置</span>
+    <button class="x" id="btnClose" type="button" title="关闭" aria-label="关闭">×</button>
+  </header>
+  <main>
+    <p class="sub"><span id="expCount">0 个区域</span><span class="dot">·</span><span id="expSlide" class="ell">当前切片</span></p>
+
+    <section class="field">
+      <div class="label">格式</div>
+      <div class="seg" id="fmtSeg" role="group" aria-label="导出格式">
+        <button type="button" data-fmt="tiff" aria-pressed="true">TIFF</button>
+        <button type="button" data-fmt="png" aria-pressed="false">PNG</button>
+        <button type="button" data-fmt="jpeg" aria-pressed="false">JPEG</button>
+      </div>
+    </section>
+
+    <section class="field" id="qualityRow">
+      <div class="row"><span class="label">JPEG 质量</span><span class="val" id="qualityVal">95</span></div>
+      <input id="quality" type="range" min="60" max="100" step="1" value="95" aria-label="JPEG 质量">
+    </section>
+
+    <p class="note" id="dpiNote">—</p>
+    <p class="err" id="err" hidden></p>
+  </main>
+  <footer>
+    <button class="btn sec" id="btnCancel" type="button">取消</button>
+    <button class="btn pri" id="btnOk" type="button">选择文件夹并导出</button>
+  </footer>
+</div>
+<script src="js/export.js"></script>
+</body>
+</html>

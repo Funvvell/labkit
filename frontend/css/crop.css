@@ -1,0 +1,29 @@
+/* LabKit · crop.css — 裁剪工作区的 WSI 元数据条、label/macro 缩略图、
+   SDPC 组件下载进度与导出格式弹窗。 */
+
+.crop-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 20px;padding:6px 0 8px;border-bottom:1px solid var(--line);font-size:11px;color:var(--muted)}
+.cm-badge{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:6px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);font-weight:600;letter-spacing:.02em}
+.cm-item{font-variant-numeric:tabular-nums;white-space:nowrap}
+.cm-dim{opacity:.72}
+.crop-assoc{position:absolute;left:12px;bottom:12px;display:flex;gap:8px;z-index:8}
+.assoc-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;border:1px solid rgba(0,0,0,.18);border-radius:8px;background:rgba(255,255,255,.82);backdrop-filter:saturate(1.4) blur(10px);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.assoc-item img{display:block;width:64px;height:40px;object-fit:cover;border-radius:5px;background:#eee}
+.assoc-item span{font-size:10px;color:#333;line-height:1}
+.assoc-item:hover{border-color:var(--accent)}
+.crop-meta[hidden],.crop-assoc[hidden],.assoc-item[hidden],#expQualityRowWrap[hidden]{display:none!important}
+.dl-track{height:6px;border-radius:999px;background:rgba(0,0,0,.08);overflow:hidden;margin:8px 0 6px}
+.dl-bar{height:100%;width:0%;background:var(--accent);transition:width .2s ease}
+.dl-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink-2)}
+.dl-row .tbtn{margin-left:auto}
+.dl-row .tbtn + .tbtn{margin-left:0}
+.export-dialog{border:none;border-radius:14px;padding:18px 20px;width:340px;max-width:86vw;background:var(--panel, #fff);color:var(--ink);box-shadow:0 18px 60px rgba(0,0,0,.24)}
+.export-dialog::backdrop{background:rgba(20,20,20,.32);backdrop-filter:blur(2px)}
+.export-dialog h3{font-size:14px;margin-bottom:10px}
+.export-dialog .field-title{margin-top:10px}
+.export-dialog .seg-ctl{display:flex}
+.export-dialog .btn-row{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.export-dialog input[type=range]{width:100%;accent-color:var(--accent)}
+:root[data-theme="dark"] .export-dialog{background:#1c1c1e;color:#f2f2f7}
+:root[data-theme="dark"] .assoc-item{background:rgba(28,28,30,.82);border-color:rgba(255,255,255,.18)}
+:root[data-theme="dark"] .assoc-item span{color:#f2f2f7}
+:root[data-theme="dark"] .dl-track{background:rgba(255,255,255,.12)}

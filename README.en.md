@@ -4,7 +4,7 @@
 
 # LabKit · Research Toolbox
 
-**A local-first research workbench** — lab notebook, 20 research tools, SDPC whole-slide browsing & ROI cropping, qPCR ΔΔCt analysis.
+**A local-first research workbench** — lab notebook, 20 research tools, pathology whole-slide browsing & ROI cropping (SDPC / SVS / NDPI / MRXS / CZI…), qPCR ΔΔCt analysis.
 
 [![Release](https://img.shields.io/github/v/release/Funvvell/labkit?style=flat-square&label=Latest)](https://github.com/Funvvell/labkit/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
@@ -37,7 +37,7 @@
 | --- | --- |
 | Statistics & data | 2×2 table analysis (OpenEpi) · sample size & power (OpenEpi) · hypothesis tests (t/χ²/Fisher/Mann-Whitney/Wilcoxon/variance/correlation) · Table 1 baseline · randomization & blinding · data cleaning & crosstabs · APA-7 report strings |
 | Lab calculations | bench calculator (dilution/centrifugation/plating/MOI) · primer workbench (nearest-neighbor Tm) · **qPCR workspace** (ΔΔCt/Pfaffl/geNorm) · plate layout editor · protocol timer · experiment record → Markdown · reagent/inventory ledger |
-| Writing & figures | publication plotter (300/600 dpi) · figure assembler · batch image processing (Rust, parallel) · **image cropping workspace** (SDPC WSI + ROI + TIFF) · reporting checklists (PRISMA/STROBE/CONSORT/MIQE) · table format converter |
+| Writing & figures | publication plotter (300/600 dpi) · figure assembler · batch image processing (Rust, parallel) · **image cropping workspace** (SDPC / SVS / NDPI / MRXS WSI + ROI + TIFF/PNG/JPEG) · reporting checklists (PRISMA/STROBE/CONSORT/MIQE) · table format converter |
 
 Every tool shares one chrome: **load example / reset / help & provenance drawer / export bar**. Inputs and configs **persist automatically** across page switches and restarts. **Cross-tool data flow**: cleaning → tests / plotter / Table 1; test results → APA strings (reloadable across restarts).
 
@@ -65,9 +65,13 @@ Every tool shares one chrome: **load example / reset / help & provenance drawer 
 
 ### Pathology workspace
 
-- SDPC whole-slide pyramid browsing (LRU tile cache, navigator thumbnail, wheel level switching) for 120,000×80,000+ px slides
-- ROI selection, tissue-detection assist, full-resolution batch TIFF export with DPI tags
+- Unified WSI engine built on pure-Rust [`wsi-rs`](https://crates.io/crates/wsi-rs) (MIT/Apache-2.0), **no OpenSlide DLL required**
+- Whole-slide pyramid browsing (LRU tile cache, navigator thumbnail, wheel level switching) for 120,000×80,000+ px slides
+- Formats: **SDPC** (vendor DLL), Aperio `.svs`, Hamamatsu `.ndpi` / `.vms` / `.vmu`, 3DHISTECH `.mrxs`, Leica `.scn`, Ventana `.bif`, ARGOS `.avs`, Zeiss `.czi` / `.zvi`, Olympus `.vsi` (with `.ets` companions), DICOM WSI `.dcm` (or a folder), JPEG 2000 `.j2k` / `.j2c`, OME-TIFF and plain `.tif` / `.tiff`
+- Metadata strip shows format / vendor / dimensions / mpp / objective power / pyramid levels, plus label and macro thumbnails
+- ROI selection, tissue-detection assist, full-resolution batch export to **TIFF / PNG / JPEG** (DPI derived from mpp; JPEG quality selectable)
 - Plain images (png/jpg/tif) need **no** extra component
+- **SDPC works out of the box**: the first `.sdpc` open downloads the official `sdpc-for-python` wheel from PyPI (~62 MB, SHA-256 verified) and extracts only `WINDOWS/dll` into the user cache — **no Python or pip**, offline afterwards
 
 ## 🚀 Quick start
 
@@ -75,19 +79,15 @@ Every tool shares one chrome: **load example / reset / help & provenance drawer 
 
 Download `LabKit_*.exe` (NSIS) or `LabKit-portable-win-x64.zip` from [Releases](https://github.com/Funvvell/labkit/releases).
 
-**Optional SDPC decoder**: for licensing reasons the installer does **not** bundle the vendor's closed-source `DecodeSdpcDll.dll`. To browse `.sdpc` slides:
-
-```bash
-pip install sdpc-for-python
-```
-
-The app auto-detects the decoder directory (bundled dir → `SDPC_DLL_DIR` env var → Python site-packages). If missing, the crop page shows acquisition guidance; the other 19 tools and the notebook are unaffected.
+**SDPC decoder (download-on-demand)**: for licensing reasons the installer does **not** bundle the vendor's closed-source `DecodeSdpcDll.dll`. On the first `.sdpc` open the app downloads the official `sdpc-for-python` wheel from PyPI, verifies SHA-256 and extracts it to `%USERPROFILE%\.liver_portal_crop\decoders\sdpc`; no Python or pip needed. Failures show progress and a retry button on the crop page. For fully offline deployment, set `SDPC_DLL_DIR` or place `sdpc\WINDOWS\dll` next to the executable.
 
 ### 2. Web demo (zero install)
 
 <https://funvvell.github.io/labkit/> — browser fallback mode: notebook in localStorage, all statistics/plotting/writing tools fully functional; SDPC decoding and disk backups require the desktop app.
 
 ### 3. From source
+
+Requires **Rust 1.99+** (`rust-toolchain.toml` pins stable).
 
 ```bash
 git clone https://github.com/Funvvell/labkit.git
@@ -124,7 +124,7 @@ The frontend is **zero-build**: plain HTML/CSS/JS (classic scripts, ordered load
 
 ```
 frontend/            zero-build UI (index.html shell + css/ + js/ modules + tools/ + vendor/)
-rust/                Tauri 2 + Rust: SDPC FFI decode, TIFF export, qPCR parsing, disk notebook, 220 tests
+rust/                Tauri 2 + Rust: unified WSI reading (wsi-rs + SDPC FFI), TIFF/PNG/JPEG export, qPCR parsing, disk notebook, 220 tests
 tests/js/            node:test parity tests (vs OpenEpi/scipy/tableone) + shell unit tests
 rust/tests/          IPC naming-contract tests
 ```

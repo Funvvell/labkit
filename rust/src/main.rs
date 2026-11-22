@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use tauri::Manager;
 
 use labkit::commands::AppState;
-use labkit::sdpc::SlideReader;
+use labkit::slide::Slide;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -85,6 +85,7 @@ fn run_tauri() {
         .invoke_handler(tauri::generate_handler![
             labkit::commands::init_engine,
             labkit::commands::read_file_as_data_url,
+            labkit::commands::ensure_sdpc_decoder,
             labkit::commands::enqueue_open,
             labkit::commands::begin_tiles,
             labkit::commands::enqueue_tile,
@@ -179,9 +180,9 @@ fn print_usage() {
          \n\
          用法:\n  \
          labkit                          启动图形界面\n  \
-         labkit --info <切片.sdpc>       打印切片元数据\n  \
-         labkit --tileprobe <切片.sdpc> [层级]  瓦片接缝/色差诊断\n  \
-         labkit --export --slide <s.sdpc> --session <rois.json> --out <目录> [--mag 20]"
+         labkit --info <切片>            打印切片元数据\n  \
+         labkit --tileprobe <切片> [层级]      瓦片接缝/色差诊断\n  \
+         labkit --export --slide <切片> --session <rois.json> --out <目录> [--mag 20] [--format tiff|png|jpeg] [--quality 95]"
     );
 }
 
@@ -196,7 +197,7 @@ fn cmd_tileprobe(args: &[String]) -> labkit::errors::Result<()> {
         .get(1)
         .map(PathBuf::from)
         .ok_or_else(|| labkit::errors::AppError::Other("缺少切片路径".into()))?;
-    let reader = SlideReader::open(&path)?;
+    let reader = Slide::open(&path)?;
     let info = reader.info();
     let level: u32 = args
         .get(2)
@@ -288,11 +289,18 @@ fn cmd_info(args: &[String]) -> labkit::errors::Result<()> {
         .get(1)
         .map(PathBuf::from)
         .ok_or_else(|| labkit::errors::AppError::Other("缺少切片路径".into()))?;
-    let reader = SlideReader::open(&path)?;
+    let reader = Slide::open(&path)?;
     let info = reader.info();
     println!("path = {}", path.display());
+    println!("engine = {} / {}", reader.meta().engine, reader.meta().format);
     println!("level_count = {}", info.levels.len());
     println!("full = {} x {}", info.full_w, info.full_h);
+    if let Some(mpp) = info.mpp {
+        match labkit::export::mpp_to_dpi(mpp) {
+            Some(dpi) => println!("mpp = {mpp} µm/px ({dpi:.0} dpi)"),
+            None => println!("mpp = {mpp} µm/px"),
+        }
+    }
     for lv in &info.levels {
         println!(
             "level {} = {} x {} (downsample {})",
@@ -311,5 +319,19 @@ fn cmd_export(args: &[String]) -> labkit::errors::Result<()> {
         .ok_or_else(|| labkit::errors::AppError::Other("缺少 --out".into()))?;
     let session = arg_value(args, "--session").map(PathBuf::from);
     let mag = arg_value(args, "--mag");
-    labkit::cli::export(&slide, session.as_deref(), &out, mag)
+    let format = match arg_value(args, "--format").as_deref() {
+        None => labkit::export::ExportFormat::Tiff,
+        Some("tiff") => labkit::export::ExportFormat::Tiff,
+        Some("png") => labkit::export::ExportFormat::Png,
+        Some("jpeg") | Some("jpg") => labkit::export::ExportFormat::Jpeg,
+        Some(other) => {
+            return Err(labkit::errors::AppError::Other(format!(
+                "未知导出格式 {other}（tiff/png/jpeg）"
+            )))
+        }
+    };
+    let quality = arg_value(args, "--quality")
+        .and_then(|s| s.parse::<u8>().ok())
+        .unwrap_or(95);
+    labkit::cli::export(&slide, session.as_deref(), &out, mag, format, quality)
 }

@@ -5,6 +5,15 @@
 
 ## [Unreleased]
 
+### 病理切片：多格式 + SDPC 下载即用
+- **新增** 统一 `slide` 读取层：`.sdpc` 仍走厂商 DLL，其余 WSI 改用纯 Rust `wsi-rs`（MIT/Apache-2.0），**移除 OpenSlide 外部 DLL 依赖**
+- **新增** 支持 Aperio `.svs`、Hamamatsu `.ndpi/.vms/.vmu`、3DHISTECH `.mrxs`、Leica `.scn`、Ventana `.bif`、ARGOS `.avs`、Zeiss `.czi/.zvi`、Olympus `.vsi`（含 `.ets`）、DICOM `.dcm`（或目录）、JPEG 2000 `.j2k/.j2c`、OME-TIFF 与普通 `.tif/.tiff`
+- **新增** 切片元数据条：格式 / 厂商 / 尺寸 / mpp / 倍率 / 金字塔层数，以及 label、macro 标签图预览
+- **新增** 导出格式独立小窗口：TIFF（Deflate）/ PNG / JPEG，按 mpp 写入 DPI，JPEG 可选质量；CLI 增加 `--format` / `--quality`
+- **新增** SDPC 首次打开自动下载官方 `sdpc-for-python` wheel（PyPI JSON 选版本、SHA-256 校验、只解 `WINDOWS/dll` 到用户缓存）；进度条 + 失败重试，不再需要 Python / pip
+- **变更** 打包脚本不再随包复制 SDPC DLL，Release 体积显著减小；仍支持 `SDPC_DLL_DIR` / exe 同级目录离线部署
+- **变更** 最低 Rust 版本提升到 1.99
+
 ### 工作台导航
 - **变更** 移除工作台顶部重复的 8 个二级 tabs（今日 / 任务 / 项目 / 实验 / 文献 / 试剂 / 报表 / 专注）；工作台子页统一由侧栏、「工作台 ▾」菜单、固定区和 Ctrl+K 进入，顶部 40px 还给内容区
 - **变更** `router.js` 不再控制 `#workbenchTabs` 显隐，`shell.js` 不再同步 `.wb-tab.active`；侧栏高亮、工作台菜单、深链与固定区行为不变

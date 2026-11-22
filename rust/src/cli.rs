@@ -6,11 +6,11 @@ use std::path::Path;
 use sha2::{Digest, Sha256};
 
 use crate::errors::{AppError, Result};
-use crate::export::{export_with, ExportEvent, ExportOptions};
+use crate::export::{export_with, ExportEvent, ExportFormat, ExportOptions};
 use crate::geometry::center_crop_rect;
 use crate::model::session;
 use crate::model::Roi;
-use crate::sdpc::SlideReader;
+use crate::slide::Slide;
 
 fn hex(data: &[u8]) -> String {
     let hash = Sha256::digest(data);
@@ -33,9 +33,12 @@ pub fn export(
     session_path: Option<&Path>,
     out: &Path,
     mag: Option<String>,
+    format: ExportFormat,
+    quality: u8,
 ) -> Result<()> {
-    let reader = SlideReader::open(slide)?;
+    let reader = Slide::open(slide)?;
     let (full_w, full_h) = (reader.info().full_w, reader.info().full_h);
+    let dpi = reader.info().mpp.and_then(crate::export::mpp_to_dpi);
 
     let rois: Vec<Roi> = match session_path {
         Some(p) => session::parse_rois(&std::fs::read_to_string(p)?)?,
@@ -48,7 +51,7 @@ pub fn export(
     // Manifest uses the ROI geometry as key, so file numbering differences
     // between the two implementations cannot affect the comparison.
     let manifest: RefCell<Vec<serde_json::Value>> = RefCell::new(Vec::new());
-    let opts = ExportOptions::new(out.to_path_buf(), mag);
+    let opts = ExportOptions::new(out.to_path_buf(), mag).with_format(format, quality);
 
     let report = export_with(
         &rois,
@@ -64,7 +67,7 @@ pub fn export(
                 "h": img.h,
                 "sha256_rgb": hex(&img.data),
             }));
-            Ok(img)
+            Ok((img, dpi))
         },
         |ev| match ev {
             ExportEvent::Progress { current, total } => {

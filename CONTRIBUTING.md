@@ -6,11 +6,12 @@ Thanks for helping! This doc covers setup, tests, and the standard flow for addi
 ## 开发环境 / Setup
 
 - Windows 10/11 x64（桌面版 Tauri 2 目前只发布 Windows）
-- Rust stable（≥1.91）：`cd rust && cargo test`
+- Rust stable（≥1.99）：`cd rust && cargo test`
 - Node 18+：`node --test tests/js/*.test.mjs`
 - 前端**零构建**：不要引入 Vite/webpack/框架；`frontend/` 是 classic script 顺序加载的原生 HTML/CSS/JS，
   必须保持浏览器直开 `frontend/index.html` 与 GitHub Pages 演示可用。
-- Python 3.10+ 仅 SDPC 解码组件需要（`pip install sdpc-for-python`，可选；legacy Python 版已于 v0.3.0 移除）。
+- SDPC 解码组件在首次打开 `.sdpc` 时自动从 PyPI 下载到用户缓存，**不需要 Python / pip**；
+  离线开发可设置 `SDPC_DLL_DIR`。
 
 ## 硬性约定 / Ground rules
 

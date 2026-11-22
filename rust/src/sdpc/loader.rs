@@ -29,6 +29,11 @@ pub fn find_dll_dir() -> Result<PathBuf> {
         }
     }
 
+    // First-run bootstrap cache: no Python, no pip.
+    if let Some(p) = crate::sdpc::download::cached_dll_dir() {
+        return Ok(p);
+    }
+
     if let Some(p) = locate_via_python() {
         return Ok(p);
     }
@@ -38,7 +43,8 @@ pub fn find_dll_dir() -> Result<PathBuf> {
         .and_then(|e| e.parent().map(|b| b.join(DLL_REL_DIR)))
         .unwrap_or_else(|| PathBuf::from(DLL_REL_DIR));
     Err(AppError::Dll(format!(
-        "未找到解码组件。请将 sdpc-for-python 的 WINDOWS/dll 整个目录放到 {}，\
+        "未找到 SDPC 解码组件 DecodeSdpcDll.dll。首次打开 .sdpc 时应用会自动下载；\
+         也可将 sdpc-for-python 的 WINDOWS/dll 整个目录放到 {}，\
          或设置环境变量 SDPC_DLL_DIR 指向该目录。",
         candidate.display()
     )))
@@ -47,10 +53,12 @@ pub fn find_dll_dir() -> Result<PathBuf> {
 fn locate_via_python() -> Option<PathBuf> {
     let code = "import sdpc,pathlib;print(pathlib.Path(sdpc.__file__).parent/'WINDOWS'/'dll')";
     for prog in ["python", "python3", "py"] {
-        let out = std::process::Command::new(prog)
+        let Ok(out) = std::process::Command::new(prog)
             .args(["-c", code])
             .output()
-            .ok()?;
+        else {
+            continue;
+        };
         if out.status.success() {
             let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
             let p = PathBuf::from(s);

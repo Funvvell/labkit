@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions for the macOS-style main window, the shared toolbox window (tools, tab host) and per-tool detach windows (tool-*)",
-  "windows": ["main", "tools", "tool-*"],
+  "description": "Permissions for the macOS-style main window, the shared toolbox window (tools, tab host), per-tool detach windows (tool-*) and the transient export-options window",
+  "windows": ["main", "tools", "tool-*", "export-options"],
   "permissions": [
     "core:default",
     "core:event:allow-emit",

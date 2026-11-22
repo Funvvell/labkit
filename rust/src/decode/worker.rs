@@ -11,7 +11,7 @@ use crate::decode::messages::{Request, Response, TileKey};
 use crate::errors::{AppError, Result};
 use crate::export::export_with;
 use crate::geometry::center_crop_rect;
-use crate::sdpc::SlideReader;
+use crate::slide::Slide;
 
 /// Handle used by the UI. Every method is non-blocking.
 /// Clone is cheap: it only duplicates channel endpoints (Senders/Receiver),
@@ -114,8 +114,9 @@ struct Worker {
     high_rx: Receiver<Request>,
     tile_rx: Receiver<Request>,
     resp_tx: Sender<Response>,
-    /// Readers are cached forever: `SqCloseSdpc` must never be called.
-    readers: HashMap<PathBuf, SlideReader>,
+    /// Readers are cached forever: the SDPC handle must never be closed, and
+    /// `wsi-rs` keeps its own tile cache warm across tile requests.
+    readers: HashMap<PathBuf, Slide>,
     latest_tile_gen: u64,
 }
 
@@ -157,7 +158,7 @@ impl Worker {
         if self.readers.contains_key(path) {
             return Ok(());
         }
-        let reader = SlideReader::open(path)?;
+        let reader = Slide::open(path)?;
         self.readers.insert(path.to_path_buf(), reader);
         Ok(())
     }
@@ -168,11 +169,16 @@ impl Worker {
                 match self.ensure_reader(&path) {
                     Ok(()) => {
                         if let Some(reader) = self.readers.get(&path) {
+                            let label = reader.associated_image("label").ok().flatten();
+                            let macro_img = reader.associated_image("macro").ok().flatten();
                             match reader.thumbnail() {
                                 Ok(thumb) => self.send(Response::Opened {
                                     path: path.clone(),
                                     info: reader.info().clone(),
+                                    meta: reader.meta().clone(),
                                     thumb,
+                                    label,
+                                    macro_img,
                                     gen,
                                 }),
                                 Err(e) => self.send(Response::Error(e.to_string())),
@@ -263,7 +269,9 @@ impl Worker {
                 let r = roi.rect();
                 let (cx, cy) = r.center();
                 let crop = center_crop_rect(cx, cy, r.w, r.h, info.full_w, info.full_h);
-                reader.extract_region(crop.x, crop.y, crop.w, crop.h, 0)
+                let img = reader.extract_region(crop.x, crop.y, crop.w, crop.h, 0)?;
+                let dpi = info.mpp.and_then(crate::export::mpp_to_dpi);
+                Ok((img, dpi))
             },
             |ev| {
                 let _ = tx.send(Response::Export(ev));

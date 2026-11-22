@@ -158,27 +158,35 @@ cargo build --release
 .\target\release\labkit.exe
 ```
 
-开发时 DLL 查找顺序：环境变量 `SDPC_DLL_DIR` → exe 同目录的 `sdpc/WINDOWS/dll/` →
-自动执行 `python -c "import sdpc..."` 定位 `sdpc-for-python` 安装目录。
+运行时会话与 SDPC 组件缓存都在 `%USERPROFILE%\.liver_portal_crop\`。
 
-发布时把 `<python>/Lib/site-packages/sdpc/WINDOWS/dll/` **整个目录**（含 9 个 FFmpeg 依赖 DLL）
-复制到 exe 同级的 `sdpc/WINDOWS/dll/`，或运行：
+DLL 查找顺序：环境变量 `SDPC_DLL_DIR` → exe 同目录的 `sdpc/WINDOWS/dll/` →
+首次下载缓存 `~/.liver_portal_crop/decoders/sdpc/<version>/WINDOWS/dll` →
+可选的 `python -c "import sdpc..."` 探测。
+
+正常发布**不需要**随包复制 DLL：首次打开 `.sdpc` 会自动从 PyPI 下载
+`sdpc-for-python` wheel（约 62 MB，SHA-256 校验），只解出 `WINDOWS/dll`
+（含 9 个 FFmpeg 依赖 DLL）到用户缓存。打包只需：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/package.ps1
 ```
 
+完全离线部署时，可把 `<python>/Lib/site-packages/sdpc/WINDOWS/dll/` 整个目录
+放到 exe 同级 `sdpc/WINDOWS/dll/`，或设置 `SDPC_DLL_DIR`。
+
 ## 命令行（无 GPU 的验证入口）
 
 ```powershell
-# 打印金字塔元数据
-labkit.exe --info "D:/文件/切片.sdpc"
+# 打印金字塔元数据（支持 .sdpc/.svs/.ndpi/.mrxs/.czi/.dcm 等）
+labkit.exe --info "D:/文件/切片.svs"
 
 # 瓦片接缝 / 色差诊断 + 解码耗时基准
-labkit.exe --tileprobe "D:/文件/切片.sdpc" 3
+labkit.exe --tileprobe "D:/文件/切片.svs" 3
 
 # 按 ROI JSON 批量裁切，并写出 manifest.json 供像素对比
-labkit.exe --export --slide "D:/文件/切片.sdpc" --session out/rois.json --out out/rust --mag 20
+labkit.exe --export --slide "D:/文件/切片.svs" --session out/rois.json --out out/rust --mag 20 --format png
+# --format tiff|png|jpeg，JPEG 可加 --quality 95
 ```
 
 ## 导出 parity 验证

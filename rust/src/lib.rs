@@ -10,6 +10,7 @@ pub mod constants;
 pub mod errors;
 pub mod geometry;
 pub mod sdpc;
+pub mod slide;
 pub mod model;
 pub mod export;
 pub mod cli;
