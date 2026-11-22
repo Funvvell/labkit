@@ -15,6 +15,7 @@ const toolboxCss = read('frontend/css/toolbox.css');
 const tabsCss = read('frontend/css/tabs.css');
 const adaptiveCss = read('frontend/css/adaptive.css');
 const typeCss = read('frontend/css/type.css');
+const visualCss = read('frontend/css/visual.css');
 const toolhubJs = read('frontend/js/toolhub.js');
 const tabsJs = read('frontend/js/tabs.js');
 const homeJs = read('frontend/js/home.js');
@@ -36,7 +37,7 @@ test('关键 id 与零构建资源顺序完整', () => {
     'extToolList', 'extWidgetList', 'btnDashAddCard',
   ];
   for (const id of ids) assert.ok(html.includes(`id="${id}"`), `missing #${id}`);
-  const order = ['css/app.css', 'tools/tools.css', 'vendor/gridstack.min.css', 'css/lab.css', 'css/toolbox.css', 'css/tabs.css', 'css/adaptive.css', 'css/type.css'];
+  const order = ['css/app.css', 'tools/tools.css', 'vendor/gridstack.min.css', 'css/lab.css', 'css/toolbox.css', 'css/tabs.css', 'css/adaptive.css', 'css/type.css', 'css/visual.css'];
   const positions = order.map(s => html.indexOf(s));
   assert.ok(positions.every(p => p >= 0), 'stylesheet missing');
   assert.deepEqual([...positions].sort((a, b) => a - b), positions, 'stylesheet order changed');
@@ -104,6 +105,8 @@ test('样式预算与级联保护', () => {
   assert.ok(Buffer.byteLength(tabsCss) <= 12000, 'tabs.css over budget');
   assert.ok(Buffer.byteLength(adaptiveCss) <= 14000, 'adaptive.css over budget');
   assert.ok(Buffer.byteLength(typeCss) <= 6000, 'type.css over budget');
+  assert.ok(Buffer.byteLength(visualCss) <= 30000, 'visual.css over budget');
+  assert.ok(!/!important/.test(visualCss), 'visual.css must not use !important');
   assert.ok(!/!important/.test(labCss), 'new component layer must not use !important');
   assert.ok(!/!important/.test(toolboxCss), 'toolbox.css must not use !important');
   assert.ok(!/!important/.test(tabsCss), 'tabs.css must not use !important');

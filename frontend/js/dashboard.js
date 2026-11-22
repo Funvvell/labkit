@@ -159,7 +159,7 @@ const WIDGETS={
     render:(el,size)=>{renderKpi();if(size&&size.h>=3)setHTML('kpiExtra',`<div class="mini-row"><span class="nm">近 7 天专注合计</span><span class="mt">${sum(seriesFocus(7))} 分钟</span></div><div class="mini-row"><span class="nm">近 7 天完成任务</span><span class="mt">${sum(seriesTasks(7))} 项</span></div><div class="mini-row"><span class="nm">实验记录总数</span><span class="mt">${DB.experiments.length} 条</span></div>`)}},
   trend:{title:'近 7 天趋势',desc:'专注时长与任务完成',size:'2x2',sizes:['2x2','2x3','2x4','4x2','4x3','4x4'],
     body:()=>`<div class="chart-box"><div class="chart-title">专注时长（分钟）</div><div id="chartFocus2"></div></div><div class="chart-box"><div class="chart-title">任务完成</div><div id="chartTasks2"></div></div>`,
-    render:(el,size)=>{const w=size&&size.w>=4?520:300,h=90+((size?size.h:2)-2)*46;setHTML('chartFocus2',lineChart(seriesFocus(7),w,h,'#007AFF'));setHTML('chartTasks2',lineChart(seriesTasks(7),w,h,'#30D158'))}},
+    render:(el,size)=>{const w=size&&size.w>=4?520:300,h=62+((size?size.h:2)-2)*46;setHTML('chartFocus2',lineChart(seriesFocus(7),w,h,cssVar('--accent','#0066CC')));setHTML('chartTasks2',lineChart(seriesTasks(7),w,h,cssVar('--ok-fg','#167A34')))}},
   tasks:{title:'今日任务',desc:'重点 + 清单，可直接新建',size:'2x4',sizes:['1x2','1x3','1x4','2x2','2x3','2x4','4x2','4x3','4x4'],link:['tasks','任务中心'],
     acts:[{t:'+ 新建任务',pri:1,fn:()=>newTaskModal()}],
     body:size=>sizeTier(size)==='small'?'<div id="tasksMini"></div>':'<div id="todayKey"></div><div class="divider" style="margin:2px 0"></div><div id="todayTasks"></div>',

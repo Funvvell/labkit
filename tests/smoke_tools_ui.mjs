@@ -253,6 +253,13 @@ for (const u of units) {
     wsConn = await connect(cand);
     await wsConn.ev(noAnim);
     target = wsConn;
+    /* 工作区窗口偶尔在 hash 深链解析前就完成首帧（active view 停在 home），
+       这里显式补一次 hash，保证量到的是真实的 crop/qpcr 工作区。 */
+    const v0 = await wsConn.ev(`(document.querySelector('.view.active')||{}).id`);
+    if (v0 !== `view-${u.id}`) {
+      await wsConn.ev(`location.hash=${JSON.stringify('#/' + u.id)}`);
+      await sleep(200);
+    }
     for (let i = 0; i < 24; i++) {
       const v = await wsConn.ev(`(document.querySelector('.view.active')||{}).id`);
       if (v === `view-${u.id}`) break;

@@ -32,8 +32,8 @@
 /* 字号阶梯：整数 px，消灭半像素（半像素在不同 DPI 下渲染不一致）。
    行高三档，组件不再逐处手写 1.05–1.8。 */
 :root{
-  --text-3xs:9px;
-  --text-2xs:10px;
+  --text-3xs:11px;
+  --text-2xs:11px;
   --text-xs:11px;
   --text-sm:12px;
   --text-md:13px;

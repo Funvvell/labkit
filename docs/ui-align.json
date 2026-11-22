@@ -1,0 +1,314 @@
+{
+ "generatedAt": "2026-11-22T08:56:28.275Z",
+ "violations": [],
+ "rows": [
+  {
+   "view": "home",
+   "theme": "light",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "home",
+   "theme": "light",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "home",
+   "theme": "dark",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "home",
+   "theme": "dark",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "tasks",
+   "theme": "light",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "tasks",
+   "theme": "light",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "tasks",
+   "theme": "dark",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "tasks",
+   "theme": "dark",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "projects",
+   "theme": "light",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "projects",
+   "theme": "light",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "projects",
+   "theme": "dark",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "projects",
+   "theme": "dark",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "experiments",
+   "theme": "light",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "experiments",
+   "theme": "light",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "experiments",
+   "theme": "dark",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "experiments",
+   "theme": "dark",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "literature",
+   "theme": "light",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "literature",
+   "theme": "light",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "literature",
+   "theme": "dark",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "literature",
+   "theme": "dark",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "labres",
+   "theme": "light",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "labres",
+   "theme": "light",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "labres",
+   "theme": "dark",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "labres",
+   "theme": "dark",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "reports",
+   "theme": "light",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "reports",
+   "theme": "light",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "reports",
+   "theme": "dark",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "reports",
+   "theme": "dark",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "focus",
+   "theme": "light",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "focus",
+   "theme": "light",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "focus",
+   "theme": "dark",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "focus",
+   "theme": "dark",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "settings",
+   "theme": "light",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "settings",
+   "theme": "light",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "settings",
+   "theme": "dark",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "settings",
+   "theme": "dark",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "toolhub",
+   "theme": "light",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "toolhub",
+   "theme": "light",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "toolhub",
+   "theme": "dark",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "toolhub",
+   "theme": "dark",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "plugins",
+   "theme": "light",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "plugins",
+   "theme": "light",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "plugins",
+   "theme": "dark",
+   "w": 1280,
+   "issues": 0,
+   "detail": []
+  },
+  {
+   "view": "plugins",
+   "theme": "dark",
+   "w": 900,
+   "issues": 0,
+   "detail": []
+  }
+ ]
+}

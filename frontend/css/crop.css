@@ -9,7 +9,7 @@
 .crop-assoc{position:absolute;left:12px;bottom:12px;display:flex;gap:8px;z-index:8}
 .assoc-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;border:1px solid rgba(0,0,0,.18);border-radius:8px;background:rgba(255,255,255,.82);backdrop-filter:saturate(1.4) blur(10px);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.1)}
 .assoc-item img{display:block;width:64px;height:40px;object-fit:cover;border-radius:5px;background:#eee}
-.assoc-item span{font-size:10px;color:#333;line-height:1}
+.assoc-item span{font-size:11px;color:#333;line-height:1}
 .assoc-item:hover{border-color:var(--accent-text)}
 /* minimap 的取景框：初始尺寸交给 CSS，缩放时由 JS 写 left/top/width/height */
 .vb0{left:0;top:0;width:0;height:0}

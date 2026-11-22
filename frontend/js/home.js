@@ -1,16 +1,19 @@
 // LabKit · home.js — P0 由 index.html 机械拆分，保持原顺序与语义（classic script，零构建）
 /* ===================== 图表 ===================== */
+/* 图表色从 CSS token 取：暗色模式下主色/网格/圆点随主题切换，而不是写死 #007AFF */
+const cssVar=(n,f)=>getComputedStyle(document.documentElement).getPropertyValue(n).trim()||f;
 function lineChart(data,w,h,color,fill){
   const max=Math.max(...data,1),n=data.length;
   const pts=data.map((v,i)=>`${(i/(n-1))*w},${h-6-(v/max)*(h-14)}`).join(' ');
   const area=`0,${h} ${pts} ${w},${h}`;
-  const grid=[0.25,0.5,0.75].map(f=>`<line x1="0" y1="${h*f}" x2="${w}" y2="${h*f}" stroke="rgba(0,0,0,.06)" stroke-width="1"/>`).join('');
-  return `<svg class="lc-svg" viewBox="0 0 ${w} ${h}" role="img"><defs><linearGradient id="g${color.slice(1)}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".22"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>${grid}<polygon class="lc-area" points="${area}" fill="url(#g${color.slice(1)})"/><polyline class="lc-line" pathLength="1" points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${data.map((v,i)=>`<circle class="lc-dot" style="animation-delay:${0.2+i*0.07}s" cx="${(i/(n-1))*w}" cy="${h-6-(v/max)*(h-14)}" r="2.6" fill="#fff" stroke="${color}" stroke-width="1.8"/>`).join('')}</svg>`;
+  const hair=cssVar('--hairline','#e5e5ea'),dotBg=cssVar('--card','#fff');
+  const grid=[0.25,0.5,0.75].map(f=>`<line x1="0" y1="${h*f}" x2="${w}" y2="${h*f}" stroke="${hair}" stroke-width="1"/>`).join('');
+  return `<svg class="lc-svg" viewBox="0 0 ${w} ${h}" role="img"><defs><linearGradient id="g${color.slice(1)}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".22"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>${grid}<polygon class="lc-area" points="${area}" fill="url(#g${color.slice(1)})"/><polyline class="lc-line" pathLength="1" points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${data.map((v,i)=>`<circle class="lc-dot" style="animation-delay:${0.2+i*0.07}s" cx="${(i/(n-1))*w}" cy="${h-6-(v/max)*(h-14)}" r="2.6" fill="${dotBg}" stroke="${color}" stroke-width="1.8"/>`).join('')}</svg>`;
 }
 function pieChart(parts,size){
   let acc=0;const total=parts.reduce((s,p)=>s+p[1],0)||1;
   const stops=parts.map(([c,v])=>{const from=acc/total*360;acc+=v;const to=acc/total*360;return `${c} ${from}deg ${to}deg`}).join(',');
-  return `<div style="width:min(${size}px,100%);aspect-ratio:1;border-radius:50%;background:conic-gradient(${stops})"></div>`;
+  return `<div style="width:${size}px;height:${size}px;max-width:100%;border-radius:50%;background:conic-gradient(${stops})"></div>`;
 }
 
 /* ===================== Dashboard 渲染 ===================== */
@@ -187,8 +190,8 @@ function renderKpi(){
     const step=t=>{const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);el.textContent=Math.round(target*e)+suf;if(p<1)requestAnimationFrame(step);};
     requestAnimationFrame(step);
   });
-  setHTML('chartFocus',lineChart(seriesFocus(7),300,90,'#007AFF'));
-  setHTML('chartTasks',lineChart(seriesTasks(7),300,90,'#30D158'));
+  setHTML('chartFocus',lineChart(seriesFocus(7),300,40,cssVar('--accent','#0066CC')));
+  setHTML('chartTasks',lineChart(seriesTasks(7),300,40,cssVar('--ok-fg','#167A34')));
   setText('timerToday',`今日专注 ${focusOn(todayStr())} 分钟 · ${focusCountOn(todayStr())} 次`);
 }
 function renderProjects(){
@@ -198,7 +201,7 @@ function renderProjects(){
       <div class="sub" style="margin-top:2px">${esc(p.code)} · ${esc(p.owner)} · ${esc(p.start)} ~ ${esc(p.end||'—')}</div>
       <div class="progress"><div class="progress-fill" data-w="${p.progress}" style="width:0"></div></div>
       <div class="milestones">${ms}</div>
-      ${p.risk?`<div class="sub" style="color:#8a5a00">风险：${esc(p.risk)}</div>`:''}
+      ${p.risk?`<div class="sub" style="color:var(--warn-fg)">风险：${esc(p.risk)}</div>`:''}
       ${i==null?'':rowActs('project',i)}</div>`;
   };
   setHTML('projCards',DB.projects.slice(0,2).map(p=>card(p)).join('')||'<div class="sub">还没有项目，点右上角新建</div>');
@@ -293,7 +296,7 @@ function renderLab(){
   if(labTab==='reagent'){
     html=`<table class="tbl"><thead><tr><th>名称</th><th>货号</th><th>批次</th><th>位置</th><th>开封</th><th>有效期</th><th>余量</th><th>操作</th></tr></thead><tbody>${DB.reagents.map((r,i)=>{
       const d=daysLeft(r.exp),warn=d===null?'':d<0?' <span class="warn-pill red">已过期</span>':d<=30?` <span class="warn-pill orange">${d} 天</span>`:'';
-      return `<tr><td class="name">${esc(r.name)}</td><td>${esc(r.no)}</td><td>${esc(r.lot)}</td><td>${esc(r.loc)}</td><td>${esc(r.open||'—')}</td><td>${esc(r.exp)}${warn}</td><td>${esc(r.left)}</td><td>${rowActs('reagent',i)}</td></tr>`;
+      return `<tr><td class="name">${esc(r.name)}</td><td>${esc(r.no)}</td><td>${esc(r.lot)}</td><td>${esc(r.loc)}</td><td>${esc(r.open||'—')}</td><td>${esc(r.exp)}${warn}</td><td class="num">${esc(r.left)}</td><td>${rowActs('reagent',i)}</td></tr>`;
     }).join('')||'<tr><td colspan="8" class="sub">还没有试剂，点右上角新增</td></tr>'}</tbody></table>`;
   }else if(labTab==='instrument'){
     html=`<table class="tbl"><thead><tr><th>仪器</th><th>最近校准</th><th>下次校准</th><th>备注</th><th>操作</th></tr></thead><tbody>${DB.instruments.map((x,i)=>{
@@ -303,7 +306,7 @@ function renderLab(){
   }else{
     html=`<table class="tbl"><thead><tr><th>日期</th><th>时段</th><th>仪器</th><th>使用人</th><th>用途 / 项目</th><th>操作</th></tr></thead><tbody>${DB.bookings.map((b,i)=>{
       const past=daysLeft(b.date);
-      return `<tr${past!==null&&past<0?' style="opacity:.55"':''}><td class="name">${esc(b.date)}</td><td>${esc(b.slot)}</td><td>${esc(b.inst)}</td><td>${esc(b.who)}</td><td>${esc(b.proj||'—')}</td><td>${rowActs('booking',i)}</td></tr>`;
+      return `<tr${past!==null&&past<0?' style="opacity:.7"':''}><td class="name">${esc(b.date)}</td><td>${esc(b.slot)}</td><td>${esc(b.inst)}</td><td>${esc(b.who)}</td><td>${esc(b.proj||'—')}</td><td>${rowActs('booking',i)}</td></tr>`;
     }).join('')||'<tr><td colspan="6" class="sub">还没有机时预约，点右上角新增</td></tr>'}</tbody></table>`;
   }
   document.getElementById('labTable').innerHTML=html;
@@ -313,15 +316,17 @@ function renderLab(){
 }function renderFocusPage(){
   const byType={},byProj={};let total=0;
   DB.focusRecords.forEach(r=>{byType[r.type]=(byType[r.type]||0)+r.minutes;byProj[r.project]=(byProj[r.project]||0)+r.minutes;total+=r.minutes});
-  const colors=['#007AFF','#30D158','#FF9F0A','#7B5CFF','#F0832A'];
+  const colors=[cssVar('--chart-1','#2F6FDB'),cssVar('--chart-2','#2E9E62'),cssVar('--chart-3','#C97B1E'),cssVar('--chart-4','#7A5CD6'),cssVar('--chart-5','#C04B5A')];
   const bar=(obj,unit)=>{const mx=Math.max(1,...Object.values(obj));
     return Object.entries(obj).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="bar-row"><span class="bl" title="${esc(k)}">${esc(k)}</span><div class="bar"><i style="width:${v/mx*100}%"></i></div><span class="bv">${v}${unit}</span></div>`).join('')||'<div class="sub">还没有记录</div>'};
-  document.getElementById('focusPie').innerHTML=(total?pieChart(Object.entries(byType).map(([k,v],i)=>[colors[i%5],v]),120):'<div class="sub" style="padding:26px 0;text-align:center">还没有专注记录</div>')+`<div class="sub" style="margin-top:10px">总时长 ${total} 分钟 · 近 7 天 ${sum(seriesFocus(7))} 分钟</div>`;
+  const typeRows=Object.entries(byType).sort((a,b)=>b[1]-a[1]);
+  const legend=typeRows.map(([k,v],i)=>`<div class="pl-item"><i style="background:${colors[i%5]}"></i><span title="${esc(k)}">${esc(k)}</span><b>${v}</b></div>`).join('');
+  document.getElementById('focusPie').innerHTML=(total?`<div style="display:flex;justify-content:center">${pieChart(typeRows.map(([k,v],i)=>[colors[i%5],v]),140)}</div><div class="pie-legend">${legend}</div>`:'<div class="sub" style="padding:26px 0;text-align:center">还没有专注记录</div>')+`<div class="sub" style="margin-top:10px">总时长 ${total} 分钟 · 近 7 天 ${sum(seriesFocus(7))} 分钟</div>`;
   document.getElementById('focusByProj').innerHTML=bar(byProj,'′');
   document.getElementById('focusTotal').innerHTML=`<div class="kpi"><div class="num">${total}′</div><div class="label">累计专注</div></div><div class="kpi" style="margin-top:8px"><div class="num">${DB.focusRecords.length}</div><div class="label">专注次数</div></div><div class="kpi" style="margin-top:8px"><div class="num">${focusOn(todayStr())}′</div><div class="label">今日专注</div></div>`;
   /* 记录表带编辑/删除：以前只能看，记错了只能去改 JSON */
   const rows=DB.focusRecords.map((r,i)=>({r,i})).sort((a,b)=>String(b.r.at).localeCompare(String(a.r.at)));
-  document.getElementById('focusTable').innerHTML=`<table class="tbl"><thead><tr><th>时间</th><th>项目</th><th>类型</th><th>时长</th><th>操作</th></tr></thead><tbody>${rows.map(({r,i})=>`<tr><td class="name">${esc(fmtRecAt(r))}</td><td>${esc(r.project)}</td><td>${esc(r.type)}</td><td>${r.minutes} 分钟</td><td>${rowActs('focus',i)}</td></tr>`).join('')||'<tr><td colspan="5" class="sub">还没有专注记录，用首页计时卡片开始一次专注</td></tr>'}</tbody></table>`;
+  document.getElementById('focusTable').innerHTML=`<table class="tbl"><thead><tr><th>时间</th><th>项目</th><th>类型</th><th>时长</th><th>操作</th></tr></thead><tbody>${rows.map(({r,i})=>`<tr><td class="name">${esc(fmtRecAt(r))}</td><td>${esc(r.project)}</td><td>${esc(r.type)}</td><td class="num">${r.minutes}<span class="unit"> 分钟</span></td><td>${rowActs('focus',i)}</td></tr>`).join('')||'<tr><td colspan="5" class="sub">还没有专注记录，用首页计时卡片开始一次专注</td></tr>'}</tbody></table>`;
   bindRowActs();
 }
 let reportRange=14;
@@ -329,7 +334,7 @@ function renderReports(){
   /* 以前这里直接抄 kpiRow.innerHTML，卡片一被移除报表页就空白；现在独立计算 */
   setHTML('reportKpi',kpiHTML());
   const n=reportRange,sv=seriesFocus(n),st=seriesTasks(n),days=lastDays(n);
-  setHTML('reportChart',lineChart(sv,720,140,'#007AFF'));
+  setHTML('reportChart',lineChart(sv,720,140,cssVar('--accent','#0066CC')));
   setText('reportChartNote',`${days[0]} ~ ${days[n-1]} · 专注合计 ${sum(sv)} 分钟 · 完成任务 ${sum(st)} 项 · 日均 ${Math.round(sum(sv)/n)} 分钟`);
   const byProj={};DB.focusRecords.forEach(r=>{byProj[r.project]=(byProj[r.project]||0)+r.minutes});
   const mxp=Math.max(1,...Object.values(byProj));

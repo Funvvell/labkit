@@ -9,20 +9,25 @@ import assert from 'node:assert/strict';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const app = readFileSync(path.join(ROOT, 'frontend', 'css', 'app.css'), 'utf8');
+const visual = readFileSync(path.join(ROOT, 'frontend', 'css', 'visual.css'), 'utf8');
 
-function block(selector) {
-  const at = app.indexOf(selector);
-  const open = app.indexOf('{', at);
-  const close = app.indexOf('}', open);
-  return app.slice(open + 1, close);
+function block(text, selector) {
+  const at = text.indexOf(selector);
+  const open = text.indexOf('{', at);
+  const close = text.indexOf('}', open);
+  return text.slice(open + 1, close);
 }
 function tokens(text) {
   const map = {};
   for (const m of text.matchAll(/--([a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{6})/g)) map[m[1].toLowerCase()] = m[2];
   return map;
 }
-const light = tokens(block(':root{'));
-const dark = { ...light, ...tokens(block(':root[data-theme="dark"]')) };
+const light = { ...tokens(block(app, ':root{')), ...tokens(block(visual, ':root{')) };
+const dark = {
+  ...light,
+  ...tokens(block(app, ':root[data-theme="dark"]')),
+  ...tokens(block(visual, ':root[data-theme="dark"]')),
+};
 
 const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
 const lum = hex => {
@@ -42,9 +47,18 @@ const PAIRS = [
   ['ink-2', 'card', 4.5, '次文字/卡片底'],
   ['muted', 'bg', 4.5, '弱化文字/页面底'],
   ['muted', 'card', 4.5, '弱化文字/卡片底'],
+  ['muted', 'surface', 4.5, '弱化文字/内容容器'],
+  ['muted', 'elev-1', 4.5, '弱化文字/抽屉'],
+  ['muted', 'elev-2', 4.5, '弱化文字/浮层'],
   ['accent-text', 'card', 4.5, '链接与主色文字/卡片底'],
   ['accent-text', 'bg', 4.5, '链接与主色文字/页面底'],
+  ['accent-text', 'elev-2', 4.5, '链接与主色文字/浮层'],
   ['accent-hover', 'card', 4.5, '主色悬停/卡片底'],
+  /* 语义色：前景压在自家 tint 底上，必须 AA */
+  ['ok-fg', 'ok-bg', 4.5, '成功文字/成功底'],
+  ['warn-fg', 'warn-bg', 4.5, '警告文字/警告底'],
+  ['danger-fg', 'danger-bg', 4.5, '危险文字/危险底'],
+  ['info-fg', 'info-bg', 4.5, '信息文字/信息底'],
 ];
 
 /* 白字压在语义色底上：按钮多为 12px/600 的「大字」级别，按 3:1 兜住 */

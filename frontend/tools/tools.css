@@ -113,7 +113,7 @@
 .oe-output td,.oe-output th{border:1px solid color-mix(in srgb,var(--ink,#1d1d1f) 10%,transparent);padding:4px 9px}
 .oe-output h2{font-size:15px;margin:10px 0 6px}
 .oe-output h3{font-size:13px;margin:8px 0 4px}
-.oe-output sup,.oe-output sub{font-size:9px}
+.oe-output sup,.oe-output sub{font-size:11px}
 /* 孔板 */
 .plate-grid{display:inline-grid;gap:3px;margin-top:10px}
 .plate-well{width:26px;height:26px;border-radius:50%;border:1px solid color-mix(in srgb,var(--ink,#1d1d1f) 15%,transparent);background:var(--card,#fff);cursor:pointer;font-size:8px;display:flex;align-items:center;justify-content:center;color:var(--muted,#6e6e73);padding:0}

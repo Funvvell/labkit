@@ -291,7 +291,7 @@ function renderQpcr(analysis,nwells){
       if(k==='fold_change'&&v!=null){cls=v>=2?'fold-hi':(v<=0.5?'fold-lo':'')}
       const txt=v==null?'—':(typeof v==='number'?(k==='efficiency'?(v*100).toFixed(0)+'%':v.toFixed(3)):esc(v));
       return `<td class="${k==='sample_id'?'name':''} ${cls}">${txt}</td>`;
-    }).join('')}<td style="font-family:var(--sans);color:${flags.length?'#8a5a00':'var(--muted)'}">${flags.length?esc(flags.join(' / ')):'—'}</td></tr>`;
+    }).join('')}<td style="font-family:var(--sans);color:${flags.length?'var(--warn-fg)':'var(--muted)'}">${flags.length?esc(flags.join(' / ')):'—'}</td></tr>`;
     if(qExpanded.has(key)){
       const ws=qState.wells.filter(w=>w.sample_id===r.sample_id&&w.target_id===r.target_id);
       html+=`<tr class="drill-row"><td colspan="${cols.length+1}">${ws.map(w=>`<label class="well-chip ${w.excluded?'excluded':''}"><input type="checkbox" data-wid="${esc(w.id)}" ${w.excluded?'checked':''}>${w.cq==null?'Undet':w.cq.toFixed(2)}${w.flags&&w.flags.length?' · '+esc(w.flags.map(flagText).join(',')):''}</label>`).join('')}<span class="hint-t">勾选=排除该孔，自动重算</span></td></tr>`;

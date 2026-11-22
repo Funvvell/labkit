@@ -2,7 +2,9 @@
 
 > 本文档由应用内「设计规范」页面迁出（v0.3 起不再内置于软件）。
 > 所有内置工具与社区插件共享这套 token —— 新增功能时直接复用，保证全局一致。
-> token 的运行时定义在 `frontend/css/app.css` 的 `:root` 与 `:root[data-theme="dark"]`，本文与其保持同步。
+> token 的运行时定义分两处：基础 token 在 `frontend/css/app.css` 的 `:root`，
+> 视觉层（五级表面、语义色配对、对齐基准）在 `frontend/css/visual.css`（最后加载）。
+> 本文与两处保持同步。
 
 ## 1. 色彩
 
@@ -21,24 +23,30 @@
 | --- | --- | --- | --- |
 | 主文字 | `#1D1D1F` | `#F5F5F7` | `--ink` |
 | 次文字 | `#3A3A3C` | `#D1D1D6` | `--ink-2` |
-| 弱化文字 | `#6E6E73` | `#98989D` | `--muted` |
+| 弱化文字 | `#6E6E73` | `#A1A1A6` | `--muted` |
 | 禁用 | `#AEAEB2` | `#636366` | `--disabled` |
 | 分隔线 | `#E5E5EA` | `#3A3A3C` | `--line` |
-| 页面底 | `#F5F5F7` | `#1C1C1E` | `--bg` |
-| 卡片底 | `#FFFFFF` | `#2C2C2E` | `--card` / `--surface` |
-| 毛玻璃 | `rgba(255,255,255,.56)` | `rgba(30,30,32,.62)` | `--glass` |
+| 页面底 | `#F2F2F4` | `#151517` | `--bg` |
+| 内容容器 | `#F8F8FA` | `#1B1B1D` | `--surface` |
+| 卡片底 | `#FFFFFF` | `#232326` | `--card` |
+| 抽屉 / 浮层 | `#FFFFFF` | `#2A2A2E` / `#323236` | `--elev-1` / `--elev-2` |
+| 内嵌底 | `#ECECEF` | `#111113` | `--sunken` |
+| 毛玻璃（仅导航层） | `rgba(255,255,255,.56)` | `rgba(30,30,32,.62)` | `--glass` |
 | 悬停底 | `rgba(0,0,0,.05)` | `rgba(255,255,255,.08)` | `--hover` |
-| 细线 | `rgba(0,0,0,.07)` | `rgba(255,255,255,.1)` | `--hairline` |
+| 细线 | `rgba(0,0,0,.07)` | `rgba(255,255,255,.07)` | `--hairline` |
 
-### 语义色
+### 语义色（前景 / 底色成对）
 
-| 语义 | 色值 | CSS 变量 |
-| --- | --- | --- |
-| 成功 | `#30D158` | `--green` |
-| 警告 | `#FF9F0A` | `--orange` |
-| 危险 | `#FF453A` | `--red` |
+| 语义 | 浅色 fg / bg | 深色 fg / bg | CSS 变量 |
+| --- | --- | --- | --- |
+| 成功 | `#167A34` / `#E7F5EC` | `#3DDC6B` / `#17301F` | `--ok-fg` / `--ok-bg` |
+| 警告 | `#8A5300` / `#FDF1E0` | `#FFD60A` / `#33280E` | `--warn-fg` / `--warn-bg` |
+| 危险 | `#C0271F` / `#FBEAE8` | `#FF6961` / `#341917` | `--danger-fg` / `--danger-bg` |
+| 信息 | `#0059C7` / `#E6F0FF` | `#5FB0FF` / `#12283D` | `--info-fg` / `--info-bg` |
 
-深色模式下徽章/状态文字另有提亮变体（见 `app.css` `:root[data-theme="dark"]` 段）。
+**规则**：状态徽章/提示条只引用这四对，不再写 `#8a5a00`、`#248A3D` 之类的浅色深字；
+`tests/js/contrast.test.mjs` 对这 16 组配对逐主题断言 ≥4.5:1，改色必须同时跑测试。
+品牌色 `--green/--orange/--red` 只作圆点、图标、图表分类色，不承担正文。
 
 ## 2. 字体
 
@@ -51,9 +59,9 @@
 `--mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace`。
 Inter 为变量字体（`font-weight: 100 900` 单文件覆盖全字重）。
 
-字号阶梯与行三档在 `css/type.css`（最后加载）：`--text-3xs:9 / 2xs:10 / xs:11 / sm:12 / md:13 /
-lg:15 / xl:18 / 2xl:22 / 3xl:26`（px），`--leading-tight:1.25 / normal:1.5 / relaxed:1.7`。
-**禁止半像素字号**（不同 DPI 渲染不一致），组件引用 token，不写新字面量。
+字号阶梯与行三档在 `css/type.css`（视觉层 `visual.css` 最后加载）：`--text-3xs:11 / 2xs:11 / xs:11 / sm:12 / md:13 /
+lg:15 / xl:18 / 2xl:24 / 3xl:28`（px），`--leading-tight:1.25 / normal:1.5 / relaxed:1.7`。
+**界面文字最小 11px**（9/10px 只允许出现在非文本装饰），**禁止半像素字号**（不同 DPI 渲染不一致），组件引用 token，不写新字面量。
 
 | 层级 | token / 字重 | 典型用途 |
 | --- | --- | --- |
@@ -179,3 +187,34 @@ lg:15 / xl:18 / 2xl:22 / 3xl:26`（px），`--leading-tight:1.25 / normal:1.5 / 
 - **拖拽必须可键盘替代**：工具箱 `Alt+方向键`，Dashboard 卡片方向键 / `Shift+方向键`，标签栏 `←/→` 移动焦点 + `Ctrl+Tab` 循环。
 - **标签单例**：同一工具只允许一个标签，重复打开只聚焦、不重建 DOM；关闭后重新打开按需重新挂载（输入由 `toolform:<id>` 恢复）。
 - 布局编辑：Homarr 式草稿 → 保存 / Esc 取消；卡片尺寸 1/2/4 列 × 1–4 行整数格。
+
+## 11. 视觉层与对齐（visual.css）
+
+视觉层在 `frontend/css/visual.css` 中最后加载，用同优先级覆盖组件样式；**不改组件文件也能统一主题与对齐**。
+新增组件时先查这里是否已有规则，避免把同一套色值再写一遍。
+
+### 11.1 材质分工
+
+- **导航层**（标题栏 48 / 侧栏 224 / 标签栏 40）：薄材质 `color-mix(surface 82%, transparent)` + `backdrop-filter: blur(20px)`；
+  全站只有这一层允许模糊。
+- **内容层**（页面 / 卡片 / 表格 / 工具 section / 工作区）：纯色 `--card`、无渐变、无玻璃；
+  层级靠 `--surface` / `--sunken` / `--elev-1` / `--elev-2` 的亮度阶梯表达。
+- **浮层**：`--elev-2` + `--shadow-3`；`dialog::backdrop` 统一 28% 黑（暗色 55%）+ 6px blur。
+
+### 11.2 对齐规则
+
+| 规则 | 实现 |
+| --- | --- |
+| 一行共中心线 | 页头、卡片头、通知项、标签、chrome 条：`align-items:center`；按钮/输入/下拉/分段统一 32/34 高 |
+| 一列共边线 | 侧栏分组标题与导航文字同为内容盒 35px（图标槽 17 + gap 9 + padding 9） |
+| 卡片头同高 | `.card-head{min-height:28px}`；`h2` / `.card-act` / `.db-pill` 共中心线，按钮右边缘贴内边距 |
+| 表格 | 表头 `position:sticky`；首列 `padding-left:0` 贴卡片内容线；数值列 `th.num/td.num` 右对齐；末列右对齐 |
+| 表单 | `label` 行高 18px；`.trow/.settings-trow` 用 `align-items:flex-start`，多字段按输入框**顶边**对齐 |
+| 文字垂直 | 单行控件用 `flex + line-height:1.2` 居中，**不用** `line-height:<控件高>`（CJK 会偏上 1–2px） |
+| 光学补偿 | 带图标按钮 `padding-left` 比右少 2px；图标 `flex:0 0 auto`，gap 6–8 |
+
+### 11.3 门禁
+
+- `tests/js/contrast.test.mjs`：16 组语义配对逐主题 ≥4.5:1。
+- `tests/smoke_align.mjs`（需 exe + 9222）：`rowCenter ≤1.5px`、`rowHeight` 全等、`edgeRight ≤1px`、`colRight ≤1px`。
+- `visual.css` 预算 ≤30000 bytes，禁止 `!important`（`tests/js/ui-contract.test.mjs`）。
