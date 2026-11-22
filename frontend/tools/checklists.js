@@ -175,16 +175,16 @@
         <h3>报告规范自查</h3>
         <div class="hint">逐条勾选并填写页码/备注；进度自动保存到本机。导出 Markdown 可直接附投稿材料。</div>
         <div class="trow">
-          <div class="tfield"><label>清单</label><select id="ck-sel">${opts}</select></div>
+          <label class="tfield">清单<select id="ck-sel">${opts}</select></label>
           <button class="tbtn sec" id="ck-all">全选</button>
           <button class="tbtn sec" id="ck-none">清空</button>
           <button class="tbtn pri" id="ck-export">导出 Markdown</button>
           <button class="tbtn sec" id="ck-copy">复制</button>
         </div>
         <div class="tnote" id="ck-cite"></div>
-        <div class="tnote" id="ck-progress" style="font-weight:600;color:#007AFF"></div>
-        <div class="tout" id="ck-items" style="margin-top:6px"></div>
-        <div class="tout"><div class="tmono" id="ck-md" style="max-height:300px;overflow:auto;display:none"></div></div>
+        <div class="ck-progress" id="ck-progress"></div>
+        <div class="tout" id="ck-items"></div>
+        <div class="tout"><div class="tmono ck-md tbody-scroll" id="ck-md" hidden></div></div>
       </div>`;
     const $ = id => host.querySelector('#' + id);
     let cur = 'prisma', state = {}, md = '';
@@ -197,9 +197,9 @@
       $('ck-cite').textContent = '出处：' + c.cite;
       $('ck-items').innerHTML = c.items.map(([sec, id, text], i) => {
         const s = state[id] || {};
-        return `<div class="chk-item"><input type="checkbox" data-i="${i}" ${s.done ? 'checked' : ''}>
+        return `<div class="chk-item"><input type="checkbox" data-i="${i}" aria-label="完成 ${esc(id)}" ${s.done ? 'checked' : ''}>
           <span class="chk-sec">${esc(sec)} ${esc(id)}</span>
-          <span style="flex:1">${esc(text)}<br><input type="text" data-note="${i}" value="${esc(s.note || '')}" placeholder="页码/备注（可选）" style="margin-top:4px;width:100%;border:1px solid rgba(0,0,0,.1);border-radius:7px;padding:4px 8px;font-size:12px"></span></div>`;
+          <span class="chk-body">${esc(text)}<br><input type="text" class="ck-note" data-note="${i}" value="${esc(s.note || '')}" placeholder="页码/备注（可选）" aria-label="${esc(id)} 的页码或备注"></span></div>`;
       }).join('');
       $('ck-items').querySelectorAll('input[type=checkbox]').forEach(cb => cb.onchange = () => {
         const id = c.items[+cb.dataset.i][1];
@@ -229,11 +229,26 @@
       out += `\n---\n完成度：${done}/${c.items.length}\n`;
       return out;
     }
-    $('ck-sel').onchange = () => { cur = $('ck-sel').value; load(); render(); $('ck-md').style.display = 'none'; };
+    $('ck-sel').onchange = () => { cur = $('ck-sel').value; load(); render(); $('ck-md').hidden = true; };
     $('ck-all').onclick = () => { CHECKLISTS[cur].items.forEach(([, id]) => state[id] = Object.assign(state[id] || {}, { done: true })); save(); render(); };
-    $('ck-none').onclick = () => { state = {}; save(); render(); };
-    $('ck-export').onclick = () => { md = buildMD(); $('ck-md').textContent = md; $('ck-md').style.display = ''; };
+    $('ck-none').onclick = () => {
+      const done = CHECKLISTS[cur].items.filter(([, id]) => (state[id] || {}).done).length;
+      if (!done) { toast('当前清单已是空的'); return; }
+      confirmModal('清空勾选？', `「${CHECKLISTS[cur].name}」已勾选 ${done} 条将被重置，备注一并清除。`, () => { state = {}; save(); render(); }, '清空');
+    };
+    $('ck-export').onclick = () => {
+      md = buildMD();
+      $('ck-md').textContent = md;
+      $('ck-md').hidden = false;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([md], { type: 'text/markdown;charset=utf-8' }));
+      a.download = CHECKLISTS[cur].name + '_自查清单.md';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      toast('Markdown 已导出');
+    };
     $('ck-copy').onclick = () => { md = buildMD(); navigator.clipboard.writeText(md).then(() => toast('清单 Markdown 已复制')); };
+    host.__lkReset = () => { state = {}; Store.set('tool:checklist-' + cur, null); return true; };
     load(); render();
   };
 })();

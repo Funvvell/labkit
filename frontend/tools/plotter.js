@@ -53,11 +53,11 @@
         <div class="trow">
           <button class="tbtn pri" id="ptParse">解析数据</button>
           <button class="tbtn sec" id="ptDemo">示例数据</button>
-          <label class="tbtn sec" style="cursor:pointer">导入 CSV<input id="ptFile" type="file" accept=".csv,.tsv,.txt" style="display:none"></label>
+          <span class="tfile"><input id="ptFile" type="file" accept=".csv,.tsv,.txt"><span class="tfile-face">导入 CSV</span></span>
         </div>
-        <textarea id="ptData" rows="5" class="tmono" style="width:100%;margin-top:8px" placeholder="粘贴 CSV/TSV（首行列名）"></textarea>
+        <label class="tfield"><span>数据（粘贴 CSV/TSV，首行列名）</span><textarea id="ptData" rows="5" placeholder="粘贴 CSV/TSV（首行列名）"></textarea></label>
       </div>
-      <div class="tool-section" id="ptCfg" style="display:none">
+      <div class="tool-section" id="ptCfg" hidden>
         <div class="trow">
           <label class="tfield">图型<select id="ptType"><option value="bar">柱状（均值±误差）</option><option value="box">箱线</option><option value="scatter">散点</option><option value="line">折线（均值）</option></select></label>
           <label class="tfield">X 列<select id="ptX"></select></label>
@@ -65,35 +65,41 @@
           <label class="tfield">分组列<select id="ptG"><option value="">无</option></select></label>
           <label class="tfield">误差棒<select id="ptErr"><option>SD</option><option>SEM</option><option>CI95</option><option value="none">无</option></select></label>
         </div>
-        <div class="trow" style="margin-top:6px">
+        <div class="trow">
           <label class="tfield"><span>显著性括号</span><input id="ptSig" type="checkbox" checked></label>
           <label class="tfield">检验<select id="ptSigMethod"><option value="t">Welch t</option><option value="mwu">Mann-Whitney</option></select></label>
           <label class="tfield"><span>散点加拟合线</span><input id="ptFit" type="checkbox"></label>
           <label class="tfield">配色<select id="ptPalette"><option value="okabe">Okabe-Ito（色盲安全）</option><option value="gray">灰度（黑白印刷）</option></select></label>
-          <label class="tfield">字号<input id="ptFont" type="number" value="12" min="8" max="20" style="width:60px"></label>
+          <label class="tfield w-sm">字号<input id="ptFont" type="number" value="12" min="8" max="20"></label>
         </div>
-        <div class="trow" style="margin-top:8px">
+        <div class="trow">
           <button class="tbtn pri" id="ptDraw">绘图</button>
-          <button class="tbtn sec" id="ptSaveCfg">保存配置</button>
-          <button class="tbtn sec" id="ptLoadCfg">载入配置</button>
+          <button class="tbtn sec" id="ptSaveCfg">导出配置 JSON</button>
+          <span class="tfile"><input id="ptCfgFile" type="file" accept=".json"><span class="tfile-face">导入配置 JSON</span></span>
+          <button class="tbtn sec" id="ptLoadCfg">恢复上次配置</button>
         </div>
       </div>
-      <div class="tool-section" id="ptOutSec" style="display:none">
-        <div id="ptBar" style="display:flex;gap:6px;align-items:center;margin-bottom:6px"></div>
+      <div class="tool-section" id="ptOutSec" hidden>
+        <div id="ptBar" class="pt-bar"></div>
         <div id="ptPlot"></div>
         <div class="tnote" id="ptNote"></div>
       </div>`;
     const $ = id => host.querySelector('#' + id);
     let rows = [], cols = [];
-    const GRAY = ['#000000', '#555555', '#888888', '#bbbbbb', '#333333', '#666666', '#999999', '#dddddd'];
+    const GRAY = W.LKColors.GRAY;
     const palette = () => $('ptPalette').value === 'gray' ? GRAY : W.QpcrPlots.PALETTE;
 
     function parse(text) {
       const res = Papa.parse(text.trim(), { header: true, skipEmptyLines: true, dynamicTyping: false });
       if (!res.data.length) throw new Error('未解析到数据');
       rows = res.data; cols = res.meta.fields;
-      $('ptCfg').style.display = '';
-      const numCols = cols.filter(c => rows.filter(r => Number.isFinite(Number(r[c])) && r[c] !== '').length / rows.length > 0.8);
+      $('ptCfg').hidden = false;
+      $('ptOutSec').hidden = true;
+      /* 数值列判定改为「全部非空值都是有限数」：原先 80% 阈值会让含个别空格的 0 列退化成分类轴 */
+      const numCols = cols.filter(c => {
+        const vals = rows.map(r => r[c]).filter(v => v !== '' && v != null);
+        return vals.length > 0 && vals.every(v => Number.isFinite(Number(v)));
+      });
       const fill = (sel, list, prefer) => { sel.innerHTML = list.map(c => `<option ${c === prefer ? 'selected' : ''}>${esc(c)}</option>`).join(''); };
       fill($('ptX'), cols, cols.find(c => /group|dose|time|浓度|组/i.test(c)) || cols[0]);
       fill($('ptY'), numCols.length ? numCols : cols, numCols[numCols.length - 1] || cols[1]);
@@ -187,7 +193,7 @@
       }
 
       const layout = W.QpcrPlots.journalLayout({
-        height: W.QpcrPlots.plotHeight(400), barmode: 'group', boxmode: 'group',
+        height: W.QpcrPlots.plotHeight(400, $('ptPlot')), barmode: 'group', boxmode: 'group',
         font: { family: W.QpcrPlots.JOURNAL_FONT, size: font, color: '#000' },
         xaxis: Object.assign(W.QpcrPlots.journalLayout().xaxis, { title: { text: xk, font: { size: font + 1 } }, type: type === 'scatter' && rows.every(r => Number.isFinite(Number(r[xk]))) ? 'linear' : 'category' }),
         yaxis: Object.assign(W.QpcrPlots.journalLayout().yaxis, { title: { text: yk, font: { size: font + 1 } } }),
@@ -195,7 +201,7 @@
         showlegend: useG || traces.length > 1,
       });
       W.Plotly.newPlot($('ptPlot'), traces, layout, { responsive: true, displaylogo: false });
-      $('ptOutSec').style.display = '';
+      $('ptOutSec').hidden = false;
       W.QpcrPlots.exportBar($('ptBar'), () => $('ptPlot'), 'figure');
       const sigCount = annotations.length;
       $('ptNote').textContent = `${xs.length} 个 X 水平 · ${groups.length} 组 · ${sigCount} 个显著性标注。箱线四分位为 linear 法（与 numpy percentile 默认一致）。`;
@@ -219,10 +225,21 @@
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     };
     $('ptLoadCfg').onclick = () => {
-      try { applyCfg(JSON.parse(Store.get('tool:plotter-cfg', null) || 'null')); toast('已载入上次配置'); } catch (e) { toast('无已保存配置'); }
+      try { applyCfg(JSON.parse(Store.get('tool:plotter-cfg', null) || 'null')); toast('已恢复上次配置'); } catch (e) { toast('无已保存配置'); }
     };
+    /* 导出的 JSON 必须能再导回来，否则「导出配置」只能看不能用 */
+    $('ptCfgFile').addEventListener('change', async ev => {
+      const f = ev.target.files[0]; if (!f) return;
+      try {
+        applyCfg(JSON.parse(await f.text()));
+        toast('已导入配置');
+        if (rows.length) draw();
+      } catch (e) { toast('配置解析失败：' + e.message); }
+      ev.target.value = '';
+    });
     ['ptType', 'ptErr', 'ptSig', 'ptSigMethod', 'ptPalette', 'ptFit'].forEach(id => $(id).addEventListener('change', () => { if (rows.length) draw(); }));
     /* P2：统一壳示例入口 + 接收「数据清洗」数据集 */
+    host.__lkReset = () => { Store.set('tool:plotter-cfg', null); return true; };
     host.__lkExample = () => $('ptDemo').click();
     const sess = Store.get('session:dataset', null);
     if (sess && sess.rows && sess.rows.length && sess.cols) {

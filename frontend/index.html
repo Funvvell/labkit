@@ -112,7 +112,7 @@
               <button class="btn sec" id="btnDashAddCard" type="button">＋ 卡片</button>
               <button class="btn sec" id="btnDashEdit">编辑布局</button>
             </div>
-            <div class="tools edit-tools" id="dashEditTools" style="display:none">
+            <div class="tools edit-tools" id="dashEditTools" hidden>
               <span class="edit-state" id="editState">编辑中</span>
               <button class="btn sec" id="btnDashAdd">+ 添加卡片</button>
               <button class="btn sec" id="btnDashReset">恢复默认</button>
@@ -133,12 +133,12 @@
           <button class="btn-primary" id="btnNewTask"><svg viewBox="0 0 24 24" fill="none"><path d="M12 5V19M5 12H19" stroke="white" stroke-width="2.2" stroke-linecap="round"/></svg>新建任务</button>
         </div>
         <div class="scroll">
-          <div class="seg-ctl" style="max-width:420px">
+          <div class="seg-ctl seg-narrow">
             <button class="active" data-tview="board">看板</button><button data-tview="list">清单</button><button data-tview="day">日视图</button><button data-tview="week">周视图</button>
           </div>
           <div class="board-row" id="taskBoard"></div>
-          <div id="taskListWrap" style="display:none"><div id="taskList"></div></div>
-          <div id="taskCal" data-mode="day" style="display:none"></div>
+          <div id="taskListWrap" hidden><div id="taskList"></div></div>
+          <div id="taskCal" data-mode="day" hidden></div>
         </div>
       </section>
 
@@ -179,7 +179,7 @@
         <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="pin-btn" data-pin-toggle="literature" data-pin-toggle-kind="page" title="固定到侧栏" aria-label="固定到侧栏">☆</button><div><h1>文献库</h1><div class="sub">轻量管理 · 不替代 Zotero · 可选 WebDAV 对接</div></div><button class="btn-primary" id="btnNewLit">添加文献</button></div>
         <div class="scroll">
           <div class="zotero-bar" id="zoteroBar"></div>
-          <div class="seg-ctl" style="max-width:420px;margin-bottom:10px"><button class="active" data-litsrc="all">全部</button><button data-litsrc="local">本地</button><button data-litsrc="zotero">Zotero</button></div>
+          <div class="seg-ctl seg-narrow mb10"><button class="active" data-litsrc="all">全部</button><button data-litsrc="local">本地</button><button data-litsrc="zotero">Zotero</button></div>
           <div class="dash-card full"><div id="litTable"></div></div>
         </div>
       </section>
@@ -188,7 +188,7 @@
       <section class="view" id="view-labres">
         <div class="content-head"><button class="back" data-back title="返回首页"><svg viewBox="0 0 24 24" fill="none"><path d="M14.5 5L8 12L14.5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="pin-btn" data-pin-toggle="labres" data-pin-toggle-kind="page" title="固定到侧栏" aria-label="固定到侧栏">☆</button><div><h1>仪器 / 试剂</h1><div class="sub">有效期 · 余量 · 校准提醒 · 机时预约</div></div><button class="btn-primary" id="btnLabNew">新增试剂</button></div>
         <div class="scroll">
-          <div class="seg-ctl" style="max-width:420px"><button class="active" data-labtab="reagent">试剂</button><button data-labtab="instrument">仪器</button><button data-labtab="booking">机时预约</button></div>
+          <div class="seg-ctl seg-narrow"><button class="active" data-labtab="reagent">试剂</button><button data-labtab="instrument">仪器</button><button data-labtab="booking">机时预约</button></div>
           <div class="dash-card full"><div id="labTable"></div></div>
         </div>
       </section>
@@ -272,7 +272,7 @@
                   <label class="tfield">主题<div class="seg" id="themeSeg"><button data-theme="light">浅色</button><button data-theme="dark">深色</button><button data-theme="system">跟随系统</button></div></label>
                   <label class="settings-toggle"><input type="checkbox" id="setRestoreTabs"><span>启动时恢复上次的工具标签页</span></label>
                 </div>
-                <div class="btn-row" style="margin-top:10px;flex-wrap:wrap">
+                <div class="btn-row row-wrap">
                   <button class="btn sec" id="btnOpenToolbox" type="button">打开工具窗口</button>
                 </div>
                 <div class="sub">称呼用于首页问候与新建记录的默认负责人；图表与裁图画布保持纸面白色，符合期刊投稿要求。</div>
@@ -284,7 +284,7 @@
               <section class="dash-card settings-card">
                 <div class="card-head"><h2>数据与备份</h2><span class="db-pill" id="dbPill">—</span></div>
                 <div id="dbInfo" class="kv-list"></div>
-                <div class="btn-row" style="margin-top:12px;flex-wrap:wrap">
+                <div class="btn-row row-wrap mt12">
                   <button class="btn sec" id="btnDbSave">立即保存</button>
                   <button class="btn sec" id="btnDbBackup">创建备份</button>
                   <button class="btn sec" id="btnDbExport">导出 JSON</button>
@@ -294,7 +294,7 @@
                 <div class="divider"></div>
                 <div class="card-head"><h2>危险操作</h2></div>
                 <div class="sub">清空前会自动备份到 backups/，可从「导入 JSON」找回。</div>
-                <div class="btn-row" style="margin-top:10px;flex-wrap:wrap">
+                <div class="btn-row row-wrap">
                   <button class="btn sec" id="btnDbClearDemo">清空示例数据</button>
                   <button class="btn danger" id="btnDbReset">重置全部台账</button>
                 </div>
@@ -322,7 +322,7 @@
                   <label class="tfield compact">端口<input type="number" id="setZoteroPort" min="1" max="65535" value="23119"></label>
                   <button class="btn sec" id="btnZoteroTest">测试连接</button>
                 </div>
-                <label id="zoteroWriteWrap" class="settings-toggle" style="display:none"><input type="checkbox" id="setZoteroWrite"><span>回写状态到 Zotero tag（10+）</span></label>
+                <label id="zoteroWriteWrap" class="settings-toggle" hidden><input type="checkbox" id="setZoteroWrite"><span>回写状态到 Zotero tag（10+）</span></label>
                 <div class="sub">需要先在 Zotero「设置 → 高级 → 允许本机其他应用与 Zotero 通信」中开启本地 API。</div>
               </section>
               <section class="dash-card settings-card">
@@ -336,7 +336,7 @@
                 <div class="divider"></div>
                 <div class="card-head"><h2>关于</h2></div>
                 <div class="sub" id="aboutLine">科研工具箱 LabKit v0.4.0 · Rust + Tauri · SDPC 解码 &amp; qPCR 核心复用自 Rust 重构版</div>
-                <div class="trow settings-trow" style="margin-top:10px">
+                <div class="trow settings-trow mt10">
                   <button class="btn sec" id="btnUpdateCheck" type="button">检查更新</button>
                   <span class="sub" id="updateStatus">当前版本读取中…</span>
                 </div>
@@ -404,14 +404,14 @@
 
           <div class="stage-wrap">
             <div class="canvas-bar">
-              <span class="chip" style="background:rgba(0,122,255,.08);color:var(--accent)">拖拽平移 · 空格创建 ROI · 角点调整大小</span>
+              <span class="chip chip-hint">拖拽平移 · 空格创建 ROI · 角点调整大小</span>
               <div class="sep"></div>
               <button class="tool-btn" id="btnUndo" title="撤销 (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none"><path d="M8 5L3.5 9.5L8 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.5 9.5H14C17.6 9.5 20.5 12.4 20.5 16V16.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
               <button class="tool-btn" id="btnRedo" title="重做 (Ctrl+Y)"><svg viewBox="0 0 24 24" fill="none"><path d="M16 5L20.5 9.5L16 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.5 9.5H10C6.4 9.5 3.5 12.4 3.5 16V16.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
               <button class="tool-btn" id="btnDelRoi" title="删除选中 (Del)"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7H20M9 7V5C9 4.4 9.4 4 10 4H14C14.6 4 15 4.4 15 5V7M6.5 7L7.3 19C7.35 19.6 7.8 20 8.4 20H15.6C16.2 20 16.65 19.6 16.7 19L17.5 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <div class="sep"></div>
               <span class="zoom" id="zoomLabel">100%</span>
-              <div style="flex:1"></div>
+              <div class="spacer"></div>
               <button class="chip" id="btnFit">适配窗口 (F)</button>
             </div>
             <div class="stage" id="stage">
@@ -426,7 +426,7 @@
                 <div id="roiLayer"></div>
               </div>
               <canvas id="tileCanvas" class="tile-canvas hidden"></canvas>
-              <div class="mini-nav hidden" id="miniNav"><img id="miniImg" alt="nav" draggable="false" /><div class="viewbox" style="left:0;top:0;width:0;height:0"></div></div>
+              <div class="mini-nav hidden" id="miniNav"><img id="miniImg" alt="nav" draggable="false" /><div class="viewbox vb0"></div></div>
               <div class="crop-assoc hidden" id="cropAssoc">
                 <button class="assoc-item" id="assocLabel" title="查看标签图"><img id="assocLabelImg" alt="label" /><span>标签</span></button>
                 <button class="assoc-item" id="assocMacro" title="查看宏观图"><img id="assocMacroImg" alt="macro" /><span>宏观</span></button>
@@ -435,8 +435,8 @@
           </div>
 
           <aside class="panel right">
-            <div class="row-title"><h3>ROI 列表</h3><span style="font-size:11px;color:var(--muted)" id="roiCount">0 个区域</span></div>
-            <div id="roiList" style="display:flex;flex-direction:column;gap:6px;overflow-y:auto"></div>
+            <div class="row-title"><h3>ROI 列表</h3><span class="muted-xs" id="roiCount">0 个区域</span></div>
+            <div id="roiList" class="stack scroll-y"></div>
             <div class="spacer"></div>
             <button class="wide-btn" id="btnPreviewExport"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" stroke="white" stroke-width="1.9"/><path d="M3 15L9 10L15 15L18 12L21 15" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>预览并导出</button>
           </aside>
@@ -475,12 +475,12 @@
               <div class="field-title">粘贴 Cq 表格（从 Excel 复制）</div>
               <textarea class="qpcr-paste" id="qpcrPaste" placeholder="sample&#9;target&#9;Cq&#10;对照-1&#9;GAPDH&#9;20.1&#10;对照-1&#9;GAPDH&#9;20.3&#10;处理-1&#9;GAPDH&#9;20.0&#10;处理-1&#9;GAPDH&#9;20.2"></textarea>
             </div>
-            <button class="wide-btn" id="btnQpcrAnalyze" style="background:var(--accent);color:#fff">解析并分析</button>
+            <button class="wide-btn pri-solid" id="btnQpcrAnalyze">解析并分析</button>
             <div class="divider"></div>
             <h3>分析配置</h3>
             <div>
               <div class="field-title">内参基因（点击多选）</div>
-              <div id="refTargets" style="display:flex;flex-wrap:wrap;gap:6px;min-height:24px"><span style="font-size:11px;color:var(--muted)">解析数据后自动识别</span></div>
+              <div id="refTargets" class="chips-row"><span class="muted-xs">解析数据后自动识别</span></div>
             </div>
             <div>
               <div class="field-title">对照样本（calibrator）</div>
@@ -494,18 +494,18 @@
             </div>
             <div>
               <div class="field-title">扩增效率 E（%）· 空=100%（Livak）；非 100% 自动 Pfaffl</div>
-              <div id="effInputs" style="display:flex;flex-direction:column;gap:6px"><span style="font-size:11px;color:var(--muted)">解析数据后按基因填写</span></div>
+              <div id="effInputs" class="stack"><span class="muted-xs">解析数据后按基因填写</span></div>
             </div>
             <div>
               <div class="field-title">标准曲线 → 效率（稀释倍数⇥Cq，重复行自动均值）</div>
-              <textarea class="qpcr-paste" id="stdCurveInput" style="min-height:64px" placeholder="1&#9;20.1&#10;1&#9;20.3&#10;0.1&#9;23.5&#10;0.1&#9;23.6&#10;0.01&#9;26.8&#10;0.01&#9;27.0"></textarea>
-              <div class="field-row" style="margin-top:6px">
+              <textarea class="qpcr-paste paste-tall" id="stdCurveInput" placeholder="1&#9;20.1&#10;1&#9;20.3&#10;0.1&#9;23.5&#10;0.1&#9;23.6&#10;0.01&#9;26.8&#10;0.01&#9;27.0"></textarea>
+              <div class="field-row mt6">
                 <select class="native-select" id="stdCurveGene"></select>
-                <button class="btn sec" id="btnStdCurve" style="flex:0 0 auto">计算并应用</button>
+                <button class="btn sec flex-none" id="btnStdCurve">计算并应用</button>
               </div>
-              <div class="sub" id="stdCurveOut" style="margin-top:4px">slope / R² / E 将显示在此（qPCRtools 定义 E=10^(-1/slope)-1）</div>
-              <div id="stdCurvePlot" style="margin-top:6px"></div>
-              <div id="stdCurveBar" style="display:flex;gap:6px;align-items:center;margin-top:4px"></div>
+              <div class="sub mt4" id="stdCurveOut">slope / R² / E 将显示在此（qPCRtools 定义 E=10^(-1/slope)-1）</div>
+              <div class="mt6" id="stdCurvePlot"></div>
+              <div class="std-bar" id="stdCurveBar"></div>
             </div>
             <div class="field-row">
               <div class="input"><span class="k">CV≤</span><input class="native-input" id="cvTh" type="number" value="0.05" step="0.01"></div>
@@ -513,13 +513,13 @@
             </div>
             <div>
               <div class="field-title">样本分组（组间检验，每行 样本名=组名）</div>
-              <textarea class="qpcr-paste" id="groupInput" style="min-height:64px" placeholder="对照-1=对照&#10;对照-2=对照&#10;处理-1=处理&#10;处理-2=处理"></textarea>
+              <textarea class="qpcr-paste paste-tall" id="groupInput" placeholder="对照-1=对照&#10;对照-2=对照&#10;处理-1=处理&#10;处理-2=处理"></textarea>
             </div>
             <div class="hint"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 11V16M12 8V8.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>长/宽表均可，中英文列名自适应；仪器原始文件（.eds/.rex/.ixo/RDML）失败时自动回退通用表解析。</span></div>
           </aside>
-          <div class="stage-wrap" style="background:#fff">
-            <div class="canvas-bar" style="justify-content:space-between"><b style="font-size:13px">分析结果</b><span class="zoom" id="qpcrSummary">—</span></div>
-            <div style="flex:1;overflow:auto;padding:16px" id="qpcrResult">
+          <div class="stage-wrap stage-paper">
+            <div class="canvas-bar bar-between"><b class="bar-title">分析结果</b><span class="zoom" id="qpcrSummary">—</span></div>
+            <div class="qpcr-result" id="qpcrResult">
               <div class="empty-state"><svg viewBox="0 0 24 24" fill="none"><path d="M4 19V9M10 19V5M16 19V11M22 19V7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>粘贴数据并点击「解析并分析」查看结果</div>
             </div>
           </div>
@@ -528,13 +528,13 @@
             <div class="stat-grid" id="qpcrStats"></div>
             <div class="divider"></div>
             <div class="field-title">内参稳定性（geNorm M，越小越稳）</div>
-            <div class="warn-list" id="qpcrRefStab"><span style="font-size:11px;color:var(--muted)">—</span></div>
+            <div class="warn-list" id="qpcrRefStab"><span class="muted-xs">—</span></div>
             <div class="divider"></div>
             <div class="field-title">QC 警告</div>
-            <div class="warn-list" id="qpcrWarns"><span style="font-size:11px;color:var(--muted)">暂无</span></div>
+            <div class="warn-list" id="qpcrWarns"><span class="muted-xs">暂无</span></div>
             <div class="divider"></div>
             <div class="field-title">组间统计（基于 ΔCt）</div>
-            <div class="warn-list" id="qpcrGroupStats"><span style="font-size:11px;color:var(--muted)">配置样本分组后自动计算 Welch t / ANOVA</span></div>
+            <div class="warn-list" id="qpcrGroupStats"><span class="muted-xs">配置样本分组后自动计算 Welch t / ANOVA</span></div>
           </aside>
         </div>
       </section>
@@ -555,7 +555,7 @@
           <button class="btn sec" type="button" data-tb="newgroup">＋ 新建分组</button>
           <button class="btn sec" type="button" data-tb="hidden">已隐藏</button>
           <button class="btn sec" type="button" data-tb="reset">恢复默认</button>
-          <span style="flex:1"></span>
+          <span class="spacer"></span>
           <button class="btn sec" type="button" data-tb="cancel">取消</button>
           <button class="btn pri" type="button" data-tb="save">保存</button>
         </div>
@@ -636,12 +636,12 @@
       <h2>欢迎使用 LabKit 科研工具箱</h2>
       <div class="sub">本地优先 · 无遥测 · 数据只存在你的电脑上</div>
       <p>台账、统计与图像工具都在本地运行，不上传任何数据。所有计算结果仅供科研使用，不用于临床诊断。</p>
-      <label class="tfield" style="margin:12px 0;display:flex;align-items:center;gap:8px">怎么称呼你<input type="text" id="welcomeName" style="width:180px" placeholder="研究者"></label>
-      <div class="btn-row" style="margin-top:4px">
+      <label class="tfield welcome-row">怎么称呼你<input type="text" id="welcomeName" class="w180" placeholder="研究者"></label>
+      <div class="btn-row mt4">
         <button class="btn pri" id="welcomeDemo">载入示例数据看看</button>
         <button class="btn sec" id="welcomeBlank">空白开始</button>
       </div>
-      <div class="sub" style="margin-top:10px">示例数据可随时在「设置 → 清空示例数据」移除；你的选择会写入本地台账。</div>
+      <div class="sub mt10">示例数据可随时在「设置 → 清空示例数据」移除；你的选择会写入本地台账。</div>
     </div>
   </dialog>
   <!-- P6：应用内更新（检查 / 下载 / 重启安装） -->
@@ -652,7 +652,7 @@
       <div class="upd-notes" id="updNotes"></div>
       <div class="upd-bar" id="updBar" hidden><i id="updBarFill"></i></div>
       <div class="sub" id="updMsg" hidden></div>
-      <div class="btn-row" style="margin-top:14px;flex-wrap:wrap">
+      <div class="btn-row row-wrap mt14">
         <button class="btn pri" id="updInstall" type="button">立即更新并重启</button>
         <button class="btn sec" id="updLater" type="button">稍后</button>
         <button class="btn sec" id="updRelease" type="button">查看发布页</button>
@@ -676,6 +676,7 @@
 <script src="js/keys.js"></script>
 <script src="js/notify.js"></script>
 <script src="js/home.js"></script>
+<script src="tools/lib/colors.js"></script>
 <script src="js/crop.js"></script>
 <script src="js/qpcr.js"></script>
 <script src="js/entities.js"></script>

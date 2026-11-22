@@ -7,21 +7,22 @@
         <div class="trow">
           <button class="tbtn pri" id="t1Parse">解析数据</button>
           <button class="tbtn sec" id="t1Demo">示例数据</button>
-          <label class="tbtn sec" style="cursor:pointer">导入 CSV<input id="t1File" type="file" accept=".csv,.tsv,.txt" style="display:none"></label>
+          <span class="tfile"><input id="t1File" type="file" accept=".csv,.tsv,.txt"><span class="tfile-face">导入 CSV</span></span>
         </div>
-        <textarea id="t1Data" rows="6" class="tmono" style="width:100%;margin-top:8px" placeholder="粘贴 CSV/TSV（首行为列名），如：&#10;group,age,sex&#10;A,23,M&#10;B,45,F"></textarea>
+        <div class="tfield"><label for="t1Data">数据（粘贴 CSV/TSV，首行为列名）</label><textarea id="t1Data" rows="6" placeholder="粘贴 CSV/TSV（首行为列名），如：&#10;group,age,sex&#10;A,23,M&#10;B,45,F"></textarea></div>
+        <div class="tout" id="t1Err"></div>
       </div>
-      <div class="tool-section" id="t1Cfg" style="display:none">
+      <div class="tool-section" id="t1Cfg" hidden>
         <div class="trow">
           <label class="tfield">分组列<select id="t1Group"><option value="">不分组（overall）</option></select></label>
-          <label class="tfield"><span>计算 p 值</span><input id="t1Pval" type="checkbox" checked></label>
-          <label class="tfield"><span>显示缺失数</span><input id="t1Null" type="checkbox" checked></label>
+          <label class="tcheck">计算 p 值<input id="t1Pval" type="checkbox" checked></label>
+          <label class="tcheck">显示缺失数<input id="t1Null" type="checkbox" checked></label>
         </div>
-        <div id="t1Cols" style="margin-top:8px"></div>
-        <div class="trow" style="margin-top:8px"><button class="tbtn pri" id="t1Run">生成 Table 1</button></div>
+        <div id="t1Cols"></div>
+        <div class="trow"><button class="tbtn pri" id="t1Run">生成 Table 1</button></div>
         <div class="tnote">连续变量默认 mean (std)；勾选「非正态」改用 median [IQR] 与 Kruskal-Wallis。分类变量 n (%)，p 值自动选 χ²/Fisher（小格）。</div>
       </div>
-      <div class="tool-section" id="t1OutSec" style="display:none">
+      <div class="tool-section" id="t1OutSec" hidden>
         <div class="trow">
           <button class="tbtn sec" id="t1Csv">下载 CSV</button>
           <button class="tbtn sec" id="t1Md">下载 Markdown</button>
@@ -29,7 +30,7 @@
           <button class="tbtn sec" id="t1Tex">下载 LaTeX</button>
           <button class="tbtn sec" id="t1Copy">复制 Markdown</button>
         </div>
-        <div id="t1Out" style="margin-top:8px;overflow-x:auto"></div>
+        <div id="t1Out" class="tbody-scroll"></div>
       </div>`;
     const $ = id => host.querySelector('#' + id);
     let rows = [], cols = [], last = null;
@@ -38,12 +39,18 @@
       ['A,23,21.4,M,No','A,25,22.1,M,Yes','A,27,23.8,F,No','A,29,24.5,F,No','A,31,25.2,M,Yes','A,33,26.0,F,No',
        'B,40,27.1,F,No','B,42,28.3,F,Yes','B,44,26.8,F,No','B,46,29.0,M,No','B,48,27.5,F,Yes','B,50,28.9,M,No'].join('\n');
 
+    function err(msg) { $('t1Err').innerHTML = '<div class="terr">' + esc(msg) + '</div>'; }
     function parse(text) {
       const res = Papa.parse(text.trim(), { header: true, skipEmptyLines: true });
       if (!res.data.length) throw new Error('未解析到数据行');
       rows = res.data;
       cols = res.meta.fields;
-      $('t1Cfg').style.display = '';
+      $('t1Err').innerHTML = '';
+      $('t1Cfg').hidden = false;
+      /* 换了输入就把上一份结果收掉，否则新数据在旁边、旧表还挂在下面 */
+      $('t1OutSec').hidden = true;
+      $('t1Out').innerHTML = '';
+      last = null;
       $('t1Group').innerHTML = '<option value="">不分组（overall）</option>' + cols.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
       renderCols();
       toast(`已解析 ${rows.length} 行 × ${cols.length} 列`);
@@ -63,15 +70,15 @@
         }).join('') + '</table>';
     }
     $('t1Parse').addEventListener('click', () => {
-      try { parse($('t1Data').value); } catch (e) { toast(e.message); }
+      try { parse($('t1Data').value); } catch (e) { err(e.message); }
     });
-    $('t1Demo').addEventListener('click', () => { $('t1Data').value = DEMO; try { parse(DEMO); } catch (e) { toast(e.message); } });
+    $('t1Demo').addEventListener('click', () => { $('t1Data').value = DEMO; try { parse(DEMO); } catch (e) { err(e.message); } });
     $('t1File').addEventListener('change', async ev => {
       const f = ev.target.files[0];
       if (!f) return;
       const text = await f.text();
       $('t1Data').value = text;
-      try { parse(text); } catch (e) { toast(e.message); }
+      try { parse(text); } catch (e) { err(e.message); }
       ev.target.value = '';
     });
 
@@ -100,16 +107,23 @@
         }
         last = window.tableone(rows, { columns, categorical, groupby, nonnormal, pval, isnull: $('t1Null').checked });
         const X = window.tableoneExport;
+        $('t1Err').innerHTML = '';
         $('t1Out').innerHTML = X.toHTML(last);
-        $('t1OutSec').style.display = '';
-        $('t1Csv').onclick = () => download('table1.csv', X.toCSV(last), 'text/csv');
-        $('t1Md').onclick = () => download('table1.md', X.toMarkdown(last), 'text/markdown');
-        $('t1Html').onclick = () => download('table1.html', X.toHTML(last), 'text/html');
-        $('t1Tex').onclick = () => download('table1.tex', X.toLaTeX(last), 'application/x-tex');
-        $('t1Copy').onclick = () => navigator.clipboard.writeText(X.toMarkdown(last)).then(() => toast('已复制 Markdown')).catch(() => toast('复制失败'));
+        $('t1OutSec').hidden = false;
       } catch (e) {
-        toast(e.message || String(e));
+        $('t1OutSec').hidden = true;
+        err(e.message || String(e));
       }
+    });
+    /* 导出按钮绑一次，永远读当前 last：不再每次运行重绑 onclick（旧闭包会拿过期结果） */
+    const need = () => { if (!last) { toast('先生成 Table 1'); return false; } return true; };
+    $('t1Csv').addEventListener('click', () => { if (need()) download('table1.csv', window.tableoneExport.toCSV(last), 'text/csv;charset=utf-8'); });
+    $('t1Md').addEventListener('click', () => { if (need()) download('table1.md', window.tableoneExport.toMarkdown(last), 'text/markdown;charset=utf-8'); });
+    $('t1Html').addEventListener('click', () => { if (need()) download('table1.html', window.tableoneExport.toHTML(last), 'text/html;charset=utf-8'); });
+    $('t1Tex').addEventListener('click', () => { if (need()) download('table1.tex', window.tableoneExport.toLaTeX(last), 'application/x-tex'); });
+    $('t1Copy').addEventListener('click', () => {
+      if (!need()) return;
+      navigator.clipboard.writeText(window.tableoneExport.toMarkdown(last)).then(() => toast('已复制 Markdown')).catch(() => toast('复制失败'));
     });
     /* P2：统一壳示例入口 + 接收「数据清洗」数据集 */
     host.__lkExample = () => $('t1Demo').click();
@@ -121,7 +135,7 @@
       load.onclick = () => {
         const csv = Papa.unparse([sess.cols, ...sess.rows.map(r => sess.cols.map(c => r[c] ?? ''))]);
         $('t1Data').value = csv;
-        try { parse(csv); toast('已载入清洗数据'); } catch (e) { toast(e.message); }
+        try { parse(csv); toast('已载入清洗数据'); } catch (e) { err(e.message); }
         b.remove();
       };
       const dismiss = document.createElement('button'); dismiss.className = 'tbtn sec'; dismiss.textContent = '忽略';

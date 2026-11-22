@@ -53,7 +53,7 @@ test('危险插值点已改用 esc / cssColor（静态守卫）', () => {
   assert.ok(home.includes('background:${cssColor(r.color'), '提醒圆点颜色必须过白名单');
   assert.ok(home.includes('<option value="${esc(p.id)}">'), '项目 id 进 value 属性必须转义');
   const plate = read('frontend/tools/plate.js');
-  assert.ok(plate.includes('background:${cssColor(a.Color'), 'XML 导入的 Area 颜色必须过白名单');
+  assert.ok(plate.includes('--chip:${cssColor(a.Color'), 'XML 导入的 Area 颜色必须过白名单');
   const inv = read('frontend/tools/inventory.js');
   assert.ok(inv.includes("esc(r.unit || '')"), '单位来自表单输入，必须转义');
 });

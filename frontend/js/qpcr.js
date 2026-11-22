@@ -75,6 +75,14 @@ function qpcrRestoreSession(){
 document.getElementById('calibratorSel').onchange=e=>{qState.calibrator=e.target.value;scheduleQ();};
 ['cvTh','sdTh'].forEach(id=>document.getElementById(id).addEventListener('input',scheduleQ));
 document.getElementById('groupInput').addEventListener('input',scheduleQ);
+/* 对外入口：其它工具（孔板映射）通过它写分组，避免直接抓本视图的 DOM 元素 */
+window.qpcrSetGroups=text=>{
+  const gi=document.getElementById('groupInput');
+  if(!gi)return false;
+  gi.value=String(text||'');
+  gi.dispatchEvent(new Event('input',{bubbles:true}));
+  return true;
+};
 /* 标准曲线：log10(稀释度) vs 平均 Cq 线性回归 → slope/R²/E（qPCRtools 定义） */
 document.getElementById('btnStdCurve').onclick=()=>{
   const text=document.getElementById('stdCurveInput').value.trim();
@@ -178,7 +186,7 @@ document.getElementById('qSrcInstr').onclick=async()=>{
 };
 
 let qSort={k:null,dir:1}, qFilter={t:'',s:''}, qExpanded=new Set();
-const GROUP_COLORS=['#007AFF','#30D158','#FF9F0A','#AF52DE','#FF453A','#5AC8FA','#FF2D55','#64D2FF'];
+const GROUP_COLORS=window.LKColors.SERIES_UI;
 /* Fold Change 分组柱状图：组均值 ± SD，log2 轴，星号来自后端组间检验（HTqPCR 式可视化） */
 function fcChartSvg(analysis){
   const res=(analysis.results||[]).filter(r=>r.fold_change!=null);
@@ -206,7 +214,7 @@ function fcChartSvg(analysis){
   for(let k=Math.ceil(lo);k<=Math.floor(hi);k++){
     const yy=y(Math.pow(2,k));
     const lab=k===0?'1':(k===1?'2':(k===-1?'0.5':'2^'+k));
-    svg+=`<line x1="${padL}" y1="${yy}" x2="${W-6}" y2="${yy}" stroke="rgba(0,0,0,${k===0?'.22':'.06'})" stroke-width="1"${k===0?' stroke-dasharray="4 3"':''}/><text x="${padL-6}" y="${yy+3}" text-anchor="end" font-size="9" fill="#8e8e93">${lab}</text>`;
+    svg+=`<line x1="${padL}" y1="${yy}" x2="${W-6}" y2="${yy}" class="lc-grid${k===0?' zero':''}"${k===0?' stroke-dasharray="4 3"':''}/><text x="${padL-6}" y="${yy+3}" text-anchor="end" font-size="9" class="lc-tick">${lab}</text>`;
   }
   cells.forEach((c,ci)=>{
     const ti=targets.indexOf(c.t),gi=groups.indexOf(c.g);
@@ -223,18 +231,18 @@ function fcChartSvg(analysis){
   targets.forEach((t,ti)=>{
     const st=stats[t];
     const star=st?(st.p<0.001?'***':st.p<0.01?'**':st.p<0.05?'*':'ns'):'';
-    svg+=`<text x="${padL+ti*gw+gw/2}" y="${H-18}" text-anchor="middle" font-size="10" font-weight="600" fill="#3a3a3c">${esc(t)}</text>`;
-    if(star)svg+=`<text x="${padL+ti*gw+gw/2}" y="${H-5}" text-anchor="middle" font-size="9" fill="${star==='ns'?'#8e8e93':'#FF9F0A'}">${star} (p=${Number(st.p).toFixed(3)})</text>`;
+    svg+=`<text x="${padL+ti*gw+gw/2}" y="${H-18}" text-anchor="middle" font-size="10" font-weight="600" class="lc-targ">${esc(t)}</text>`;
+    if(star)svg+=`<text x="${padL+ti*gw+gw/2}" y="${H-5}" text-anchor="middle" font-size="9" class="lc-sig${star==='ns'?' ns':''}">${star} (p=${Number(st.p).toFixed(3)})</text>`;
   });
   groups.forEach((g,gi)=>{
-    svg+=`<rect x="${padL+gi*92}" y="3" width="8" height="8" rx="2" fill="${GROUP_COLORS[gi%GROUP_COLORS.length]}"/><text x="${padL+gi*92+12}" y="11" font-size="9" fill="#636366">${esc(g)}</text>`;
+    svg+=`<rect x="${padL+gi*92}" y="3" width="8" height="8" rx="2" fill="${GROUP_COLORS[gi%GROUP_COLORS.length]}"/><text x="${padL+gi*92+12}" y="11" font-size="9" class="lc-leg">${esc(g)}</text>`;
   });
   svg+='</svg>';
   return `<div class="fc-chart"><div class="chart-title">Fold Change（组均值 ± SD，log2 轴；星号=组间检验）</div>${svg}</div>`;
 }
 function fcChartHost(){
   return '<div class="fc-chart"><div class="chart-title">Fold Change（组均值 ± 误差棒，log2 轴；星号=组间检验 · Plotly 期刊样式）</div>'+
-    '<div style="display:flex;gap:8px;align-items:center;margin:4px 0;flex-wrap:wrap"><label style="font-size:11px;color:#666">误差棒 <select id="fcErrMode" style="font-size:11px"><option>SD</option><option>SEM</option><option>CI95</option></select></label><span id="fcPlotBar" style="display:inline-flex;gap:6px;align-items:center"></span></div>'+
+    '<div class="fc-toolbar"><label class="fc-err">误差棒 <select id="fcErrMode"><option>SD</option><option>SEM</option><option>CI95</option></select></label><span id="fcPlotBar" class="fc-plotbar"></span></div>'+
     '<div id="fcPlotly"></div></div>';
 }
 async function mountFcPlot(analysis){
@@ -242,6 +250,7 @@ async function mountFcPlot(analysis){
   if(!el)return;
   try{
     await loadScript('vendor/plotly.min.js');
+    await loadScript('tools/lib/colors.js');
     await loadScript('tools/qpcr-plots.js');
     const mode=document.getElementById('fcErrMode');
     const draw=()=>window.QpcrPlots.fcChart(el,analysis,{errMode:mode?mode.value:'SD'});
@@ -258,6 +267,7 @@ async function mountStdCurvePlot(d){
   if(!el)return;
   try{
     await loadScript('vendor/plotly.min.js');
+    await loadScript('tools/lib/colors.js');
     await loadScript('tools/qpcr-plots.js');
     window.QpcrPlots.stdCurve(el,d);
     window.QpcrPlots.exportBar(document.getElementById('stdCurveBar'),()=>el,'qpcr_stdcurve');
@@ -315,14 +325,14 @@ function renderQpcr(analysis,nwells){
   const rs=document.getElementById('qpcrRefStab');
   const stab=analysis.ref_stability||[];
   const gn=analysis.genorm;
-  const gnTxt=gn?`<div class="warn" style="background:rgba(0,122,255,.06);color:var(--ink-2)">geNorm 逐步剔除：${esc((gn.exclusion_order||[]).join(' → ')||'无')} · 推荐内参数 <b>${gn.recommended_n}</b><br>配对变异 ${(gn.pairwise_v||[]).map(([n,v])=>'V'+n+'/'+(n+1)+'='+Number(v).toFixed(3)).join('，')||'—'}（&lt;0.15 表示 n 个内参已足够）</div>`:'';
-  rs.innerHTML=(stab.length?stab.map(([t,m])=>`<div class="warn" style="background:${m<0.5?'rgba(48,209,88,.08)':m<1?'rgba(255,159,10,.08)':'rgba(255,69,58,.08)'};color:var(--ink-2)"><b>${esc(t)}</b> · M=${Number(m).toFixed(3)}${m<0.5?'（稳定）':m<1?'（可接受）':'（偏不稳定）'}</div>`).join(''):'<span style="font-size:11px;color:var(--muted)">需≥2 个内参基因</span>')+gnTxt;
+  const gnTxt=gn?`<div class="tone" data-tone="info">geNorm 逐步剔除：${esc((gn.exclusion_order||[]).join(' → ')||'无')} · 推荐内参数 <b>${gn.recommended_n}</b><br>配对变异 ${(gn.pairwise_v||[]).map(([n,v])=>'V'+n+'/'+(n+1)+'='+Number(v).toFixed(3)).join('，')||'—'}（&lt;0.15 表示 n 个内参已足够）</div>`:'';
+  rs.innerHTML=(stab.length?stab.map(([t,m])=>`<div class="tone" data-tone="${m<0.5?'ok':m<1?'warn':'bad'}"><b>${esc(t)}</b> · M=${Number(m).toFixed(3)}${m<0.5?'（稳定）':m<1?'（可接受）':'（偏不稳定）'}</div>`).join(''):'<span class="tnote flat">需 ≥2 个内参基因</span>')+gnTxt;
   const warns=document.getElementById('qpcrWarns');
   const w=analysis.warnings||[];
-  warns.innerHTML=w.length?w.map(x=>`<div class="warn">${esc(x)}</div>`).join(''):'<span style="font-size:11px;color:var(--muted)">全部通过质控</span>';
+  warns.innerHTML=w.length?w.map(x=>`<div class="warn">${esc(x)}</div>`).join(''):'<span class="tnote flat">全部通过质控</span>';
   const gs=document.getElementById('qpcrGroupStats');
   const st=analysis.stats||[];
-  gs.innerHTML=st.length?st.map(s=>`<div class="warn" style="background:rgba(0,122,255,.06);color:var(--ink-2)"><b>${esc(s.target_id)}</b> · ${esc(s.method)} · p=${Number(s.p).toFixed(4)}<br>${esc(s.detail)}（${esc((s.groups||[]).join(' vs '))}）</div>`).join(''):'<span style="font-size:11px;color:var(--muted)">配置样本分组后自动计算 Welch t / ANOVA</span>';
+  gs.innerHTML=st.length?st.map(s=>`<div class="tone" data-tone="info"><b>${esc(s.target_id)}</b> · ${esc(s.method)} · p=${Number(s.p).toFixed(4)}<br>${esc(s.detail)}（${esc((s.groups||[]).join(' vs '))}）</div>`).join(''):'<span class="tnote flat">配置样本分组后自动计算 Welch t / ANOVA</span>';
 }
 document.getElementById('btnQpcrExport').onclick=async()=>{
   if(!IN_TAURI){toast('浏览器预览模式：导出需 Tauri 运行时');return}

@@ -368,9 +368,17 @@ document.getElementById('toolExample').onclick=()=>{
 };
 document.getElementById('toolReset').onclick=()=>{
   const id=activeToolId();if(!id)return;
+  const host=activeToolHost();
+  const meta=(window.TOOL_META||[]).find(t=>t.id===id);
   Store.set('toolform:'+id,null);
+  /* persist:false 的工具把状态存在自己的 Store 键（plate/figure/plotter/checklists…），
+     只清表单快照等于什么都没做。约定：这类工具提供 host.__lkReset 自报重置。 */
+  let ok=true;
+  if(host&&typeof host.__lkReset==='function'){
+    try{ok=host.__lkReset()!==false}catch(e){ok=false;toast('重置失败：'+(e.message||e));}
+  }else if(meta&&meta.persist===false)ok=false;
   if(typeof tabsRerender==='function')tabsRerender(id);else renderTool(id);
-  toast('已重置为初始状态');
+  toast(ok?'已重置为初始状态':'该工具的数据由自己管理，未随表单重置');
 };
 document.getElementById('toolHelpBtn').onclick=()=>{
   const h=document.getElementById('toolHelp');h.hidden=!h.hidden;

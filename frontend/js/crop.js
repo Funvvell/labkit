@@ -74,13 +74,15 @@ function renderAssoc(labelUrl,macroUrl){
 }
 function showImagePreview(url,title){
   const mask=document.createElement('dialog');mask.className='modal-mask';mask.setAttribute('aria-label',title);
-  const box=document.createElement('div');box.className='roi-modal';box.style.width='auto';box.style.maxWidth='82vw';
-  box.innerHTML='<h4>'+title+'</h4><img alt="preview" style="max-width:100%;max-height:70vh;display:block;border-radius:8px;margin:8px 0">'
-    +'<div class="btn-row"><button class="btn sec" id="pv_close">关闭</button></div>';
+  // 预览浮层：宽度交给 CSS（.roi-modal.preview），按钮用 data-act 定位，
+  // 不用 id —— 同时开两个预览时 id 会撞。
+  const box=document.createElement('div');box.className='roi-modal preview';
+  box.innerHTML='<h4>'+esc(title)+'</h4><img alt="预览" class="roi-preview-img">'
+    +'<div class="btn-row"><button class="btn sec" data-act="close">关闭</button></div>';
   box.querySelector('img').src=url;
   mask.appendChild(box);document.body.appendChild(mask);
   const close=()=>{closeLayer(mask);if(mask.parentNode)mask.remove()};
-  box.querySelector('#pv_close').onclick=close;
+  box.querySelector('[data-act="close"]').onclick=close;
   mask.addEventListener('click',e=>{if(e.target===mask)close()});
   openLayer(mask);
 }
@@ -255,7 +257,7 @@ function renderRoiList(){
     <div class="roi-item ${selected.has(i)?'sel':''}" data-i="${i}">
       <div class="roi-bar" style="background:${selected.has(i)?'var(--accent)':i%3===1?'var(--orange)':i%3===2?'var(--green)':'var(--accent)'}"></div>
       <div class="roi-meta"><b>ROI ${i+1}</b><span>x ${ro.x} y ${ro.y} · ${ro.w}×${ro.h} px</span></div>
-      <svg class="roi-check" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="${i%3===1?'#FF9F0A':i%3===2?'#30D158':'#007AFF'}"/><path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="roi-check" viewBox="0 0 24 24" fill="none" style="--dot:${i%3===1?'var(--orange,#FF9F0A)':i%3===2?'var(--green,#30D158)':'var(--accent,#007AFF)'}"><circle class="roi-check-dot" cx="12" cy="12" r="9"/><path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>`).join(''):'';
   list.querySelectorAll('.roi-item').forEach(el=>{
     el.addEventListener('click',()=>{selectOnly(Number(el.dataset.i));drawRois();fitToRoi(false);});
@@ -788,7 +790,7 @@ document.getElementById('btnOpenSlide').onclick=async()=>{
 };
 const picker=document.createElement('input');picker.type='file';picker.id='filePicker';
 picker.accept='.sdpc,.svs,.ndpi,.vms,.vmu,.mrxs,.scn,.bif,.czi,.zvi,.dcm,.vsi,.avs,.j2k,.j2c,.tif,.tiff,.png,.jpg,.jpeg,.bmp';
-picker.style.display='none';document.body.appendChild(picker);
+picker.hidden=true;document.body.appendChild(picker);
 async function openDroppedFile(f){
   if(!f)return;
   if(IN_TAURI&&f.path){await openSlidePath(f.path);return}
@@ -796,9 +798,9 @@ async function openDroppedFile(f){
   toast('浏览器预览模式只支持图片；切片文件请在桌面版中拖入');
 }
 picker.onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)openDroppedFile(f).catch(err=>toast('打开失败：'+err))};
-stage.addEventListener('dragover',e=>{e.preventDefault();stage.style.outline='2px dashed var(--accent)'});
-stage.addEventListener('dragleave',()=>stage.style.outline='');
-stage.addEventListener('drop',e=>{e.preventDefault();stage.style.outline='';openDroppedFile(e.dataTransfer.files[0]).catch(err=>toast('打开失败：'+err));});
+stage.addEventListener('dragover',e=>{e.preventDefault();stage.classList.add('is-drop')});
+stage.addEventListener('dragleave',()=>stage.classList.remove('is-drop'));
+stage.addEventListener('drop',e=>{e.preventDefault();stage.classList.remove('is-drop');openDroppedFile(e.dataTransfer.files[0]).catch(err=>toast('打开失败：'+err));});
 
 function updateExportButtons(){
   ['btnExport','btnPreviewExport'].forEach(id=>{

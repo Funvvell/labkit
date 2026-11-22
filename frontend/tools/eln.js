@@ -6,17 +6,19 @@
     pcr: { name: 'PCR/qPCR', sections: ['模板与引物', '反应体系（µL）', '循环条件', 'Ct/熔解曲线', '结果分析', '下一步计划'] },
     wb: { name: 'Western Blot', sections: ['样品与上样量', '凝胶与转膜', '抗体（一抗/二抗/稀释比）', '封闭与孵育条件', '曝光与条带', '下一步计划'] },
   };
+  /* YAML 双引号串内的转义：不加处理时标题里一个 " 就会让整个 frontmatter 解析失败 */
+  const yamlStr = s => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r?\n/g, ' ').trim();
   window.LabKitTools['eln'] = function (host) {
     const tOpts = Object.entries(TEMPLATES).map(([k, t]) => `<option value="${k}">${t.name}</option>`).join('');
     host.innerHTML = `
       <div class="tool-section">
         <h3>实验记录</h3>
         <div class="trow">
-          <div class="tfield"><label>模板</label><select id="eln-tpl">${tOpts}</select></div>
-          <div class="tfield w-lg"><label>标题</label><input type="text" id="eln-title" value="" placeholder="如：HEK293T 转染优化"></div>
-          <div class="tfield"><label>日期</label><input type="date" id="eln-date"></div>
-          <div class="tfield w-sm"><label>操作者</label><input type="text" id="eln-op" value=""></div>
-          <div class="tfield w-md"><label>项目标签</label><input type="text" id="eln-proj" value="" placeholder="Obsidian tag"></div>
+          <label class="tfield"><span>模板</span><select id="eln-tpl">${tOpts}</select></label>
+          <label class="tfield w-lg"><span>标题</span><input type="text" id="eln-title" value="" placeholder="如：HEK293T 转染优化"></label>
+          <label class="tfield"><span>日期</span><input type="date" id="eln-date"></label>
+          <label class="tfield w-sm"><span>操作者</span><input type="text" id="eln-op" value=""></label>
+          <label class="tfield w-md"><span>项目标签</span><input type="text" id="eln-proj" value="" placeholder="Obsidian tag"></label>
         </div>
         <div id="eln-sections"></div>
         <div class="trow">
@@ -28,20 +30,47 @@
       <div class="tool-section">
         <h3>预览</h3>
         <div class="tsplit">
-          <div><div class="tnote" style="margin-top:0">Markdown 源码</div><div class="tmono" id="eln-src" style="max-height:420px;overflow:auto"></div></div>
-          <div><div class="tnote" style="margin-top:0">渲染预览</div><div id="eln-preview" style="font-size:13px;line-height:1.6;max-height:420px;overflow:auto"></div></div>
+          <div><div class="tnote flat">Markdown 源码</div><div class="tmono tbody-scroll" id="eln-src"></div></div>
+          <div><div class="tnote flat">渲染预览</div><div class="eln-preview tbody-scroll" id="eln-preview"></div></div>
         </div>
       </div>`;
     const $ = id => host.querySelector('#' + id);
     const d = new Date();
     $('eln-date').value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     let md = '';
-    function renderSections() {
+    function sectionHint(s, i) { return esc(s) + (i === 2 || s.includes('步骤') || s.includes('操作') ? '（每行一条）' : ''); }
+    function sectionBoxes(values) {
       const tpl = TEMPLATES[$('eln-tpl').value];
+      /* label 包裹 textarea：点标签即聚焦，读屏能念出段落名 */
       $('eln-sections').innerHTML = tpl.sections.map((s, i) =>
-        `<div class="trow"><div class="tfield" style="flex:1"><label>${esc(s)}${i === 2 || s.includes('步骤') || s.includes('操作') ? '（每行一条）' : ''}</label><textarea id="eln-s${i}" rows="3" placeholder="${esc(s)}…"></textarea></div></div>`).join('');
+        `<label class="tfield"><span>${sectionHint(s, i)}</span><textarea id="eln-s${i}" rows="3" placeholder="${esc(s)}…">${esc(values && values[i] ? values[i] : '')}</textarea></label>`).join('');
     }
-    $('eln-tpl').onchange = renderSections; renderSections();
+    function currentValues() {
+      return [...host.querySelectorAll('#eln-sections textarea')].map(t => t.value);
+    }
+    function applyTemplate(next, values) {
+      $('eln-tpl').value = next;
+      sectionBoxes(values);
+    }
+    $('eln-tpl').onchange = () => {
+      const prev = $('eln-tpl').dataset.prev || 'general';
+      const next = $('eln-tpl').value;
+      const values = currentValues();
+      const filled = values.filter(v => v.trim()).length;
+      const from = TEMPLATES[prev], to = TEMPLATES[next];
+      if (!filled) { applyTemplate(next, values); $('eln-tpl').dataset.prev = next; return; }
+      /* 切模板会重建全部输入框：已填内容必须迁移，否则等于静默清空（且会被表单快照覆盖） */
+      confirmModal('切换模板？',
+        `已填 ${filled} 段内容会按顺序迁移到「${to.name}」（${to.sections.length} 段）。` +
+        (from.sections.length > to.sections.length ? `原模板多出的 ${from.sections.length - to.sections.length} 段将被丢弃。` : ''),
+        () => { applyTemplate(next, values); $('eln-tpl').dataset.prev = next; toast('已切换并迁移内容'); },
+        '切换并迁移',
+        () => { $('eln-tpl').value = prev; },
+        '留在当前模板');
+    };
+    $('eln-tpl').dataset.prev = 'general';
+    sectionBoxes();
+
     function buildMD() {
       const tpl = TEMPLATES[$('eln-tpl').value];
       const title = $('eln-title').value.trim() || '未命名实验';
@@ -49,7 +78,7 @@
       const tags = ['实验记录', tpl.name];
       if ($('eln-proj').value.trim()) tags.push($('eln-proj').value.trim());
       let out = '---\n';
-      out += `title: "${title}"\ndate: ${date}\noperator: ${$('eln-op').value.trim() || '—'}\ntags: [${tags.map(t => `"${t}"`).join(', ')}]\n---\n\n`;
+      out += `title: "${yamlStr(title)}"\ndate: ${date}\noperator: "${yamlStr($('eln-op').value.trim() || '—')}"\ntags: [${tags.map(t => `"${yamlStr(t)}"`).join(', ')}]\n---\n\n`;
       out += `# ${title}\n\n`;
       tpl.sections.forEach((s, i) => {
         const val = ($(`eln-s${i}`) || {}).value || '';
@@ -77,7 +106,7 @@
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = ($('eln-title').value.trim() || '实验记录') + '_' + $('eln-date').value + '.md';
-      a.click(); URL.revokeObjectURL(a.href);
+      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     };
   };
 })();

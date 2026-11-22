@@ -1,7 +1,8 @@
 // C3 孔板布局编辑器 UI —— 模型见 tools/lib/plate-model.js（PlateEditor MIT 移植）
 (function () {
   window.LabKitTools = window.LabKitTools || {};
-  const PALETTE = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9a6324', '#800000', '#aaffc3', '#808000', '#000075'];
+  // 区域配色单源：tools/lib/colors.js 的 PLATE（顺序固定，同一区域多次渲染同色）
+  const PALETTE = window.LKColors.PLATE;
   const SIZES = { '96': [8, 12], '384': [16, 24], '48': [6, 8], '24': [4, 6] };
 
   window.LabKitTools['plate'] = function (host) {
@@ -21,29 +22,29 @@
           <button class="tbtn sec" id="plUntag">清除选区标签</button>
           <button class="tbtn sec" id="plReset">重置板</button>
         </div>
-        <div class="trow" style="margin-top:6px" id="plLayerTabs"></div>
-        <div class="tsplit" style="margin-top:8px">
-          <div class="pl-canvas-box"><canvas id="plCanvas" style="max-width:100%;cursor:crosshair"></canvas>
+        <div class="trow" id="plLayerTabs"></div>
+        <div class="tsplit">
+          <div class="pl-canvas-box"><canvas id="plCanvas"></canvas>
             <div class="tnote" id="plStatus">拖拽圈选孔位，单击选单孔（Ctrl 加选）。</div></div>
           <div class="pl-side">
-            <div class="tool-section" style="padding:8px">
+            <div class="tool-section pl-side-sec">
               <b>区域（样本/组）</b>
-              <div class="trow" style="margin-top:6px">
-                <input id="plAreaName" type="text" placeholder="名称，如 S1" style="flex:1">
-                <select id="plAreaType"><option value="Area">Area</option><option value="Range">Range</option></select>
+              <div class="trow">
+                <label class="tfield grow"><span>名称</span><input id="plAreaName" type="text" placeholder="如 S1"></label>
+                <label class="tfield w-sm"><span>类型</span><select id="plAreaType"><option value="Area">Area</option><option value="Range">Range</option></select></label>
               </div>
-              <div class="trow" style="margin-top:4px">
-                <input id="plAreaColor" type="color" value="#e6194b" style="width:44px">
+              <div class="trow">
+                <label class="tfield w-sm"><span>颜色</span><input id="plAreaColor" type="color" value="#e6194b"></label>
                 <button class="tbtn sec" id="plAddArea">新建区域</button>
               </div>
-              <textarea id="plAreaDef" rows="2" class="tmono" style="width:100%;margin-top:4px" placeholder="Range 定义列表（逗号分隔，可选）：0, 1, 10, 100"></textarea>
-              <div id="plAreaList" style="margin-top:6px;max-height:180px;overflow-y:auto"></div>
-              <div class="trow" style="margin-top:6px">
+              <label class="tfield"><span>Range 定义列表（逗号分隔，可选）</span><textarea id="plAreaDef" rows="2" placeholder="0, 1, 10, 100"></textarea></label>
+              <div id="plAreaList" class="pl-area-list"></div>
+              <div class="trow">
                 <button class="tbtn pri" id="plTag">赋样到选区</button>
               </div>
-              <div class="trow" style="margin-top:6px">
-                <input id="plConc" type="number" step="any" placeholder="浓度" style="width:80px">
-                <input id="plUnit" type="text" placeholder="单位" style="width:60px">
+              <div class="trow">
+                <label class="tfield w-sm"><span>浓度</span><input id="plConc" type="number" step="any" placeholder="浓度"></label>
+                <label class="tfield w-sm"><span>单位</span><input id="plUnit" type="text" placeholder="单位"></label>
                 <button class="tbtn sec" id="plTagConc">标浓度</button>
               </div>
             </div>
@@ -56,19 +57,19 @@
           <button class="tbtn sec" id="plTsv">导出 TSV</button>
           <button class="tbtn sec" id="plPng">导出 PNG</button>
           <button class="tbtn sec" id="plSave">保存布局 JSON</button>
-          <label class="tbtn sec" style="cursor:pointer">导入布局 JSON<input id="plLoad" type="file" accept=".json" style="display:none"></label>
+          <span class="tfile"><input id="plLoad" type="file" accept=".json"><span class="tfile-face">导入布局 JSON</span></span>
         </div>
       </div>
       <div class="tool-section">
         <b>板 → qPCR 设计映射</b>
-        <div class="trow" style="margin-top:6px">
+        <div class="trow">
           <label class="tfield">样本层<select id="plSampleLayer"></select></label>
           <label class="tfield">靶标层<select id="plTargetLayer"></select></label>
           <button class="tbtn pri" id="plMap">生成映射</button>
         </div>
-        <textarea id="plGroups" rows="3" class="tmono" style="width:100%;margin-top:6px" placeholder="样本=组（每行一条）：&#10;S1=Ctrl&#10;S2=Treat"></textarea>
-        <div id="plMapOut" class="tout" style="margin-top:6px"></div>
-        <div class="trow" style="margin-top:6px">
+        <label class="tfield"><span>样本=组（每行一条）</span><textarea id="plGroups" rows="3" placeholder="示例：&#10;S1=Ctrl&#10;S2=Treat"></textarea></label>
+        <div id="plMapOut" class="tout"></div>
+        <div class="trow">
           <button class="tbtn sec" id="plCopyGroups" disabled>复制分组文本</button>
           <button class="tbtn sec" id="plApplyQpcr" disabled>写入 qPCR 分组框</button>
         </div>
@@ -101,7 +102,9 @@
       const box = canvas.parentElement;
       const avail = (box && box.clientWidth) || host.clientWidth || 640;
       const maxW = Math.min(avail, 760);
-      const space = Math.max(14, Math.min(40, Math.floor((maxW - geom.off) / plate.Cols)));
+      // 预留右侧 10px 白边再分格：否则 w = off + Cols*space + 10 会顶出容器，
+      // canvas 被 max-width:100% 反向压缩后就会糊（900px 窗口下曾差 8.6px）。
+      const space = Math.max(14, Math.min(40, Math.floor((maxW - geom.off - 10) / plate.Cols)));
       geom.size = space - 6; geom.margin = 6;
       const w = geom.off + plate.Cols * space + 10;
       const h = geom.off + plate.Rows * space + 10;
@@ -175,7 +178,7 @@
       drag.rect = { x: Math.min(drag.start.x, p.x), y: Math.min(drag.start.y, p.y), w: Math.abs(p.x - drag.start.x), h: Math.abs(p.y - drag.start.y) };
       draw();
     });
-    window.addEventListener('mouseup', ev => {
+    const onUp = ev => {
       if (!drag) return;
       const p = canvasPos(ev);
       const moved = drag.rect && (drag.rect.w > 4 || drag.rect.h > 4);
@@ -194,7 +197,11 @@
       drag = null;
       draw();
       $('plStatus').textContent = `已选 ${selection.size} 孔。` + (selectedArea ? ` 当前区域：${selectedArea}` : '');
-    });
+    };
+    /* 工具页会随标签重渲染：先解绑上一次挂的全局监听，否则每重开一次就多一个引用旧板/旧 canvas 的闭包 */
+    if (typeof host.__lkPlateUp === 'function') window.removeEventListener('mouseup', host.__lkPlateUp);
+    host.__lkPlateUp = onUp;
+    window.addEventListener('mouseup', onUp);
 
     function renderLayers() {
       $('plLayerTabs').innerHTML = plate.Layers.map((l, i) =>
@@ -210,12 +217,12 @@
     function renderAreas() {
       const l = layer();
       $('plAreaList').innerHTML = l.Areas.length ? l.Areas.map(a =>
-        `<div class="trow" style="margin:2px 0;align-items:center">
-          <input type="radio" name="plAreaSel" value="${esc(a.Name)}" ${selectedArea === a.Name ? 'checked' : ''}>
-          <span style="display:inline-block;width:12px;height:12px;background:${cssColor(a.Color,'#8e8e93')};border-radius:3px"></span>
-          <span style="flex:1">${esc(a.Name)} <span class="tnote">${esc(a.Type)}${a.Definition ? '·定义' : ''}</span></span>
-          <button class="tbtn sec" data-delarea="${esc(a.Name)}" style="padding:1px 6px">×</button>
-        </div>`).join('') : '<div class="tnote">暂无区域，先新建。</div>';
+        `<div class="trow pl-area-row">
+          <input type="radio" name="plAreaSel" value="${esc(a.Name)}" aria-label="选中区域 ${esc(a.Name)}" ${selectedArea === a.Name ? 'checked' : ''}>
+          <span class="pl-color-chip" style="--chip:${cssColor(a.Color, '#8e8e93')}"></span>
+          <span class="pl-area-name">${esc(a.Name)} <span class="tnote">${esc(a.Type)}${a.Definition ? '·定义' : ''}</span></span>
+          <button class="tbtn sec xs" data-delarea="${esc(a.Name)}" aria-label="删除区域 ${esc(a.Name)}">×</button>
+        </div>`).join('') : '<div class="tempty">暂无区域，先新建。</div>';
       host.querySelectorAll('[name=plAreaSel]').forEach(r => r.addEventListener('change', () => { selectedArea = r.value; }));
       host.querySelectorAll('[data-delarea]').forEach(b => b.addEventListener('click', () => {
         const name = b.dataset.delarea;
@@ -233,10 +240,18 @@
       if (plate.Layers.length > 1) $('plTargetLayer').value = '1';
     }
 
-    $('plSize').addEventListener('change', () => {
-      const [r, c] = SIZES[$('plSize').value];
+    const sizeValue = p => p.Rows === 8 && p.Cols === 12 ? '96' : p.Rows === 16 && p.Cols === 24 ? '384' : p.Rows === 6 ? '48' : '24';
+    const hasWork = () => plate.Layers.some(l => l.Areas.length || l.Wells.some(w => w.Area || w.Conc != null));
+    function rebuild(r, c) {
       plate = PM.createPlate(r, c); activeLayer = 0; selection.clear(); selectedArea = null;
       renderLayers(); renderAreas(); draw(); persist();
+    }
+    $('plSize').addEventListener('change', () => {
+      const [r, c] = SIZES[$('plSize').value];
+      /* 切板型会重建整块板：有内容时必须确认，否则一次误选就把排布和已赋样全部清掉并落盘 */
+      if (!hasWork()) { rebuild(r, c); return; }
+      const prev = sizeValue(plate);
+      confirmModal('切换板型？', '当前区域的名称、颜色与已赋样的孔位会被清空，并立即写入本机台账。', () => rebuild(r, c), '清空并切换', () => { $('plSize').value = prev; }, '保留当前');
     });
     $('plAddArea').addEventListener('click', () => {
       try {
@@ -273,9 +288,11 @@
     $('plClearSel').addEventListener('click', () => { selection.clear(); draw(); $('plStatus').textContent = '选区已清除。'; });
     $('plReset').addEventListener('click', () => {
       const [r, c] = SIZES[$('plSize').value];
-      plate = PM.createPlate(r, c); activeLayer = 0; selection.clear(); selectedArea = null;
-      renderLayers(); renderAreas(); draw(); persist();
+      if (!hasWork()) { rebuild(r, c); toast('已是空白板'); return; }
+      confirmModal('重置整块板？', '所有区域、标签与浓度都会被清空，且立即写入本机台账。', () => rebuild(r, c), '重置');
     });
+    /* 统一壳的「重置」走这里：只清工具自有键，不动其它工具状态 */
+    host.__lkReset = () => { Store.set('tool:plate', null); return true; };
 
     function download(name, text, mime) {
       const a = document.createElement('a');
@@ -318,17 +335,21 @@
         window.__labkitPlateDesign = lastDesign;
         lastGroupText = Object.entries(lastDesign.sample_groups).map(([s, g]) => `${s}=${g}`).join('\n');
         $('plMapOut').innerHTML = `<div>样本 ${lastDesign.samples.length} 个 · 靶标 ${lastDesign.targets.length} 个 · 有效孔 ${lastDesign.wells.length}</div>
-          <div class="tmono" style="margin-top:4px">靶标：${esc(lastDesign.targets.join(', '))}</div>
-          <div class="tmono" style="margin-top:4px;white-space:pre-wrap">${esc(lastGroupText || '（未填写分组）')}</div>`;
+          <div class="tnote">靶标：${esc(lastDesign.targets.join(', '))}</div>
+          <div class="tresult pre">${esc(lastGroupText || '（未填写分组）')}</div>`;
         $('plCopyGroups').disabled = !lastGroupText;
         $('plApplyQpcr').disabled = false;
       } catch (e) { $('plMapOut').innerHTML = `<div class="terr">${esc(e.message)}</div>`; }
     });
     $('plCopyGroups').addEventListener('click', () => navigator.clipboard.writeText(lastGroupText).then(() => toast('已复制')).catch(() => toast('复制失败')));
     $('plApplyQpcr').addEventListener('click', () => {
-      const gi = document.getElementById('groupInput');
-      if (gi) { gi.value = lastGroupText; toast('已写入 qPCR 分组框，切换到 qPCR 页分析'); }
-      else toast('未找到 qPCR 分组框');
+      /* 不直取 qPCR 视图的 DOM（标签共存时可能拿到别的实例），由工作区暴露写入接口 */
+      if (typeof window.qpcrSetGroups === 'function') {
+        window.qpcrSetGroups(lastGroupText);
+        toast('已写入 qPCR 分组框，切换到 qPCR 页分析');
+      } else {
+        toast('qPCR 工作区未就绪：请先在左侧打开 qPCR');
+      }
     });
 
     restore();

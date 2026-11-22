@@ -64,17 +64,29 @@
     const $ = id => host.querySelector('#' + id);
     function renderFields() {
       const m = MODULES[$('ss-mod').value];
+      /* label 包裹控件（原生点标签聚焦），比 div>label+input 少一层，且无需 for/id 配对 */
       $('ss-fields').innerHTML = '<div class="trow">' + m.fields.map(f =>
-        `<div class="tfield"><label>${f.label}</label><input type="number" data-k="${f.k}" value="${f.def}" step="${f.step || 1}"></div>`).join('') + '</div>';
+        `<label class="tfield"><span>${f.label}</span><input type="number" data-k="${f.k}" value="${f.def}" step="${f.step || 1}"></label>`).join('') + '</div>';
     }
     $('ss-mod').onchange = renderFields;
     renderFields();
     $('ss-run').onclick = () => {
       const name = $('ss-mod').value;
-      const fields = {};
-      host.querySelectorAll('#ss-fields input').forEach(inp => { fields[inp.dataset.k] = parseFloat(inp.value); });
+      const inputs = [...host.querySelectorAll('#ss-fields input')];
       $('ss-warn').innerHTML = '';
       $('ss-out').innerHTML = '';
+      /* 空值 / 非数值直接拦下：NaN 送进 OpenEpi 会安静地算出无意义结果 */
+      const bad = inputs.filter(inp => inp.value.trim() === '' || !Number.isFinite(Number(inp.value)));
+      inputs.forEach(inp => inp.removeAttribute('aria-invalid'));
+      if (bad.length) {
+        bad.forEach(inp => inp.setAttribute('aria-invalid', 'true'));
+        const names = bad.map(inp => inp.closest('label').querySelector('span').textContent).join('、');
+        $('ss-warn').innerHTML = '<div class="terr">请填写有效数字：' + esc(names) + '</div>';
+        (bad[0] || inputs[0]).focus();
+        return;
+      }
+      const fields = {};
+      inputs.forEach(inp => { fields[inp.dataset.k] = Number(inp.value); });
       try {
         OpenEpiAdapter.deriveFields(name, fields);
         $('ss-out').innerHTML = OpenEpiAdapter.runModule(name, fields);

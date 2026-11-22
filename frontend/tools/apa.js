@@ -105,8 +105,8 @@
           <label class="tfield">报告类型<select id="apaType">${TYPES.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}</select></label>
           <button class="tbtn sec" id="apaLast">载入最近检验结果</button>
         </div>
-        <div class="trow" id="apaFields" style="margin-top:8px"></div>
-        <div class="trow" style="margin-top:8px">
+        <div class="trow" id="apaFields"></div>
+        <div class="trow">
           <button class="tbtn pri" id="apaGen">生成</button>
           <button class="tbtn sec" id="apaCopyEn" disabled>复制 APA（英文）</button>
           <button class="tbtn sec" id="apaCopyZh" disabled>复制中文句式</button>
@@ -119,7 +119,7 @@
     function renderFields() {
       const t = TYPES.find(x => x.id === $('apaType').value);
       $('apaFields').innerHTML = t.fields.map(f =>
-        `<label class="tfield">${LABELS[f]}<input id="apa_${f}" type="text" step="any" placeholder="${f === 'ci' ? '0.12, 1.88' : ''}"></label>`).join('');
+        `<label class="tfield">${LABELS[f]}<input id="apa_${f}" type="text" placeholder="${f === 'ci' ? '0.12, 1.88' : ''}"></label>`).join('');
     }
     $('apaType').addEventListener('change', renderFields);
     renderFields();
@@ -136,8 +136,8 @@
       try {
         const r = W.LabKitAPA.format(type, f);
         cur = r;
-        $('apaOut').innerHTML = `<div><b>APA7</b></div><div class="tmono" style="margin:4px 0">${r.html}</div>
-          <div style="margin-top:8px"><b>中文论文句式</b></div><div style="margin-top:4px">${esc(r.zh)}</div>`;
+        $('apaOut').innerHTML = `<div class="tresult"><b>APA7</b><br>${r.html}</div>
+          <div class="tresult"><b>中文论文句式</b><br>${esc(r.zh)}</div>`;
         $('apaCopyEn').disabled = false; $('apaCopyZh').disabled = false;
       } catch (e) { $('apaOut').innerHTML = `<div class="terr">${esc(e.message)}</div>`; }
     }

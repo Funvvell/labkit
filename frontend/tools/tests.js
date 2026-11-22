@@ -25,18 +25,18 @@
           <label class="tfield" id="stAltWrap">备择假设
             <select id="stAlt"><option value="two-sided">双侧</option><option value="less">小于</option><option value="greater">大于</option></select>
           </label>
-          <label class="tfield" id="stMuWrap" style="display:none">总体均数 μ₀<input id="stMu" type="number" value="0" step="any"></label>
-          <label class="tfield" id="stEqWrap" style="display:none"><span>等方差（pooled）</span><input id="stEq" type="checkbox"></label>
-          <label class="tfield" id="stMwuWrap" style="display:none">p 值方法
+          <label class="tfield" id="stMuWrap" hidden>总体均数 μ₀<input id="stMu" type="number" value="0" step="any"></label>
+          <label class="tfield" id="stEqWrap" hidden><span>等方差（pooled）</span><input id="stEq" type="checkbox"></label>
+          <label class="tfield" id="stMwuWrap" hidden>p 值方法
             <select id="stMwuMethod"><option value="auto">auto</option><option value="exact">exact</option><option value="asymptotic">asymptotic</option></select>
           </label>
-          <label class="tfield" id="stContWrap" style="display:none"><span>连续性校正</span><input id="stCont" type="checkbox" checked></label>
-          <label class="tfield" id="stCorrWrap" style="display:none">相关类型
+          <label class="tfield" id="stContWrap" hidden><span>连续性校正</span><input id="stCont" type="checkbox" checked></label>
+          <label class="tfield" id="stCorrWrap" hidden>相关类型
             <select id="stCorr"><option value="pearson">Pearson</option><option value="spearman">Spearman</option></select>
           </label>
         </div>
         <div id="stInputs"></div>
-        <div class="trow" style="margin-top:8px">
+        <div class="trow">
           <button class="tbtn pri" id="stRun">运行检验</button>
           <button class="tbtn sec" id="stDemo">填入示例</button>
           <button class="tbtn sec" id="stCopy" disabled>复制报告串</button>
@@ -50,7 +50,8 @@
     let lastReport = '';
 
     function inputHTML(kind) {
-      const ta = (id, ph) => `<label class="tfield" style="flex:1;min-width:220px"><span>${ph}</span><textarea id="${id}" rows="4" class="tmono" placeholder="如 12.1, 13.4, 11.8"></textarea></label>`;
+      /* 输入是数值序列：.tfield textarea 自带等宽字体与整宽，不再套 .tmono（那是输出块样式） */
+      const ta = (id, ph) => `<label class="tfield grow"><span>${ph}</span><textarea id="${id}" rows="4" placeholder="如 12.1, 13.4, 11.8"></textarea></label>`;
       if (kind === 'two') return `<div class="trow">${ta('stX', '样本 X')}${ta('stY', '样本 Y')}</div>`;
       if (kind === 'one') return `<div class="trow">${ta('stX', '样本数据')}</div>`;
       if (kind === 'matrix') return `<div class="trow">${ta('stX', '列联表（每行一组，如 10,20 换行 30,40）')}</div>`;
@@ -66,7 +67,7 @@
     function syncKind() {
       const t = TESTS.find(x => x.id === $('stKind').value) || TESTS[0];
       $('stInputs').innerHTML = inputHTML(t.kind);
-      const show = (id, on) => { $(id).style.display = on ? '' : 'none'; };
+      const show = (id, on) => { const el = $(id); if (el) el.hidden = !on; };
       show('stAltWrap', t.opts.includes('alternative'));
       show('stMuWrap', t.opts.includes('mu'));
       show('stEqWrap', t.opts.includes('equalVar'));
@@ -120,7 +121,9 @@
           html += `<table class="ttable"><tr><th>统计量</th><th>p</th>${r.df != null ? '<th>df</th>' : ''}${r.method ? '<th>方法</th>' : ''}${r.z != null ? '<th>z</th>' : ''}</tr>
             <tr class="num"><td>${fmt(r.statistic)}</td><td>${fmt(r.p, 6)}</td>${r.df != null ? `<td>${fmt(r.df, 2)}</td>` : ''}${r.method ? `<td>${r.method}</td>` : ''}${r.z != null ? `<td>${fmt(r.z)}</td>` : ''}</tr></table>`;
           if (r.ci) html += `<div class="tnote">差值 95% CI：[${fmt(r.ci[0])}, ${fmt(r.ci[1])}]</div>`;
-          html += `<div class="${r.p < 0.05 ? 'twarn' : 'tnote'}" style="margin-top:6px">${r.p < 0.05 ? 'p < .05，拒绝原假设（差异有统计学意义）' : 'p ≥ .05，不拒绝原假设'}</div>`;
+          html += r.p < 0.05
+            ? `<div class="tone" data-tone="ok">p &lt; .05，拒绝原假设（差异有统计学意义）</div>`
+            : `<div class="tnote">p ≥ .05，不拒绝原假设</div>`;
           lastReport = buildReport(t, r, alt);
         } else { lastReport = ''; }
         html += extra;

@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 globalThis.window = globalThis;
+// 调色板单源：先加载 colors.js（qpcr-plots 不再内置 Okabe-Ito 字面量）
+vm.runInThisContext(fs.readFileSync(path.join(root, 'frontend/tools/lib/colors.js'), 'utf8'));
 vm.runInThisContext(fs.readFileSync(path.join(root, 'frontend/tools/qpcr-plots.js'), 'utf8'));
 const I = globalThis.QpcrPlots._internal;
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a} vs ${b}`);

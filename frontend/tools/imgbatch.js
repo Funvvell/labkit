@@ -12,32 +12,32 @@
           <button class="tbtn sec" id="ibClear">清空列表</button>
           <span class="tnote" id="ibCount">未选择文件</span>
         </div>
-        <div id="ibList" style="margin-top:8px;max-height:180px;overflow-y:auto"></div>
+        <div id="ibList" class="ib-list"></div>
       </div>
       <div class="tool-section">
         <div class="trow">
           <label class="tfield">目标格式<select id="ibFmt"><option value="keep">保持原格式</option><option value="png">PNG</option><option value="jpeg">JPEG</option><option value="tiff">TIFF</option></select></label>
           <label class="tfield">缩放<select id="ibResize"><option value="none">不缩放</option><option value="width">按宽 px</option><option value="height">按高 px</option><option value="percent">按百分比</option><option value="fit">限定边框 px</option></select></label>
-          <label class="tfield">数值<input id="ibResizeVal" type="number" value="100" style="width:80px"></label>
-          <label class="tfield">JPEG 质量<input id="ibQuality" type="number" value="90" min="1" max="100" style="width:64px"></label>
-          <label class="tfield">DPI<input id="ibDpi" type="number" value="300" min="0" style="width:70px"></label>
+          <label class="tfield w-sm">数值<input id="ibResizeVal" type="number" value="100"></label>
+          <label class="tfield w-sm">JPEG 质量<input id="ibQuality" type="number" value="90" min="1" max="100"></label>
+          <label class="tfield w-sm">DPI<input id="ibDpi" type="number" value="300" min="0"></label>
         </div>
-        <div class="trow" style="margin-top:6px">
+        <div class="trow">
           <label class="tfield">体积上限<select id="ibCap"><option value="0">不限</option><option value="10485760">10 MB（期刊常见）</option><option value="5242880">5 MB</option><option value="1048576">1 MB</option></select></label>
           <label class="tfield w-lg">重命名模板<input id="ibPattern" type="text" placeholder="留空=原名；如 Fig_{i:03}_{name}"></label>
           <label class="tfield"><span>允许覆盖</span><input id="ibOverwrite" type="checkbox"></label>
         </div>
-        <div class="trow" style="margin-top:6px">
+        <div class="trow">
           <button class="tbtn sec" id="ibPreview">重命名预览</button>
           <button class="tbtn sec" id="ibOutDir">输出目录…</button>
-          <span class="tnote" id="ibOutLabel">未选择（默认源目录旁 labkit_out）</span>
+          <span class="tnote flat" id="ibOutLabel">未选择（默认源目录旁 labkit_out）</span>
         </div>
-        <div id="ibPreviewOut" style="margin-top:6px"></div>
-        <div class="trow" style="margin-top:8px">
+        <div id="ibPreviewOut"></div>
+        <div class="trow">
           <button class="tbtn pri" id="ibRun">开始批处理</button>
         </div>
-        <div style="margin-top:8px;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden"><div id="ibBar" style="height:100%;width:0;background:var(--accent,#007AFF);transition:width .2s"></div></div>
-        <div class="tnote" id="ibProgress" style="margin-top:4px"></div>
+        <div class="ib-progress"><div id="ibBar" class="ib-bar"></div></div>
+        <div class="tnote flat" id="ibProgress"></div>
       </div>
       <div class="tool-section"><div id="ibResults"></div></div>`;
     const $ = id => host.querySelector('#' + id);
@@ -49,10 +49,10 @@
     async function renderList() {
       $('ibCount').textContent = `${files.length} 个文件`;
       $('ibList').innerHTML = files.length ? `<table class="ttable"><tr><th>文件</th><th>尺寸</th><th>格式</th><th>大小</th><th></th></tr>` +
-        files.map((f, i) => `<tr><td class="tmono" style="max-width:280px;overflow:hidden;text-overflow:ellipsis">${esc(f.path)}</td>
+        files.map((f, i) => `<tr><td class="tmono ib-path">${esc(f.path)}</td>
           <td>${f.probe ? f.probe.width + '×' + f.probe.height : '—'}</td><td>${f.probe ? esc(f.probe.format) : '—'}</td>
           <td>${f.probe ? (f.probe.bytes / 1024).toFixed(0) + ' KB' : '—'}</td>
-          <td><button class="tbtn sec" data-rm="${i}" style="padding:1px 6px">×</button></td></tr>`).join('') + '</table>' : '<div class="tnote">点击「选择图片」添加文件。</div>';
+          <td><button class="tbtn sec xs" data-rm="${i}" aria-label="移除 ${esc(f.path.replace(/^.*[\\/]/, ''))}">×</button></td></tr>`).join('') + '</table>' : '<div class="tempty">点击「选择图片」添加文件。</div>';
       host.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { files.splice(Number(b.dataset.rm), 1); renderList(); });
     }
     $('ibPick').onclick = async () => {
@@ -96,8 +96,8 @@
         const o = opts();
         const rows = await invoke('img_rename_preview', { jobs: files.map(f => ({ path: f.path, new_name: null })), pattern: o.rename_pattern || '{name}.{ext}', outDir: o.out_dir });
         $('ibPreviewOut').innerHTML = `<table class="ttable"><tr><th>源</th><th>目标</th><th>冲突</th></tr>` +
-          rows.map(r => `<tr><td class="tmono">${esc(r.src.split(/[\\/]/).pop())}</td><td class="tmono">${esc(r.target.split(/[\\/]/).pop())}</td>
-            <td class="${r.conflict ? 'terr' : ''}">${r.conflict ? esc(r.conflict) : '—'}</td></tr>`).join('') + '</table>';
+          rows.map(r => `<tr><td class="tmono">${esc(r.src.replace(/^.*[\\/]/, ''))}</td><td class="tmono">${esc(r.target.replace(/^.*[\\/]/, ''))}</td>
+            <td class="tsc" data-tone="${r.conflict ? 'bad' : 'ok'}">${r.conflict ? esc(r.conflict) : '—'}</td></tr>`).join('') + '</table>';
       } catch (e) { toast('预览失败：' + e); }
     };
 
@@ -120,9 +120,9 @@
         const ok = results.filter(r => r.ok).length;
         $('ibResults').innerHTML = `<div class="tnote">完成：${ok}/${results.length} 成功 · 输出目录 ${esc(o.out_dir)}</div>
           <table class="ttable"><tr><th>源</th><th>输出</th><th>尺寸</th><th>大小</th><th>状态</th></tr>` +
-          results.map(r => `<tr><td class="tmono">${esc(r.src.split(/[\\/]/).pop())}</td><td class="tmono">${esc(r.out.split(/[\\/]/).pop())}</td>
+          results.map(r => `<tr><td class="tmono">${esc(r.src.replace(/^.*[\\/]/, ''))}</td><td class="tmono">${esc(r.out.replace(/^.*[\\/]/, ''))}</td>
             <td>${r.width ? r.width + '×' + r.height : '—'}</td><td>${r.bytes ? (r.bytes / 1024).toFixed(0) + ' KB' : '—'}</td>
-            <td class="${r.ok ? '' : 'terr'}">${r.ok ? '成功' : esc(r.error || '失败')}</td></tr>`).join('') + '</table>';
+            <td class="tsc" data-tone="${r.ok ? 'ok' : 'bad'}">${r.ok ? '成功' : esc(r.error || '失败')}</td></tr>`).join('') + '</table>';
         toast(`批处理完成：${ok}/${results.length}`);
       } catch (e) {
         toast('批处理失败：' + e);
@@ -131,6 +131,7 @@
         if (unlisten) { unlisten(); unlisten = null; }
       }
     };
+    host.__lkReset = () => { files = []; outDir = ''; return true; };
     renderList();
   };
 })();

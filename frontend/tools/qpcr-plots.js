@@ -3,17 +3,17 @@
 // 期刊主题：Arial、黑白友好色盲安全配色（Okabe-Ito）、SVG 矢量 + PNG 300/600dpi 导出。
 (function () {
   const W = typeof window !== 'undefined' ? window : globalThis;
-  // Okabe-Ito 色盲安全调色板
-  const PALETTE = ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#E69F00', '#56B4E9', '#F0E442', '#000000'];
+  // Okabe-Ito 色盲安全调色板（单源：tools/lib/colors.js，plotter 读同一份）
+  const PALETTE = W.LKColors.JOURNAL;
   // 期刊图字体单一来源：Arial/Helvetica 是投稿的安全默认，plotter 与本文件共用，
   // 不再各自散落字面量。界面 UI 字体（Inter）不用于出版图，避免期刊兼容问题。
   const JOURNAL_FONT = 'Arial, Helvetica, sans-serif';
 
-  // 图表高度随视口伸缩：写死 340/400px 在矮窗口里把工具页撑出滚动，高分屏上又局促。
-  // 导出走 exportBar 的期刊 mm 宽度 + 固定比例，不受这里影响。
-  function plotHeight(base) {
-    const vh = (typeof window !== 'undefined' && window.innerHeight) || 800;
-    return Math.round(Math.max(240, Math.min(base, vh * 0.44)));
+  // 图表高度跟容器宽度走（容器查询语义），不再依赖 window.innerHeight：
+  // 同一工具放进主窗或独立窗口时高度一致，窄容器也不会把页面撑出横向滚动。
+  function plotHeight(base, el) {
+    const w = (el && el.clientWidth) || (typeof window !== 'undefined' ? window.innerWidth : 0) || 800;
+    return Math.round(Math.max(240, Math.min(base, w * 0.62)));
   }
 
   function journalLayout(extra = {}) {
@@ -96,7 +96,7 @@
   function fcChart(el, analysis, opts = {}) {
     const errMode = opts.errMode || 'SD';
     const res = (analysis.results || []).filter(r => r.fold_change != null);
-    if (!res.length) { el.innerHTML = '<div style="color:#888;font-size:12px">无 Fold Change 结果</div>'; return; }
+    if (!res.length) { el.innerHTML = '<div class="tempty">无 Fold Change 结果</div>'; return; }
     const targets = [...new Set(res.map(r => r.target_id))];
     const groups = [...new Set(res.map(r => r.group || '未分组'))];
     const stats = {}; (analysis.stats || []).forEach(s => { stats[s.target_id] = s; });
@@ -147,7 +147,7 @@
     });
     const layout = journalLayout({
       barmode: 'group', bargap: 0.25, bargroupgap: 0.08,
-      height: plotHeight(340),
+      height: plotHeight(340, el),
       xaxis: Object.assign(journalLayout().xaxis, { title: { text: '靶基因', font: { size: 13 } }, tickfont: { size: 12 } }),
       yaxis: Object.assign(journalLayout().yaxis, { title: { text: 'Fold Change（log2）', font: { size: 13 } }, tickvals, ticktext, range: [lo, hi + 0.8], zeroline: true, zerolinecolor: '#999', zerolinewidth: 1 }),
       annotations, shapes,
@@ -161,8 +161,8 @@
     const xmin = Math.min(...X), xmax = Math.max(...X);
     const fitX = [xmin, xmax], fitY = fitX.map(x => slope * x + (mean(Y) - slope * mean(X)));
     const traces = [
-      { type: 'scatter', mode: 'markers', name: '稀释度均值', x: X, y: Y, marker: { color: '#0072B2', size: 9, line: { color: '#000', width: 1 } }, hovertemplate: 'log10=%{x:.2f}<br>Cq=%{y:.2f}<extra></extra>' },
-      { type: 'scatter', mode: 'lines', name: '线性拟合', x: fitX, y: fitY, line: { color: '#D55E00', width: 2, dash: 'dash' }, hoverinfo: 'skip' },
+      { type: 'scatter', mode: 'markers', name: '稀释度均值', x: X, y: Y, marker: { color: PALETTE[0], size: 9, line: { color: '#000', width: 1 } }, hovertemplate: 'log10=%{x:.2f}<br>Cq=%{y:.2f}<extra></extra>' },
+      { type: 'scatter', mode: 'lines', name: '线性拟合', x: fitX, y: fitY, line: { color: PALETTE[1], width: 2, dash: 'dash' }, hoverinfo: 'skip' },
     ];
     if (raw) {
       const rx = [], ry = [];
@@ -170,7 +170,7 @@
       traces.unshift({ type: 'scatter', mode: 'markers', name: '复孔', x: rx, y: ry, marker: { color: '#999', size: 5, symbol: 'circle-open' }, hoverinfo: 'skip' });
     }
     const layout = journalLayout({
-      height: plotHeight(300), showlegend: true,
+      height: plotHeight(300, el), showlegend: true,
       xaxis: Object.assign(journalLayout().xaxis, { title: { text: 'log10(稀释倍数)', font: { size: 13 } } }),
       yaxis: Object.assign(journalLayout().yaxis, { title: { text: 'Cq', font: { size: 13 } } }),
       annotations: [{
@@ -184,13 +184,14 @@
 
   // 导出条：SVG 矢量 / PNG 300dpi / PNG 600dpi（宽度按期刊 mm 预设）
   function exportBar(container, getEl, baseName) {
+    container.classList.add('fc-export');
     container.innerHTML = `
-      <label style="font-size:11px;color:#666">图宽
-        <select id="${baseName}_mm" style="font-size:11px"><option value="85">85mm（单栏）</option><option value="120">120mm</option><option value="170" selected>170mm（双栏）</option></select>
+      <label class="fc-mmlabel">图宽
+        <select id="${baseName}_mm"><option value="85">85mm（单栏）</option><option value="120">120mm</option><option value="170" selected>170mm（双栏）</option></select>
       </label>
-      <button class="btn sec" id="${baseName}_svg" style="font-size:11px;padding:3px 8px">SVG</button>
-      <button class="btn sec" id="${baseName}_png300" style="font-size:11px;padding:3px 8px">PNG 300dpi</button>
-      <button class="btn sec" id="${baseName}_png600" style="font-size:11px;padding:3px 8px">PNG 600dpi</button>`;
+      <button class="tbtn sec xs" id="${baseName}_svg">SVG</button>
+      <button class="tbtn sec xs" id="${baseName}_png300">PNG 300dpi</button>
+      <button class="tbtn sec xs" id="${baseName}_png600">PNG 600dpi</button>`;
     const dl = (href, name) => { const a = document.createElement('a'); a.href = href; a.download = name; a.click(); };
     const mm = () => Number(container.querySelector('#' + baseName + '_mm').value) || 170;
     container.querySelector('#' + baseName + '_svg').onclick = async () => {

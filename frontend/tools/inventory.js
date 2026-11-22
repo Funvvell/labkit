@@ -12,12 +12,13 @@
     if (isNaN(d)) return null;
     return Math.ceil((d - new Date().setHours(0, 0, 0, 0)) / 86400000);
   }
+  /* 状态只给语义 tone，颜色交给 .tsc[data-tone]：原先写死 #FF453A 等在暗色下对比不足 */
   function status(r) {
     const d = days(r.exp);
-    if (d !== null && d < 0) return { k: 'expired', t: '已过期', c: '#FF453A' };
-    if (d !== null && d <= 30) return { k: 'expiring', t: `近效期 ${d}天`, c: '#FF9F0A' };
-    if (r.quantity != null && r.min_stock != null && Number(r.quantity) <= Number(r.min_stock)) return { k: 'low', t: '低库存', c: '#AF52DE' };
-    return { k: 'ok', t: '正常', c: '#30D158' };
+    if (d !== null && d < 0) return { k: 'expired', t: '已过期', tone: 'bad' };
+    if (d !== null && d <= 30) return { k: 'expiring', t: `近效期 ${d}天`, tone: 'warn' };
+    if (r.quantity != null && r.min_stock != null && Number(r.quantity) <= Number(r.min_stock)) return { k: 'low', t: '低库存', tone: 'info' };
+    return { k: 'ok', t: '正常', tone: 'ok' };
   }
   function persist() {
     if (typeof saveDB === 'function') saveDB();
@@ -30,24 +31,24 @@
     host.innerHTML = `
       <div class="tool-section">
         <div class="trow">
-          <input id="ivSearch" type="text" placeholder="搜索名称/货号/批次/位置…" style="flex:1;min-width:160px">
+          <label class="tfield grow"><span>搜索</span><input id="ivSearch" type="text" placeholder="名称/货号/批次/位置…"></label>
           <label class="tfield">状态<select id="ivStatus"><option value="">全部</option><option value="expired">已过期</option><option value="expiring">近效期≤30天</option><option value="low">低库存</option></select></label>
           <button class="tbtn pri" id="ivAdd">新增条目</button>
           <button class="tbtn sec" id="ivNotify">效期扫描提醒</button>
         </div>
-        <div class="trow" style="margin-top:6px">
+        <div class="trow">
           <button class="tbtn sec" id="ivCsvOut">导出 CSV（InvenTree 兼容）</button>
-          <label class="tbtn sec" style="cursor:pointer">导入 CSV<input id="ivCsvIn" type="file" accept=".csv" style="display:none"></label>
+          <span class="tfile"><input id="ivCsvIn" type="file" accept=".csv"><span class="tfile-face">导入 CSV</span></span>
           <button class="tbtn sec" id="ivApiToggle">InvenTree API 模式 ▾</button>
         </div>
-        <div id="ivApi" style="display:none;margin-top:8px;padding:8px;border:1px dashed #ccc;border-radius:8px">
+        <div id="ivApi" class="iv-api" hidden>
           <div class="trow">
-            <input id="ivApiUrl" type="text" placeholder="https://inventree.example.org" style="flex:1">
-            <input id="ivApiToken" type="password" placeholder="API Token" class="iv-token">
+            <label class="tfield grow"><span>服务器地址</span><input id="ivApiUrl" type="text" placeholder="https://inventree.example.org"></label>
+            <label class="tfield"><span>API Token</span><input id="ivApiToken" type="password" placeholder="Token" class="iv-token"></label>
             <button class="tbtn sec" id="ivApiTest">测试连接</button>
             <button class="tbtn sec" id="ivApiPull">拉取 parts 入库</button>
           </div>
-          <div class="tnote">仅调用已有 InvenTree 服务器的 REST API（/api/part/），不内嵌其代码。Token 仅存本机 localStorage。</div>
+          <div class="tnote flat">仅调用已有 InvenTree 服务器的 REST API（/api/part/），不内嵌其代码。Token 仅存本机 localStorage。</div>
         </div>
       </div>
       <div class="tool-section"><div id="ivTable"></div></div>
@@ -74,17 +75,20 @@
             <td>${esc(r.loc || '—')}</td><td>${r.quantity != null ? esc(String(r.quantity)) + esc(r.unit || '') : esc(r.left || '—')}</td>
             <td>${r.min_stock != null ? esc(String(r.min_stock)) : '—'}</td>
             <td>${esc(r.exp || '—')}${d !== null ? `<div class="tnote">${d < 0 ? '已过期' : d + ' 天'}</div>` : ''}</td>
-            <td style="color:${s.c}">${s.t}</td>
-            <td style="white-space:nowrap">
-              <button class="tbtn sec" data-edit="${i}" style="padding:1px 6px">编辑</button>
-              <button class="tbtn sec" data-move="${i}" style="padding:1px 6px">出入库</button>
-              <button class="tbtn sec" data-del="${i}" style="padding:1px 6px">×</button>
+            <td class="tsc" data-tone="${s.tone}">${s.t}</td>
+            <td class="iv-ops">
+              <button class="tbtn sec xs" data-edit="${i}">编辑</button>
+              <button class="tbtn sec xs" data-move="${i}">出入库</button>
+              <button class="tbtn sec xs" data-del="${i}" aria-label="删除 ${esc(r.name)}">×</button>
             </td></tr>`;
-        }).join('') + '</table>' : '<div class="tnote">无匹配条目。</div>';
+        }).join('') + '</table>' : '<div class="tempty">无匹配条目。</div>';
       host.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => editModal(rows()[Number(b.dataset.edit)]));
       host.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
         const i = Number(b.dataset.del);
-        if (confirm(`删除「${rows()[i].name}」？`)) { rows().splice(i, 1); persist(); render(); }
+        /* 统一确认层：原生 confirm() 不可样式化、不可键盘操作，且与台账页行为不一致 */
+        confirmModal('删除条目？', `「${rows()[i].name}」及其出入库记录会被删除，无法撤销。`, () => {
+          rows().splice(i, 1); persist(); render(); toast('已删除');
+        }, '删除');
       });
       host.querySelectorAll('[data-move]').forEach(b => b.onclick = () => moveModal(rows()[Number(b.dataset.move)]));
       const n = rows().length;
@@ -157,14 +161,19 @@
         toast('浏览器模式：' + body.replace(/\n/g, '；'));
       }
       Store.set('tool:inv-notify', today);
-      if (manual) $('ivLog').innerHTML = `<div class="twarn" style="white-space:pre-wrap">${esc(body)}</div>`;
+      if (manual) $('ivLog').innerHTML = `<div class="twarn tpre">${esc(body)}</div>`;
     }
     $('ivNotify').onclick = () => notifyScan(true);
 
     // ---- CSV（InvenTree 兼容列）----
     const COLS = ['name', 'no', 'lot', 'category', 'spec', 'loc', 'quantity', 'unit', 'min_stock', 'exp', 'open', 'supplier', 'notes'];
     $('ivCsvOut').onclick = () => {
-      const cell = c => { const s = String(c == null ? '' : c); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+      /* 导出给 Excel 时防公式注入：= + - @ 开头的单元格加前导单引号 */
+      const cell = c => {
+        let s = String(c == null ? '' : c);
+        if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+        return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+      };
       const csv = [COLS.join(',')].concat(rows().map(r => COLS.map(c => cell(r[c])).join(','))).join('\n');
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
@@ -197,7 +206,7 @@
     // ---- InvenTree API（可选）----
     $('ivApiToggle').onclick = () => {
       const el = $('ivApi');
-      el.style.display = el.style.display === 'none' ? '' : 'none';
+      el.hidden = !el.hidden;
       try {
         const cfg = JSON.parse(Store.get('tool:inv-api', null) || '{}');
         $('ivApiUrl').value = cfg.url || ''; $('ivApiToken').value = cfg.token || '';
@@ -248,6 +257,8 @@
       } catch (e) { toast('拉取失败：' + e.message); }
     };
 
+    /* 统一壳重置只清筛选与搜索，绝不动台账数据（DB.reagents 与实验室页同源） */
+    host.__lkReset = () => { $('ivSearch').value = ''; $('ivStatus').value = ''; render(); return true; };
     render();
     notifyScan(false);
   };

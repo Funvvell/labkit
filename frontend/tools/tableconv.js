@@ -6,18 +6,18 @@
         <h3>输入</h3>
         <div class="hint">粘贴 CSV/TSV/Markdown/HTML 表格，或选择 CSV/Excel 文件（自动识别首行为表头）。</div>
         <div class="trow">
-          <div class="tfield" style="flex:1"><textarea id="tc-in" rows="7" placeholder="name,group,value&#10;A,ctrl,1.2&#10;B,treat,2.4"></textarea></div>
+          <label class="tfield grow"><span>输入表格</span><textarea id="tc-in" rows="7" placeholder="name,group,value&#10;A,ctrl,1.2&#10;B,treat,2.4"></textarea></label>
         </div>
         <div class="trow">
-          <input type="file" id="tc-file" accept=".csv,.tsv,.txt,.xlsx,.xls" style="font-size:12.5px">
-          <div class="tfield"><label>输入格式</label><select id="tc-fmt"><option value="auto" selected>自动识别</option><option value="csv">CSV</option><option value="tsv">TSV</option><option value="md">Markdown</option><option value="html">HTML</option></select></div>
-          <div class="tfield"><label>输出格式</label><select id="tc-out"><option value="md" selected>Markdown</option><option value="csv">CSV</option><option value="tsv">TSV</option><option value="html">HTML</option><option value="latex">LaTeX (booktabs)</option><option value="json">JSON</option></select></div>
+          <span class="tfile"><input type="file" id="tc-file" accept=".csv,.tsv,.txt,.xlsx,.xls"><span class="tfile-face">选择文件</span></span>
+          <label class="tfield">输入格式<select id="tc-fmt"><option value="auto" selected>自动识别</option><option value="csv">CSV</option><option value="tsv">TSV</option><option value="md">Markdown</option><option value="html">HTML</option></select></label>
+          <label class="tfield">输出格式<select id="tc-out"><option value="md" selected>Markdown</option><option value="csv">CSV</option><option value="tsv">TSV</option><option value="html">HTML</option><option value="latex">LaTeX (booktabs)</option><option value="json">JSON</option></select></label>
           <button class="tbtn pri" id="tc-run">转换</button>
           <button class="tbtn sec" id="tc-copy">复制</button>
           <button class="tbtn sec" id="tc-dl">下载</button>
         </div>
         <div class="tout" id="tc-err"></div>
-        <div class="tout"><div class="tmono" id="tc-result" style="max-height:380px;overflow:auto"></div></div>
+        <div class="tout"><div class="tmono tbody-scroll" id="tc-result"></div></div>
         <div class="tout" id="tc-preview"></div>
       </div>`;
     const $ = id => host.querySelector('#' + id);
@@ -80,6 +80,8 @@
           const ws = wb.Sheets[wb.SheetNames[0]];
           rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
           $('tc-in').value = Papa.unparse(rows);
+          /* 转成 CSV 文本后必须同步「输入格式」，否则自动识别会按逗号猜错 */
+          $('tc-fmt').value = 'csv';
           toast('Excel 已载入：' + f.name);
         } else {
           $('tc-in').value = await f.text();
@@ -108,7 +110,7 @@
       const ext = { md: 'md', csv: 'csv', tsv: 'tsv', html: 'html', latex: 'tex', json: 'json' }[$('tc-out').value];
       const blob = new Blob([result], { type: 'text/plain;charset=utf-8' });
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob); a.download = 'table.' + ext; a.click(); URL.revokeObjectURL(a.href);
+      a.href = URL.createObjectURL(blob); a.download = 'table.' + ext; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     };
   };
 })();

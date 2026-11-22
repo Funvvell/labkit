@@ -14,6 +14,7 @@ for (const f of [
   'vendor/simple-statistics.min.js',
   'tools/lib/scipy-mwu.js',
   'tools/lib/stats-engine.js',
+  'tools/lib/colors.js',
   'tools/qpcr-plots.js',
   'tools/plotter.js',
 ].map(x => 'frontend/' + x)) vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f });

@@ -60,12 +60,12 @@ main{flex:1;min-height:0;overflow:auto;padding:16px 18px 4px}
   color:var(--ink);font:600 12.5px/1 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;
   cursor:default;
 }
-.seg button:hover{color:var(--accent)}
-.seg button[aria-pressed=true]{background:var(--seg-active);color:var(--accent);box-shadow:var(--shadow)}
+.seg button:hover{color:var(--accent-text)}
+.seg button[aria-pressed=true]{background:var(--seg-active);color:var(--accent-text);box-shadow:var(--shadow)}
 .row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .row .label{margin:0}
-.val{font-variant-numeric:tabular-nums;font-weight:650;color:var(--accent)}
-input[type=range]{width:100%;height:18px;margin:0;accent-color:var(--accent);cursor:default}
+.val{font-variant-numeric:tabular-nums;font-weight:650;color:var(--accent-text)}
+input[type=range]{width:100%;height:18px;margin:0;accent-color:var(--accent-text);cursor:default}
 .field.disabled .label,.field.disabled .val{opacity:.45}
 .field.disabled input[type=range]{opacity:.45}
 .note{

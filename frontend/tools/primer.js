@@ -5,23 +5,23 @@
       <div class="tool-section">
         <h3>引物序列</h3>
         <div class="trow">
-          <div class="tfield" style="flex:1"><label>正向引物 5'→3'（ACGT）</label><input type="text" id="pr-f" value="CGTTCCAAAGATGTGGGCATGAGCTTAC" style="width:100%;font-family:ui-monospace,Consolas,monospace"></div>
+          <label class="tfield grow"><span>正向引物 5'→3'（ACGT）</span><input type="text" id="pr-f" value="CGTTCCAAAGATGTGGGCATGAGCTTAC" spellcheck="false" autocapitalize="characters"></label>
         </div>
         <div class="trow">
-          <div class="tfield" style="flex:1"><label>反向引物（可选，用于配对检查）</label><input type="text" id="pr-r" value="" style="width:100%;font-family:ui-monospace,Consolas,monospace" placeholder="5'→3'"></div>
+          <label class="tfield grow"><span>反向引物（可选，用于配对检查）</span><input type="text" id="pr-r" value="" placeholder="5'→3'" spellcheck="false"></label>
         </div>
         <div class="trow">
-          <div class="tfield"><label>NN 热力学表</label><select id="pr-table"><option value="NN3" selected>Allawi-SantaLucia 1997</option><option value="NN4">SantaLucia-Hicks 2004</option><option value="NN2">Sugimoto 1996</option><option value="NN1">Breslauer 1986</option></select></div>
-          <div class="tfield"><label>盐校正</label><select id="pr-sc"><option value="5" selected>5 SantaLucia1998(ΔS)</option><option value="7">7 Owczarzy2008</option><option value="6">6 Owczarzy2004</option><option value="1">1 Schildkraut</option><option value="2">2 Wetmur</option><option value="3">3 SantaLucia1996</option><option value="4">4 SantaLucia1998(Tm)</option><option value="0">0 不校正</option></select></div>
-          <div class="tfield"><label>Na⁺ mM</label><input type="number" id="pr-na" value="50"></div>
-          <div class="tfield"><label>K⁺ mM</label><input type="number" id="pr-k" value="0"></div>
-          <div class="tfield"><label>Tris mM</label><input type="number" id="pr-tris" value="0"></div>
-          <div class="tfield"><label>Mg²⁺ mM</label><input type="number" id="pr-mg" value="0" step="0.1"></div>
-          <div class="tfield"><label>dNTPs mM</label><input type="number" id="pr-dntp" value="0" step="0.1"></div>
+          <label class="tfield w-md"><span>NN 热力学表</span><select id="pr-table"><option value="NN3" selected>Allawi-SantaLucia 1997</option><option value="NN4">SantaLucia-Hicks 2004</option><option value="NN2">Sugimoto 1996</option><option value="NN1">Breslauer 1986</option></select></label>
+          <label class="tfield w-md"><span>盐校正</span><select id="pr-sc"><option value="5" selected>5 SantaLucia1998(ΔS)</option><option value="7">7 Owczarzy2008</option><option value="6">6 Owczarzy2004</option><option value="1">1 Schildkraut</option><option value="2">2 Wetmur</option><option value="3">3 SantaLucia1996</option><option value="4">4 SantaLucia1998(Tm)</option><option value="0">0 不校正</option></select></label>
+          <label class="tfield w-sm"><span>Na⁺ mM</span><input type="number" id="pr-na" value="50"></label>
+          <label class="tfield w-sm"><span>K⁺ mM</span><input type="number" id="pr-k" value="0"></label>
+          <label class="tfield w-sm"><span>Tris mM</span><input type="number" id="pr-tris" value="0"></label>
+          <label class="tfield w-sm"><span>Mg²⁺ mM</span><input type="number" id="pr-mg" value="0" step="0.1"></label>
+          <label class="tfield w-sm"><span>dNTPs mM</span><input type="number" id="pr-dntp" value="0" step="0.1"></label>
         </div>
         <div class="trow">
-          <div class="tfield"><label>引物浓度 nM (dnac1)</label><input type="number" id="pr-c1" value="25"></div>
-          <div class="tfield"><label>模板浓度 nM (dnac2)</label><input type="number" id="pr-c2" value="25"></div>
+          <label class="tfield w-sm"><span>引物浓度 nM (dnac1)</span><input type="number" id="pr-c1" value="25"></label>
+          <label class="tfield w-sm"><span>模板浓度 nM (dnac2)</span><input type="number" id="pr-c2" value="25"></label>
           <button class="tbtn pri" id="pr-run">分析</button>
           <button class="tbtn sec" id="pr-copy">复制报告</button>
         </div>
@@ -80,6 +80,17 @@
     $('pr-run').onclick = () => {
       $('pr-err').innerHTML = '';
       try {
+        /* 空序列会让 Tm_NN 抛错、表格照旧渲染出 NaN；非 ACGT 字符会被 clean() 静默剔除。
+           两者都在入口拦下，报错说清是哪个引物、哪个字符。 */
+        const checkSeq = (id, name) => {
+          const raw = $(id).value;
+          if (!raw.trim()) throw new Error(name + '为空：请粘贴 5\'→3\' 序列');
+          const bad = raw.toUpperCase().replace(/\s+/g, '').split('').filter(c => !'ACGT'.includes(c));
+          if (bad.length) throw new Error(name + '含非 ACGT 字符：' + [...new Set(bad)].join(' '));
+          return raw;
+        };
+        checkSeq('pr-f', '正向引物');
+        if ($('pr-r').value.trim()) checkSeq('pr-r', '反向引物');
         const f = stats($('pr-f').value);
         let html = '<table class="ttable"><tr><th>指标</th><th class="num">正向</th>' + ($('pr-r').value.trim() ? '<th class="num">反向</th>' : '') + '</tr>';
         let r = null;

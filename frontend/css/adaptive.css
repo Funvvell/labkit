@@ -17,12 +17,16 @@ body.win-mode .sidebar{display:none}
 .ws-body{container-type:inline-size}
 .panel.left{width:clamp(196px,24cqw,268px);flex:0 0 clamp(196px,24cqw,268px)}
 .panel.right{width:clamp(206px,26cqw,290px);flex:0 0 clamp(206px,26cqw,290px)}
-/* 极窄容器：三栏改纵向堆叠，画布在上、参数与列表在下，整块可滚 */
-@container (max-width:680px){
+/* 极窄容器：三栏改纵向堆叠，画布在上、参数与列表在下，整块可滚。
+   注意：@container 里的规则只能作用于「容器的后代」，.ws-body 自身就是容器，
+   所以它的 flex-direction 必须放在媒体查询里——否则行方向永远不切，
+   子元素也永远不会按纵排重算（实测 680px 下只剩 347px 横向溢出）。 */
+@media (max-width:859px){
   .ws-body{flex-direction:column;overflow-y:auto}
-  .panel.left,.panel.right{width:auto;flex:0 0 auto;border-left:0;border-right:0;border-top:1px solid var(--line)}
-  .stage-wrap{flex:0 0 auto;height:380px;min-height:380px}
+  .panel.left,.panel.right{width:100%;flex:0 0 auto;border-left:0;border-right:0;border-top:1px solid var(--line)}
+  .stage-wrap{flex:0 0 auto;width:100%;height:380px;min-height:380px}
   #qpcrResult{flex:0 0 auto;min-height:320px}
+  .canvas-bar{flex-wrap:wrap;height:auto;min-height:44px;padding:4px 12px}
 }
 
 /* ============ 固定列数网格 → 自动 fitting ============

@@ -28,7 +28,7 @@
   font-size:11px;color:var(--muted,#86868b);margin-top:3px;line-height:1.45;text-wrap:pretty;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
 }
-.tool-card .tc-kind{display:inline-flex;align-items:center;height:16px;padding:0 5px;margin-top:5px;border-radius:4px;background:var(--accent-soft);color:var(--accent);font-size:var(--text-3xs);font-weight:700;letter-spacing:.03em}
+.tool-card .tc-kind{display:inline-flex;align-items:center;height:16px;padding:0 5px;margin-top:5px;border-radius:4px;background:var(--accent-soft);color:var(--accent-text);font-size:var(--text-3xs);font-weight:700;letter-spacing:.03em}
 .tool-card .tc-fav,.tool-card .tc-win{
   position:absolute;z-index:2;width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;
   font-size:13px;line-height:1;color:var(--disabled);opacity:0;transition:opacity .12s,background .12s,color .12s;
@@ -37,7 +37,7 @@
 .tool-card .tc-win{top:7px;right:31px;font-size:11px}
 .tool-card:hover .tc-fav,.tool-card:hover .tc-win,.tool-card .tc-fav.on,.tool-card .tc-fav:focus-visible,.tool-card .tc-win:focus-visible{opacity:1}
 .tool-card .tc-fav:hover,.tool-card .tc-fav.on{color:var(--orange)}
-.tool-card .tc-win:hover{color:var(--accent)}
+.tool-card .tc-win:hover{color:var(--accent-text)}
 .tool-card .tc-fav:focus-visible,.tool-card .tc-win:focus-visible{background:var(--hover)}
 /* ---- 技术来源小字（工具宿主 + 工作区顶栏下方） ---- */
 .tech-source{font-size:11px;line-height:1.6;color:var(--muted,#86868b);text-wrap:pretty;margin:0 0 12px}
@@ -50,21 +50,28 @@
 .tool-section h3{margin:0 0 12px;font-size:14px;font-weight:600;color:var(--ink,#1d1d1f);text-wrap:balance}
 .tool-section .hint{font-size:12px;color:var(--muted,#86868b);margin:-6px 0 12px;line-height:1.55;text-wrap:pretty}
 .trow{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin-bottom:10px}
-.tfield{display:flex;flex-direction:column;gap:4px}
-.tfield label{font-size:var(--text-sm);color:var(--muted,#6e6e73);font-weight:500;transition:color .15s}
-.tfield:has(:focus-visible) label{color:var(--accent,#007AFF)}
+.tfield{display:flex;flex-direction:column;gap:4px;min-width:0}
+.tfield label,.tfield > span{font-size:var(--text-sm);color:var(--muted,#6e6e73);font-weight:500;transition:color .15s}
+.tfield:has(:focus-visible) label,.tfield:has(:focus-visible) > span{color:var(--accent-text,#007AFF)}
 .tfield input,.tfield select,.tfield textarea{
   border:1px solid color-mix(in srgb,var(--ink,#1d1d1f) 12%,transparent);border-radius:9px;padding:7px 10px;
   font-size:13px;font-family:inherit;background:var(--card,#fff);color:var(--ink,#1d1d1f);outline:none;
   transition:border-color .15s,box-shadow .15s;
 }
-.tfield input:focus,.tfield select:focus,.tfield textarea:focus{border-color:var(--accent,#007AFF);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#007AFF) 14%,transparent)}
+.tfield input:focus,.tfield select:focus,.tfield textarea:focus{border-color:var(--accent-text,#007AFF);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#007AFF) 14%,transparent)}
 /* :user-invalid —— 仅在用户交互后才显示校验失败态，避免加载即报错 */
 .tfield input:user-invalid,.tfield textarea:user-invalid{border-color:var(--red,#FF453A)}
 .tfield input:user-invalid:focus{box-shadow:0 0 0 3px color-mix(in srgb,var(--red,#FF453A) 14%,transparent)}
 .tfield input[type=number]{width:clamp(84px,12cqw,110px)}
+/* 颜色选择器由 UA 画，控件高只有 27px；统一到 28px 的可点下限 */
+.tfield input[type=color]{min-height:28px;padding:2px 4px}
+/* 清单备注是行内输入，仍要满足 28px 可点下限，否则窄行里点不准 */
+.ck-note{min-height:28px}
 .tfield textarea{width:100%;min-height:110px;font-family:var(--mono);font-size:12px;resize:vertical;scrollbar-width:thin}
-.tbtn{border:none;border-radius:9px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:filter .15s,background .15s}
+/* 工具按钮与主壳 .btn 同度量（32/8/12·600），避免页头与工具内差一档。
+   .xs 用于表格行内小操作（编辑/删除），不再用内联 padding 压高度。 */
+.tbtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 14px;border:1px solid transparent;border-radius:8px;font-size:var(--text-sm);font-weight:600;cursor:pointer;font-family:inherit;transition:filter .15s,background .15s,border-color .15s}
+.tbtn.xs{height:22px;padding:0 7px;font-size:var(--text-2xs);border-radius:6px}
 .tbtn.pri{background:var(--accent,#007AFF);color:#fff}
 .tbtn.pri:hover{filter:brightness(1.08)}
 .tbtn.sec{background:color-mix(in srgb,var(--ink,#1d1d1f) 5%,transparent);color:var(--ink,#1d1d1f)}
@@ -73,8 +80,8 @@
 .tout{margin-top:12px}
 .tout:empty{display:none}
 .tnote{font-size:12px;color:var(--muted,#86868b);margin-top:8px;line-height:1.55;text-wrap:pretty}
-.twarn{font-size:12px;color:#b25000;background:color-mix(in srgb,var(--orange,#FF9F0A) 12%,transparent);border-radius:9px;padding:8px 12px;margin-top:8px;line-height:1.5}
-.terr{font-size:var(--text-md);color:#d70015;background:color-mix(in srgb,var(--red,#FF453A) 8%,transparent);border-radius:9px;padding:8px 12px;margin-top:8px}
+.twarn{font-size:var(--text-sm);color:color-mix(in srgb,var(--orange,#FF9F0A) 55%,var(--ink,#1d1d1f));background:color-mix(in srgb,var(--orange,#FF9F0A) 12%,transparent);border-radius:9px;padding:8px 12px;margin-top:8px;line-height:1.5}
+.terr{font-size:var(--text-sm);color:color-mix(in srgb,var(--red,#FF453A) 72%,var(--ink,#1d1d1f));background:color-mix(in srgb,var(--red,#FF453A) 8%,transparent);border-radius:9px;padding:8px 12px;margin-top:8px}
 .ttable{border-collapse:collapse;width:100%;font-size:var(--text-md);margin-top:8px}
 .ttable th,.ttable td{border:1px solid color-mix(in srgb,var(--ink,#1d1d1f) 9%,transparent);padding:6px 10px;text-align:left}
 .ttable th{background:color-mix(in srgb,var(--ink,#1d1d1f) 3.5%,transparent);font-weight:600}
@@ -115,9 +122,117 @@
 /* 计时器 */
 .timer-display{font-size:44px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.02em;color:var(--ink,#1d1d1f)}
 .timer-step{display:flex;gap:10px;align-items:center;padding:8px 12px;border-radius:10px;border:1px solid color-mix(in srgb,var(--ink,#1d1d1f) 7%,transparent);margin-bottom:6px;font-size:13px}
-.timer-step.active{border-color:var(--accent,#007AFF);background:color-mix(in srgb,var(--accent,#007AFF) 6%,transparent)}
+.timer-step.active{border-color:var(--accent-text,#007AFF);background:color-mix(in srgb,var(--accent,#007AFF) 6%,transparent)}
 .timer-step.done{opacity:.5}
 /* 清单 */
 .chk-item{display:flex;gap:9px;align-items:flex-start;padding:7px 4px;border-bottom:1px solid color-mix(in srgb,var(--ink,#1d1d1f) 5%,transparent);font-size:13px;line-height:1.5}
-.chk-item input{margin-top:3px;accent-color:var(--accent,#007AFF)}
-.chk-item .chk-sec{font-size:11px;color:var(--accent,#007AFF);font-weight:600;min-width:64px}
+.chk-item input{margin-top:3px;accent-color:var(--accent-text,#007AFF)}
+.chk-item .chk-sec{font-size:11px;color:var(--accent-text,#007AFF);font-weight:600;min-width:64px}
+
+/* ---- 共享组件补充（2026-11 审核后统一层）----
+   原则：颜色全部由 token / color-mix() 派生，暗色自动跟随；字号只用 type.css 阶梯；
+   组件只补缺，不重复既有 .ttable / .terr / .twarn。 */
+
+/* hidden 属性必须压过 .trow/.tfield/.tool-section 的 display：
+   UA 的 [hidden]{display:none} 特异性低于这些类，不加这行会出现「设了 hidden 仍然显示」 */
+.trow[hidden],.tfield[hidden],.tool-section[hidden],.tout[hidden],.tmono[hidden],.tsplit[hidden],.iv-api[hidden],.tbody-frames[hidden]{display:none}
+
+/* 复选框行：替代各工具内联 flex 包裹，含说明文字的整行可点 */
+.tcheck{display:inline-flex;align-items:center;gap:6px;min-height:32px;font-size:var(--text-sm);color:var(--ink-2,#3a3a3c);line-height:var(--leading-tight);cursor:pointer}
+.tcheck input{width:15px;height:15px;margin:0;accent-color:var(--accent-text,#007AFF);cursor:pointer}
+
+/* 文件导入：真按钮外观 + 覆盖式 file input。
+   键盘可聚焦在 input 上，Enter/Space 触发文件选择；不用 label 冒充按钮（label 不可聚焦）。
+   用法：<span class="tfile"><input id="x" type="file"><span class="tfile-face">导入 CSV</span></span> */
+.tfile{position:relative;display:inline-flex;align-items:center;vertical-align:middle}
+.tfile > input[type=file]{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;font-size:0;cursor:pointer}
+.tfile > .tfile-face{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 14px;border-radius:8px;border:1px solid transparent;font-size:var(--text-sm);font-weight:600;background:color-mix(in srgb,var(--ink,#1d1d1f) 5%,transparent);color:var(--ink,#1d1d1f);transition:background .15s}
+.tfile:hover > .tfile-face{background:color-mix(in srgb,var(--ink,#1d1d1f) 9%,transparent)}
+.tfile:focus-within > .tfile-face{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#007AFF) 22%,transparent)}
+
+/* 结果句块：正文语气的结果行（APA 串、分组文本等），与 .tmono（数值/代码）分工 */
+.tresult{font-size:var(--text-md);line-height:var(--leading-normal);color:var(--ink,#1d1d1f);word-break:break-word}
+.tresult b{font-weight:600}
+.tresult.pre{white-space:pre-wrap}
+
+/* 结果滚动容器：统一高度口径，避免各工具写死 max-height */
+.tbody-scroll{max-height:min(52vh,520px);overflow:auto;overscroll-behavior:contain}
+/* 定高容器：给 Tabulator / 画布类需要「百分比高度」的组件当宿主 */
+.tbody-frames{height:min(52vh,480px);overflow:hidden}
+/* 小工具：单行提示不占额外上下间距 */
+.tnote.flat{margin:0}
+
+/* 语义三态：淡底块 / 纯文字两种形态，一套 data-tone 走全站 */
+.tone{padding:8px 12px;border-radius:9px;margin-top:8px;font-size:var(--text-sm);line-height:var(--leading-normal);color:var(--ink-2,#3a3a3c)}
+.tone[data-tone="ok"]{background:color-mix(in srgb,var(--green,#30D158) 12%,transparent)}
+.tone[data-tone="warn"]{background:color-mix(in srgb,var(--orange,#FF9F0A) 13%,transparent)}
+.tone[data-tone="bad"]{background:color-mix(in srgb,var(--red,#FF453A) 10%,transparent)}
+.tone[data-tone="info"]{background:color-mix(in srgb,var(--accent,#007AFF) 8%,transparent)}
+/* 纯文字版本：表格单元格 / 状态标签，不加底色不撑行 */
+.tone.plain{padding:0;margin:0;border-radius:0;background:none}
+.tsc{font-size:var(--text-sm);font-weight:600;white-space:nowrap}
+.tsc[data-tone="ok"]{color:color-mix(in srgb,var(--green,#30D158) 55%,var(--ink,#1d1d1f))}
+.tsc[data-tone="warn"]{color:color-mix(in srgb,var(--orange,#FF9F0A) 65%,var(--ink,#1d1d1f))}
+.tsc[data-tone="bad"]{color:var(--red,#FF453A)}
+.tsc[data-tone="info"]{color:var(--accent-text,#007AFF)}
+
+/* 空态：工具内短空态（与 app.css .empty-state 区分：那个占满高度） */
+.tempty{display:flex;align-items:center;gap:8px;padding:14px 4px;color:var(--muted,#8E8E93);font-size:var(--text-sm);line-height:var(--leading-normal)}
+
+/* 孔板编辑器（plate 工具）在工具层内的布局细节，替代原先的逐处内联样式 */
+.pl-canvas-box canvas{max-width:100%;display:block;cursor:crosshair}
+.pl-side-sec{padding:8px}
+.pl-area-list{margin-top:6px;max-height:180px;overflow-y:auto;overflow-x:hidden}
+.pl-area-row{margin:2px 0;align-items:center;gap:8px}
+.pl-color-chip{flex:0 0 auto;width:12px;height:12px;border-radius:3px;background:var(--chip,#8e8e93)}
+.pl-area-name{flex:1;min-width:0;font-size:var(--text-sm);color:var(--ink,#1d1d1f);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* 计时器运行区与步骤行 */
+.tm-run{display:flex;align-items:center;gap:14px;margin-top:10px}
+.tm-run-info{flex:1;min-width:0}
+.tm-current{font-size:var(--text-md);font-weight:600;color:var(--ink,#1d1d1f);line-height:var(--leading-tight)}
+.tm-idx{min-width:22px;font-variant-numeric:tabular-nums;color:var(--muted,#8e8e93)}
+.tm-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Markdown 渲染预览：正文语气，避免 13px 内联字号 */
+.eln-preview{font-size:var(--text-sm);line-height:1.65;color:var(--ink,#1d1d1f)}
+.eln-preview h1,.eln-preview h2{font-size:var(--text-md);margin:10px 0 6px}
+.eln-preview p,.eln-preview li{margin:4px 0}
+
+/* 台账：API 面板虚线框改用 token（原先 #ccc 在暗色下是白边）；操作列不换行 */
+.iv-api{margin-top:8px;padding:8px;border:1px dashed var(--line,#d2d2d7);border-radius:8px}
+.iv-ops{white-space:nowrap}
+/* 保留换行的提示块（运行记录、提醒文本） */
+.tpre{white-space:pre-wrap}
+
+/* 绘图器导出条容器 */
+.pt-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}
+
+/* 拼图台面：原先写死 #e9ebee，暗色下整块发白；用 token 派生灰度 */
+.fg-stage{overflow:auto;padding:12px;background:color-mix(in srgb,var(--ink,#1d1d1f) 7%,var(--bg,#f5f5f7))}
+
+/* 批处理：文件列表、进度条、长路径截断 */
+.ib-list{margin-top:8px;max-height:180px;overflow-y:auto}
+.ib-path{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ib-progress{margin-top:8px;height:8px;border-radius:4px;overflow:hidden;background:color-mix(in srgb,var(--ink,#1d1d1f) 10%,transparent)}
+.ib-bar{height:100%;width:0;background:var(--accent,#007AFF);transition:width .2s}
+
+/* 清单：进度行与备注输入统一到 token（原先 #007AFF / rgba(0,0,0,.1) 在暗色下失真） */
+.ck-progress{font-size:var(--text-sm);font-weight:600;color:var(--accent-text,#007AFF);margin-top:6px}
+.chk-body{flex:1;min-width:0}
+.ck-note{margin-top:4px;width:100%;border:1px solid var(--line,#d2d2d7);border-radius:7px;padding:4px 8px;font-size:var(--text-sm);background:var(--card,#fff);color:var(--ink,#1d1d1f);font-family:inherit}
+.ck-note:focus-visible{outline:none;border-color:var(--accent-text,#007AFF);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#007AFF) 18%,transparent)}
+.ck-md{max-height:300px}
+
+/* qPCR 折线图（SVG 回退）：文字与网格改用 token，暗色下不再黑字压深底 */
+.lc-grid{stroke:color-mix(in srgb,var(--ink,#1d1d1f) 8%,transparent);stroke-width:1}
+.lc-grid.zero{stroke:color-mix(in srgb,var(--ink,#1d1d1f) 24%,transparent)}
+.lc-tick{fill:var(--muted,#8e8e93)}
+.lc-targ{fill:var(--ink,#1d1d1f)}
+.lc-leg{fill:var(--muted,#8e8e93)}
+.lc-sig{fill:var(--orange,#FF9F0A)}
+.lc-sig.ns{fill:var(--muted,#8e8e93)}
+.fc-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0}
+.fc-err,.fc-mmlabel{display:inline-flex;align-items:center;gap:4px;font-size:var(--text-xs);color:var(--muted,#8e8e93)}
+.fc-export{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fc-plotbar{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center}

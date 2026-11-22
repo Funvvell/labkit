@@ -38,7 +38,7 @@
 .tt-tab.drop-after{box-shadow:inset -2px 0 0 var(--accent)}
 .tt-ico{width:15px;height:15px;flex:0 0 15px;display:flex;align-items:center;justify-content:center;color:var(--ink-2)}
 .tt-ico svg{width:15px;height:15px}
-.tt-tab.on .tt-ico{color:var(--accent)}
+.tt-tab.on .tt-ico{color:var(--accent-text)}
 .tt-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .tt-x{
   width:18px;height:18px;flex:0 0 18px;border-radius:5px;border:0;

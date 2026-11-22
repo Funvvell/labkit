@@ -5,19 +5,19 @@
       <div class="tool-section">
         <h3>导入数据</h3>
         <div class="trow">
-          <input type="file" id="dw-file" accept=".csv,.tsv,.txt,.xlsx,.xls" style="font-size:12.5px">
+          <span class="tfile"><input type="file" id="dw-file" accept=".csv,.tsv,.txt,.xlsx,.xls"><span class="tfile-face">选择文件</span></span>
           <button class="tbtn sec" id="dw-paste-btn">粘贴导入</button>
           <button class="tbtn sec" id="dw-demo">载入示例</button>
           <button class="tbtn sec" id="dw-undo">撤销</button>
-          <span class="tnote" id="dw-info" style="margin:0"></span>
+          <span class="tnote flat" id="dw-info"></span>
         </div>
-        <div class="trow" id="dw-paste-row" style="display:none">
-          <div class="tfield" style="flex:1"><textarea id="dw-paste" rows="4" placeholder="粘贴 CSV/TSV（首行表头）"></textarea></div>
+        <div class="trow" id="dw-paste-row" hidden>
+          <div class="tfield grow"><label for="dw-paste">粘贴 CSV/TSV（首行表头）</label><textarea id="dw-paste" rows="4" placeholder="粘贴 CSV/TSV（首行表头）"></textarea></div>
           <button class="tbtn pri" id="dw-paste-go">导入</button>
         </div>
         <div class="tout" id="dw-err"></div>
       </div>
-      <div class="tool-section" id="dw-ops" style="display:none">
+      <div class="tool-section" id="dw-ops" hidden>
         <h3>清洗操作</h3>
         <div class="trow">
           <div class="tfield"><label>目标列</label><select id="dw-col"></select></div>
@@ -44,16 +44,16 @@
           <button class="tbtn sec" id="dw-filter">保留满足条件的行</button>
         </div>
       </div>
-      <div class="tool-section" id="dw-gridsec" style="display:none">
+      <div class="tool-section" id="dw-gridsec" hidden>
         <h3>数据表（单元格可编辑）</h3>
-        <div id="dw-grid"></div>
-        <div class="trow" style="margin-top:10px">
+        <div class="tbody-frames"><div id="dw-grid"></div></div>
+        <div class="trow">
           <button class="tbtn sec" id="dw-csv">导出 CSV</button>
           <button class="tbtn sec" id="dw-xlsx">导出 Excel</button>
           <button class="tbtn sec" id="dw-copy">复制 TSV</button>
         </div>
       </div>
-      <div class="tool-section" id="dw-stats" style="display:none">
+      <div class="tool-section" id="dw-stats" hidden>
         <h3>频数与交叉表（arquero）</h3>
         <div class="trow">
           <div class="tfield"><label>频数列</label><select id="dw-freqcol"></select></div>
@@ -75,11 +75,11 @@
       ['dw-col', 'dw-fcol', 'dw-freqcol', 'dw-ctrow', 'dw-ctcol'].forEach(id => colOpts($(id)));
       info();
       const show = rows.length > 0;
-      ['dw-ops', 'dw-gridsec', 'dw-stats'].forEach(id => $(id).style.display = show ? '' : 'none');
+      ['dw-ops', 'dw-gridsec', 'dw-stats'].forEach(id => { $(id).hidden = !show; });
       if (!show) return;
       if (table) table.destroy();
       table = new Tabulator('#dw-grid', {
-        data: rows, height: Math.max(220, Math.min(520, Math.round((window.innerHeight || 800) * 0.42))), layout: 'fitDataFill',
+        data: rows, height: '100%', layout: 'fitDataFill',
         columns: cols.map(c => ({ title: c, field: c, editor: 'input', headerSort: true })),
         cellEdited: () => { snapshot(); },
       });
@@ -112,7 +112,7 @@
         toast('已导入 ' + f.name);
       } catch (e) { $('dw-err').innerHTML = '<div class="terr">' + esc(e.message) + '</div>'; }
     };
-    $('dw-paste-btn').onclick = () => { $('dw-paste-row').style.display = $('dw-paste-row').style.display === 'none' ? '' : 'none'; };
+    $('dw-paste-btn').onclick = () => { const row = $('dw-paste-row'); row.hidden = !row.hidden; };
     $('dw-paste-go').onclick = () => { try { const { header, body } = parseText($('dw-paste').value); loadRows(header, body); } catch (e) { $('dw-err').innerHTML = '<div class="terr">' + esc(e.message) + '</div>'; } };
     $('dw-demo').onclick = () => {
       loadRows(['id', 'group', 'sex', 'age', 'score'], [
@@ -182,19 +182,22 @@
       const cvals = [...new Set(rows.map(r => String(r[cc] ?? '(缺失)')))];
       const m = {}; rvals.forEach(rv => { m[rv] = {}; cvals.forEach(cv => m[rv][cv] = 0); });
       rows.forEach(r => { m[String(r[rc] ?? '(缺失)')][String(r[cc] ?? '(缺失)')]++; });
-      const body = rvals.map(rv => [rv, ...cvals.map(cv => m[rv][cv]), rvals.reduce((s, x) => s + 0, 0) + cvals.reduce((s, cv) => s + m[rv][cv], 0)]);
+      const body = rvals.map(rv => [rv, ...cvals.map(cv => m[rv][cv]), cvals.reduce((s, cv) => s + m[rv][cv], 0)]);
       body.push(['合计', ...cvals.map(cv => rvals.reduce((s, rv) => s + m[rv][cv], 0)), rows.length]);
       $('dw-stats-out').innerHTML = `<div class="tnote">交叉表：${esc(rc)} × ${esc(cc)}（n=${rows.length}）</div>` + statsTable([rc + ' \\ ' + cc, ...cvals, '合计'], body);
     };
     $('dw-stats-copy').onclick = () => { if (!lastStats) return toast('先计算'); navigator.clipboard.writeText(lastStats).then(() => toast('已复制')); };
     function exportRows() { return [cols, ...rows.map(r => cols.map(c => r[c] ?? ''))]; }
-    $('dw-csv').onclick = () => { if (!rows.length) return; const blob = new Blob(['\ufeff' + Papa.unparse(exportRows())], { type: 'text/csv;charset=utf-8' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'cleaned.csv'; a.click(); URL.revokeObjectURL(a.href); };
+    /* 文本表格导出前给 = + - @ 开头的单元格加前导单引号：Excel 打开 CSV/TSV 时不会再当公式求值 */
+    const csvSafe = v => { const s = String(v); return /^[=+\-@\t\r]/.test(s) ? "'" + s : s; };
+    const textRows = () => [cols, ...rows.map(r => cols.map(c => csvSafe(r[c] ?? '')))];
+    $('dw-csv').onclick = () => { if (!rows.length) return; const blob = new Blob(['\ufeff' + Papa.unparse(textRows())], { type: 'text/csv;charset=utf-8' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'cleaned.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); };
     $('dw-xlsx').onclick = () => { if (!rows.length) return; const ws = XLSX.utils.aoa_to_sheet(exportRows()); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'cleaned'); XLSX.writeFile(wb, 'cleaned.xlsx'); };
-    $('dw-copy').onclick = () => { if (!rows.length) return; navigator.clipboard.writeText(Papa.unparse(exportRows(), { delimiter: '\t' })).then(() => toast('TSV 已复制')); };
+    $('dw-copy').onclick = () => { if (!rows.length) return; navigator.clipboard.writeText(Papa.unparse(textRows(), { delimiter: '\t' })).then(() => toast('TSV 已复制')); };
     /* P2：统一壳示例入口 + 清洗结果发送到下游工具 */
     host.__lkExample = () => $('dw-demo').click();
-    const send = document.createElement('div'); send.className = 'trow'; send.style.marginTop = '8px';
-    send.innerHTML = '<span style="font-size:12.5px;color:var(--muted)">发送清洗数据到：</span>';
+    const send = document.createElement('div'); send.className = 'trow';
+    send.innerHTML = '<span class="tnote flat">发送清洗数据到：</span>';
     [['tests', '快速假设检验'], ['plotter', '数据绘图器'], ['table1', 'Table 1 基线表']].forEach(([id, name]) => {
       const b = document.createElement('button'); b.className = 'tbtn sec'; b.textContent = name;
       b.onclick = () => {

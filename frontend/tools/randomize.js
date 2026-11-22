@@ -21,21 +21,21 @@
           <div class="tfield"><label>或处理概率 prob（0-1，优先于 m 留空时）</label><input type="number" id="rz-prob" value="" step="0.01" min="0" max="1" placeholder="如 0.5"></div>
           <div class="tfield w-md"><label>或多臂各组数 mEach（逗号分隔）</label><input type="text" id="rz-meach" value="" placeholder="如 10,10,20"></div>
         </div>
-        <div class="trow" id="rz-blockrow" style="display:none">
-          <div class="tfield" style="flex:1"><label>区组标签（每单位一个，逗号/空格/换行分隔；循环使用）</label><textarea id="rz-blocks" rows="2" placeholder="A,A,A,A,B,B,B,B"></textarea></div>
+        <div class="trow" id="rz-blockrow" hidden>
+          <div class="tfield grow"><label for="rz-blocks">区组标签（每单位一个，逗号/空格/换行分隔；循环使用）</label><textarea id="rz-blocks" rows="2" placeholder="A,A,A,A,B,B,B,B"></textarea></div>
         </div>
-        <div class="trow" id="rz-clusterrow" style="display:none">
-          <div class="tfield" style="flex:1"><label>群标签（每单位一个；循环使用）</label><textarea id="rz-clusters" rows="2" placeholder="c1,c1,c2,c2,c3,c3"></textarea></div>
+        <div class="trow" id="rz-clusterrow" hidden>
+          <div class="tfield grow"><label for="rz-clusters">群标签（每单位一个；循环使用）</label><textarea id="rz-clusters" rows="2" placeholder="c1,c1,c2,c2,c3,c3"></textarea></div>
         </div>
         <div class="trow">
           <button class="tbtn pri" id="rz-run">生成随机序列</button>
           <button class="tbtn sec" id="rz-copy">复制 CSV</button>
           <button class="tbtn sec" id="rz-copymap" disabled>复制揭盲映射</button>
-          <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="rz-blind" checked>分配隐藏（code-only 导出）</label>
+          <label class="tcheck"><input type="checkbox" id="rz-blind" checked>分配隐藏（code-only 导出）</label>
         </div>
         <div class="tout" id="rz-err"></div>
         <div class="tout" id="rz-summary"></div>
-        <div class="tout" id="rz-table" style="max-height:340px;overflow:auto"></div>
+        <div class="tout tbody-scroll" id="rz-table"></div>
         <div class="tnote">分配隐藏默认开启：序列与导出只含组别代码（A/B/C…），不含组名；「复制揭盲映射」得到的 code↔组 对照须交由非招募人员单独保管，揭盲前不得与序列同处。记录种子与生成时间以备审计。</div>
       </div>`;
     const $ = id => host.querySelector('#' + id);
@@ -48,8 +48,8 @@
     }
     function syncRows() {
       const m = $('rz-mode').value;
-      $('rz-blockrow').style.display = (m === 'block' || m === 'blockcluster') ? '' : 'none';
-      $('rz-clusterrow').style.display = (m === 'cluster' || m === 'blockcluster') ? '' : 'none';
+      $('rz-blockrow').hidden = !(m === 'block' || m === 'blockcluster');
+      $('rz-clusterrow').hidden = !(m === 'cluster' || m === 'blockcluster');
     }
     $('rz-mode').onchange = syncRows; syncRows();
     $('rz-run').onclick = () => {
@@ -61,14 +61,27 @@
         if (conditions.length < 2) throw new Error('至少两个分组');
         const seed = $('rz-seed').value.trim() || String(Date.now());
         $('rz-seed').value = seed;
-        // seedrandom 3.x：new Math.seedrandom(seed) 返回独立 PRNG 函数（不污染全局 Math.random）
-        const rng = Math.seedrandom ? new Math.seedrandom(seed) : Math.random;
+        /* seedrandom 3.x：new Math.seedrandom(seed) 返回独立 PRNG 函数（不污染全局 Math.random）。
+           缺库时不能退回 Math.random —— 界面已经把种子回填，用户会以为可复现。 */
+        if (!Math.seedrandom) throw new Error('随机引擎 seedrandom 未加载，无法按种子复现（请刷新页面重试）');
+        const rng = new Math.seedrandom(seed);
         const opts = { conditions, rng };
         const meach = $('rz-meach').value.trim();
         const prob = $('rz-prob').value.trim();
-        if (meach) opts.mEach = meach.split(/[,，]/).map(Number);
-        else if (prob !== '') opts.prob = parseFloat(prob);
-        else opts.m = parseInt($('rz-m').value, 10);
+        if (meach) {
+          const arr = meach.split(/[,，]/).map(s => Number(s.trim())).filter(Number.isFinite);
+          if (!arr.length) throw new Error('mEach 需为逗号分隔的数字，如 10,10,20');
+          if (arr.length !== conditions.length) throw new Error(`mEach 数量（${arr.length}）需与分组数（${conditions.length}）一致`);
+          opts.mEach = arr;
+        } else if (prob !== '') {
+          const p = Number(prob);
+          if (!Number.isFinite(p) || p < 0 || p > 1) throw new Error('处理概率 prob 需在 0 与 1 之间');
+          opts.prob = p;
+        } else {
+          const m = Number($('rz-m').value.trim());
+          if (!Number.isFinite(m) || m < 0 || m % 1 !== 0) throw new Error('处理组数量 m 需为非负整数');
+          opts.m = m;
+        }
         const mode = $('rz-mode').value;
         const blocks = parseLabels($('rz-blocks').value, n);
         const clusters = parseLabels($('rz-clusters').value, n);
